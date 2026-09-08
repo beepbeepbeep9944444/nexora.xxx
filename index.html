@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>nexora.xxx</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: #0a0a0e;
+      background-image: radial-gradient(circle at 25% 20%, #12121c 0%, #030307 100%);
+      font-family: 'Inter', sans-serif;
+      color: #e2e8ff;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    .grid-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 2;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 18px 32px;
+      background: rgba(8, 8, 14, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .logo {
+      font-weight: 600;
+      font-size: 1.3rem;
+      letter-spacing: -0.5px;
+      color: #cbd5ff;
+    }
+    .logo span {
+      color: #3b82f6;
+    }
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      font-weight: 500;
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      text-decoration: none;
+      font-size: 0.8rem;
+      color: #9aa9d4;
+      transition: 0.2s;
+      text-transform: lowercase;
+      cursor: pointer;
+    }
+    .nav-links a:hover {
+      color: #3b82f6;
+    }
+    .btn-outline-nav {
+      border: 1px solid #3b82f6;
+      padding: 5px 16px;
+      border-radius: 40px;
+      background: transparent;
+    }
+
+    .hero {
+      padding: 100px 0 70px;
+    }
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 20px;
+    }
+    .hero h1 span {
+      color: #3b82f6;
+    }
+    .hero p {
+      max-width: 520px;
+      color: #9aa9d4;
+      font-size: 1rem;
+      margin-bottom: 32px;
+    }
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+    }
+    .btn-primary {
+      background: #3b82f6;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: white;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #3b82f6;
+      padding: 10px 24px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #e2e8ff;
+      text-decoration: none;
+    }
+
+    .section {
+      padding: 70px 0;
+      border-top: 1px solid rgba(255,255,255,0.03);
+    }
+    .section h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 40px;
+      letter-spacing: -0.3px;
+      color: #cbd5ff;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .feature {
+      background: rgba(10, 10, 18, 0.6);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 20px;
+      padding: 20px;
+      transition: 0.2s;
+    }
+    .feature:hover {
+      border-color: #3b82f6;
+      background: rgba(20, 20, 32, 0.7);
+    }
+    .feature h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #e2e8ff;
+    }
+    .feature p {
+      color: #8f9dcc;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .pricing-grid {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .plan {
+      background: rgba(10, 10, 18, 0.7);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 24px;
+      padding: 28px;
+      text-align: center;
+      min-width: 240px;
+      backdrop-filter: blur(4px);
+    }
+    .plan h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+    .price {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #3b82f6;
+      margin: 16px 0;
+    }
+    .plan ul {
+      list-style: none;
+      margin: 20px 0;
+    }
+    .plan li {
+      font-size: 0.8rem;
+      color: #a1b0da;
+      margin: 8px 0;
+    }
+    .purchase-btn {
+      background: #3b82f6;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      color: white;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      width: 100%;
+    }
+
+    .reviews-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .review-card {
+      background: rgba(10, 10, 18, 0.5);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      border-radius: 20px;
+      padding: 20px;
+    }
+    .review-text {
+      font-size: 0.85rem;
+      color: #b5c4ff;
+      font-style: normal;
+      margin-bottom: 12px;
+    }
+    .review-author {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #3b82f6;
+      text-transform: lowercase;
+    }
+
+    footer {
+      text-align: center;
+      padding: 40px 24px;
+      border-top: 1px solid rgba(255,255,255,0.03);
+      color: #6a78aa;
+      font-size: 0.75rem;
+    }
+
+    @media (max-width: 750px) {
+      .hero h1 {
+        font-size: 2.2rem;
+      }
+      nav {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .reviews-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: 0.5s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<nav>
+  <div class="logo">nexora<span>.xxx</span></div>
+  <div class="nav-links">
+    <a class="nav-features">features</a>
+    <a class="nav-pricing">pricing</a>
+    <a class="nav-reviews">reviews</a>
+    <a href="tos.html">tos</a>
+    <a href="about.html">about</a>
+    <a href="status.html">status</a>
+    <a href="login.html" class="btn-outline-nav">login</a>
+    <a href="register.html" class="btn-outline-nav">register</a>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <div class="hero">
+      <div class="reveal">
+        <h1>nexora.<span>xxx</span></h1>
+        <p>private movement cheat for typical colors 2 / roblox. null strafes, edge jumps, stream proof.</p>
+        <div class="hero-buttons">
+          <a class="btn-primary nav-pricing">get access</a>
+          <a class="btn-secondary nav-features">features</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="features" class="section">
+      <h2 class="reveal">core modules</h2>
+      <div class="features-grid">
+        <div class="feature reveal"><h3>movement</h3><p>bunnyhop, autostrafe, edge jump, long jump, mini jump, null strafes, strafe optimizer, ladder jump, jump bug, crouch bug, auto duck, smart edge bug.</p></div>
+        <div class="feature reveal"><h3>visuals</h3><p>esp, chams, glow, indicators, velocity meter, watermark, fully stream safe (obs / discord).</p></div>
+        <div class="feature reveal"><h3>aim assist</h3><p>humanized smoothing, triggerbot, hitbox selection, fov customization, randomization.</p></div>
+        <div class="feature reveal"><h3>bypass</h3><p>kernel-level active bypass, signature scrambling, weekly updates. undetected since 2024.</p></div>
+        <div class="feature reveal"><h3>web panel</h3><p>remote config, live toggles, cloud saves, export/import json — from any browser.</p></div>
+        <div class="feature reveal"><h3>support</h3><p>private discord channel, ticket-based purchases, hwid resets every 60 days.</p></div>
+      </div>
+    </div>
+
+    <div id="pricing" class="section">
+      <h2 class="reveal">pricing</h2>
+      <div class="pricing-grid">
+        <div class="plan reveal">
+          <h3>monthly</h3>
+          <div class="price">$3.99</div>
+          <ul>
+            <li>full movement & visuals</li>
+            <li>stream safe</li>
+            <li>web panel access</li>
+            <li>standard support</li>
+          </ul>
+          <a href="https://discord.gg/NEfheQHv" class="purchase-btn" target="_blank">purchase →</a>
+        </div>
+        <div class="plan reveal">
+          <h3>lifetime</h3>
+          <div class="price">$12.99</div>
+          <ul>
+            <li>all features unlocked</li>
+            <li>priority updates</li>
+            <li>private support channel</li>
+            <li>no recurring fees</li>
+          </ul>
+          <a href="https://discord.gg/NEfheQHv" class="purchase-btn" target="_blank">get lifetime →</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="reviews" class="section">
+      <h2 class="reveal">reviews</h2>
+      <div class="reviews-grid">
+        <div class="review-card reveal"><div class="review-text">"best movement i've used, null strafes feel native. zero flags."</div><div class="review-author">— arkko</div></div>
+        <div class="review-card reveal"><div class="review-text">"clean ui, bypass is solid. been using for months without issues."</div><div class="review-author">— amari</div></div>
+        <div class="review-card reveal"><div class="review-text">"worth every dollar. edge jumps are crisp and support is fast."</div><div class="review-author">— matty</div></div>
+        <div class="review-card reveal"><div class="review-text">"stream safe actually works. i've been live for weeks, no detections."</div><div class="review-author">— rup</div></div>
+        <div class="review-card reveal"><div class="review-text">"web panel is a game changer, update configs from anywhere."</div><div class="review-author">— bonk</div></div>
+        <div class="review-card reveal"><div class="review-text">"smooth movement, great optimization. best cheat for tc2."</div><div class="review-author">— tzar</div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <p>© 2025 nexora — private cheat infrastructure. no logs, invite-only.</p>
+  <p>nexora.xxx · discord.gg/NEfheQHv</p>
+</footer>
+
+<script>
+  // scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.1, rootMargin: "0px 0px -20px 0px" });
+  reveals.forEach(el => observer.observe(el));
+
+  // smooth scroll to sections
+  function scrollToSection(id) {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  document.querySelectorAll('.nav-features').forEach(el => {
+    el.addEventListener('click', () => scrollToSection('features'));
+  });
+  document.querySelectorAll('.nav-pricing').forEach(el => {
+    el.addEventListener('click', () => scrollToSection('pricing'));
+  });
+  document.querySelectorAll('.nav-reviews').forEach(el => {
+    el.addEventListener('click', () => scrollToSection('reviews'));
+  });
+
+  // animated typing title (complete clear, then type "nexora.xxx")
+  const targetText = "nexora.xxx";
+  let step = 0;
+  let direction = 1;
+  let timeoutId;
+  const titleEl = document.querySelector('title');
+
+  function animateTitle() {
+    if (!titleEl) return;
+    if (direction === 1) {
+      step++;
+      titleEl.textContent = targetText.substring(0, step);
+      if (step === targetText.length) {
+        direction = -1;
+        timeoutId = setTimeout(animateTitle, 1500);
+        return;
+      }
+    } else {
+      step--;
+      titleEl.textContent = targetText.substring(0, step);
+      if (step === 0) {
+        direction = 1;
+        timeoutId = setTimeout(animateTitle, 300);
+        return;
+      }
+    }
+    const speed = direction === 1 ? 120 : 80;
+    timeoutId = setTimeout(animateTitle, speed);
+  }
+
+  setTimeout(animateTitle, 300);
+</script>
+</body>
+</html>
