@@ -1,15 +1,28 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>nexora.xxx</title>
-  <link rel="icon" type="image/png" href="favicon.png">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050608">
+  <meta name="description" content="Nexora — precision movement software.">
+  <title>nexora.xxx — Movement, refined.</title>
+
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --brand: #000D62;
+      --brand-2: #14258c;
+      --bg: #050608;
+      --surface: #090c13;
+      --surface-2: #0d111b;
+      --border: rgba(255,255,255,.075);
+      --text: #f7f8fb;
+      --muted: #9299aa;
+      --max: 1160px;
+    }
+
     * {
-      margin: 0;
-      padding: 0;
       box-sizing: border-box;
     }
 
@@ -18,420 +31,1636 @@
     }
 
     body {
-      background: #0a0a0e;
-      background-image: radial-gradient(circle at 25% 20%, #12121c 0%, #030307 100%);
-      font-family: 'Inter', sans-serif;
-      color: #e2e8ff;
-      line-height: 1.5;
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(
+          circle at 50% -10%,
+          rgba(0,13,98,.34),
+          transparent 35%
+        ),
+        radial-gradient(
+          circle at 80% 35%,
+          rgba(0,13,98,.10),
+          transparent 28%
+        ),
+        var(--bg);
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
       overflow-x: hidden;
     }
 
-    .grid-bg {
+    body::before {
+      content: "";
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      inset: 0;
       pointer-events: none;
-      background-image: linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      z-index: 0;
+      z-index: -1;
+      background-image:
+        linear-gradient(
+          rgba(255,255,255,.018) 1px,
+          transparent 1px
+        ),
+        linear-gradient(
+          90deg,
+          rgba(255,255,255,.018) 1px,
+          transparent 1px
+        );
+      background-size: 64px 64px;
+      mask-image: linear-gradient(
+        to bottom,
+        black,
+        transparent 72%
+      );
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
     }
 
     .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 24px;
-      position: relative;
-      z-index: 2;
+      width: min(
+        calc(100% - 40px),
+        var(--max)
+      );
+      margin: auto;
     }
+
+    /* =========================
+       NAVBAR
+    ========================= */
 
     nav {
-      position: sticky;
+      position: fixed;
       top: 0;
-      z-index: 100;
-      padding: 18px 32px;
-      background: rgba(8, 8, 14, 0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+      left: 0;
+      right: 0;
+      z-index: 20;
+      height: 76px;
+
+      background: rgba(5,6,8,.68);
+      border-bottom: 1px solid rgba(255,255,255,.05);
+
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .nav-inner {
+      height: 100%;
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
     }
+
     .logo {
-      font-weight: 600;
-      font-size: 1.3rem;
-      letter-spacing: -0.5px;
-      color: #cbd5ff;
+      font-family:
+        "Segoe UI Black",
+        "Segoe UI",
+        sans-serif;
+
+      font-weight: 900;
+      letter-spacing: -1.7px;
+      font-size: 25px;
     }
+
     .logo span {
-      color: #3b82f6;
+      color: #6973a9;
+      font-weight: 700;
     }
-    .nav-links {
+
+    .links {
       display: flex;
-      gap: 24px;
       align-items: center;
-      font-weight: 500;
-      flex-wrap: wrap;
+      gap: 30px;
+
+      color: #aeb4c2;
+      font-size: 14px;
     }
-    .nav-links a {
-      text-decoration: none;
-      font-size: 0.8rem;
-      color: #9aa9d4;
-      transition: 0.2s;
-      text-transform: lowercase;
+
+    .links a {
+      transition: .2s ease;
+    }
+
+    .links a:hover {
+      color: #fff;
+    }
+
+    .nav-cta,
+    .hero-cta {
+      background: var(--brand);
+
+      border: 1px solid
+        rgba(92,111,220,.45);
+
+      box-shadow:
+        0 0 35px rgba(0,13,98,.35),
+        inset 0 1px rgba(255,255,255,.12);
+
+      transition: .2s ease;
+    }
+
+    .nav-cta {
+      padding: 11px 17px;
+      border-radius: 9px;
+      color: #fff;
+    }
+
+    .nav-cta:hover,
+    .hero-cta:hover {
+      transform: translateY(-2px);
+      background: #07137b;
+    }
+
+    .menu {
+      display: none;
+      background: none;
+      color: #fff;
+      border: 0;
+      font-size: 25px;
       cursor: pointer;
     }
-    .nav-links a:hover {
-      color: #3b82f6;
-    }
-    .btn-outline-nav {
-      border: 1px solid #3b82f6;
-      padding: 5px 16px;
-      border-radius: 40px;
-      background: transparent;
-    }
+
+    /* =========================
+       HERO
+    ========================= */
 
     .hero {
-      padding: 100px 0 70px;
-    }
-    .hero h1 {
-      font-size: 3.5rem;
-      font-weight: 700;
-      letter-spacing: -1px;
-      margin-bottom: 20px;
-    }
-    .hero h1 span {
-      color: #3b82f6;
-    }
-    .hero p {
-      max-width: 520px;
-      color: #9aa9d4;
-      font-size: 1rem;
-      margin-bottom: 32px;
-    }
-    .hero-buttons {
+      min-height: 850px;
+
       display: flex;
-      gap: 16px;
-    }
-    .btn-primary {
-      background: #3b82f6;
-      border: none;
-      padding: 10px 24px;
-      border-radius: 40px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      color: white;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-block;
-    }
-    .btn-secondary {
-      background: transparent;
-      border: 1px solid #3b82f6;
-      padding: 10px 24px;
-      border-radius: 40px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      color: #e2e8ff;
-      text-decoration: none;
+      align-items: center;
+      text-align: center;
+
+      padding: 130px 0 90px;
+
+      position: relative;
     }
 
-    .section {
-      padding: 70px 0;
-      border-top: 1px solid rgba(255,255,255,0.03);
-    }
-    .section h2 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 40px;
-      letter-spacing: -0.3px;
-      color: #cbd5ff;
+    .hero-orb {
+      position: absolute;
+
+      width: 650px;
+      height: 650px;
+
+      border-radius: 50%;
+
+      left: 50%;
+      top: 44%;
+
+      transform: translate(-50%, -50%);
+
+      background:
+        radial-gradient(
+          circle,
+          rgba(0,13,98,.38),
+          rgba(0,13,98,.09) 42%,
+          transparent 68%
+        );
+
+      filter: blur(10px);
+      pointer-events: none;
     }
 
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 20px;
-    }
-    .feature {
-      background: rgba(10, 10, 18, 0.6);
-      border: 1px solid rgba(59, 130, 246, 0.2);
-      border-radius: 20px;
-      padding: 20px;
-      transition: 0.2s;
-    }
-    .feature:hover {
-      border-color: #3b82f6;
-      background: rgba(20, 20, 32, 0.7);
-    }
-    .feature h3 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: #e2e8ff;
-    }
-    .feature p {
-      color: #8f9dcc;
-      font-size: 0.85rem;
-      line-height: 1.4;
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+
+      padding: 7px 11px;
+
+      border: 1px solid var(--border);
+      border-radius: 999px;
+
+      background: rgba(255,255,255,.025);
+
+      color: #aab0bf;
+
+      font-size: 12px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
     }
 
-    .pricing-grid {
+    .dot {
+      width: 6px;
+      height: 6px;
+
+      border-radius: 50%;
+
+      background: #4052b5;
+
+      box-shadow:
+        0 0 12px #4052b5;
+    }
+
+    h1 {
+      margin: 25px auto 20px;
+
+      max-width: 900px;
+
+      font-family:
+        "Segoe UI Black",
+        "Segoe UI",
+        sans-serif;
+
+      font-weight: 900;
+
+      font-size:
+        clamp(
+          58px,
+          9vw,
+          112px
+        );
+
+      line-height: .91;
+
+      letter-spacing: -6px;
+    }
+
+    h1 .blue {
+      color: #7380c6;
+
+      text-shadow:
+        0 0 55px rgba(0,13,98,.55);
+    }
+
+    .hero p {
+      max-width: 590px;
+
+      margin: 0 auto 32px;
+
+      color: var(--muted);
+
+      line-height: 1.75;
+
+      font-size: 16px;
+    }
+
+    .actions {
       display: flex;
       justify-content: center;
-      gap: 32px;
+
+      gap: 12px;
+
       flex-wrap: wrap;
     }
-    .plan {
-      background: rgba(10, 10, 18, 0.7);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      border-radius: 24px;
-      padding: 28px;
-      text-align: center;
-      min-width: 240px;
-      backdrop-filter: blur(4px);
-    }
-    .plan h3 {
-      font-size: 1.3rem;
+
+    .hero-cta,
+    .ghost {
+      padding: 14px 21px;
+
+      border-radius: 10px;
+
+      font-size: 14px;
       font-weight: 600;
-    }
-    .price {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #3b82f6;
-      margin: 16px 0;
-    }
-    .plan ul {
-      list-style: none;
-      margin: 20px 0;
-    }
-    .plan li {
-      font-size: 0.8rem;
-      color: #a1b0da;
-      margin: 8px 0;
-    }
-    .purchase-btn {
-      background: #3b82f6;
-      border: none;
-      padding: 8px 20px;
-      border-radius: 40px;
-      font-weight: 600;
-      font-size: 0.8rem;
-      color: white;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-block;
-      width: 100%;
     }
 
-    .reviews-grid {
+    .ghost {
+      border: 1px solid var(--border);
+
+      background:
+        rgba(255,255,255,.025);
+
+      color: #dce0e8;
+
+      transition: .2s ease;
+    }
+
+    .ghost:hover {
+      background:
+        rgba(255,255,255,.055);
+    }
+
+    /* =========================
+       STATS
+    ========================= */
+
+    .stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+
+      grid-template-columns:
+        repeat(3, 1fr);
+
+      border: 1px solid var(--border);
+
+      border-radius: 16px;
+
+      background:
+        rgba(255,255,255,.018);
+
+      overflow: hidden;
+    }
+
+    .stat {
+      padding: 25px;
+
+      text-align: center;
+    }
+
+    .stat + .stat {
+      border-left:
+        1px solid var(--border);
+    }
+
+    .stat strong {
+      display: block;
+
+      font-family:
+        "Segoe UI Black",
+        "Segoe UI",
+        sans-serif;
+
+      font-size: 22px;
+    }
+
+    .stat span {
+      color: #747b8c;
+
+      font-size: 12px;
+
+      margin-top: 6px;
+
+      display: block;
+    }
+
+    /* =========================
+       SECTIONS
+    ========================= */
+
+    section {
+      padding: 115px 0;
+    }
+
+    .section-head {
+      max-width: 620px;
+
+      margin-bottom: 48px;
+    }
+
+    .kicker {
+      color: #6874bb;
+
+      font-size: 12px;
+
+      font-weight: 700;
+
+      letter-spacing: .13em;
+
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 12px 0;
+
+      font-family:
+        "Segoe UI Black",
+        "Segoe UI",
+        sans-serif;
+
+      font-size:
+        clamp(
+          38px,
+          5vw,
+          62px
+        );
+
+      letter-spacing: -3px;
+
+      line-height: 1;
+    }
+
+    .section-head p {
+      color: var(--muted);
+
+      line-height: 1.7;
+    }
+
+    /* =========================
+       FEATURES
+    ========================= */
+
+    .features {
+      display: grid;
+
+      grid-template-columns:
+        repeat(2, 1fr);
+
+      gap: 14px;
+    }
+
+    .card {
+      position: relative;
+
+      padding: 30px;
+
+      min-height: 260px;
+
+      overflow: hidden;
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 18px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.035),
+          rgba(255,255,255,.012)
+        );
+
+      transition: .25s ease;
+    }
+
+    .card:hover {
+      transform:
+        translateY(-5px);
+
+      border-color:
+        rgba(74,91,183,.35);
+    }
+
+    .card::after {
+      content: "";
+
+      position: absolute;
+
+      width: 180px;
+      height: 180px;
+
+      right: -90px;
+      bottom: -90px;
+
+      border-radius: 50%;
+
+      background:
+        rgba(0,13,98,.22);
+
+      filter: blur(30px);
+    }
+
+    .num {
+      color: #626b84;
+
+      font-size: 11px;
+
+      letter-spacing: .1em;
+    }
+
+    .icon {
+      width: 42px;
+      height: 42px;
+
+      display: grid;
+      place-items: center;
+
+      margin: 28px 0 20px;
+
+      border:
+        1px solid
+        rgba(81,98,193,.3);
+
+      border-radius: 11px;
+
+      background:
+        rgba(0,13,98,.25);
+
+      color: #aeb8ee;
+
+      font-size: 18px;
+    }
+
+    .card h3 {
+      margin: 0 0 9px;
+
+      font-size: 21px;
+    }
+
+    .card p {
+      color: #858c9c;
+
+      line-height: 1.65;
+
+      font-size: 14px;
+
+      max-width: 440px;
+    }
+
+    /* =========================
+       SHOWCASE
+    ========================= */
+
+    .showcase {
+      display: grid;
+
+      grid-template-columns:
+        1fr 1.15fr;
+
+      gap: 60px;
+
+      align-items: center;
+    }
+
+    .showcase-copy > p {
+      color: var(--muted);
+
+      line-height: 1.75;
+    }
+
+    .bullets {
+      display: grid;
+
       gap: 20px;
+
+      margin-top: 30px;
     }
-    .review-card {
-      background: rgba(10, 10, 18, 0.5);
-      border: 1px solid rgba(59, 130, 246, 0.15);
+
+    .bullet {
+      display: flex;
+
+      gap: 14px;
+    }
+
+    .check {
+      flex: none;
+
+      width: 24px;
+      height: 24px;
+
+      display: grid;
+      place-items: center;
+
+      border-radius: 7px;
+
+      background:
+        rgba(0,13,98,.5);
+
+      border:
+        1px solid
+        rgba(92,111,220,.3);
+
+      font-size: 12px;
+    }
+
+    .bullet strong {
+      display: block;
+
+      font-size: 14px;
+
+      margin-bottom: 4px;
+    }
+
+    .bullet span {
+      color: #7f8697;
+
+      font-size: 13px;
+
+      line-height: 1.5;
+    }
+
+    /* =========================
+       MOCK PANEL
+    ========================= */
+
+    .panel {
+      min-height: 420px;
+
+      padding: 18px;
+
+      border:
+        1px solid var(--border);
+
       border-radius: 20px;
-      padding: 20px;
+
+      background: #080b11;
+
+      box-shadow:
+        0 35px 100px
+        rgba(0,0,0,.5);
+
+      transform:
+        perspective(900px)
+        rotateY(-5deg)
+        rotateX(2deg);
     }
-    .review-text {
-      font-size: 0.85rem;
-      color: #b5c4ff;
-      font-style: normal;
-      margin-bottom: 12px;
+
+    .panel-top {
+      display: flex;
+
+      justify-content:
+        space-between;
+
+      align-items: center;
+
+      padding:
+        9px 10px 17px;
+
+      color: #72798b;
+
+      font-size: 11px;
     }
-    .review-author {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #3b82f6;
-      text-transform: lowercase;
+
+    .status {
+      color: #8995dc;
     }
+
+    .mock {
+      display: grid;
+
+      grid-template-columns:
+        180px 1fr;
+
+      gap: 12px;
+
+      height: 345px;
+    }
+
+    .side,
+    .mainmock {
+      border:
+        1px solid var(--border);
+
+      background: #0b0f17;
+
+      border-radius: 12px;
+    }
+
+    .side {
+      padding: 14px;
+    }
+
+    .side div {
+      height: 31px;
+
+      border-radius: 7px;
+
+      padding: 8px;
+
+      margin-bottom: 5px;
+
+      color: #737a8c;
+
+      font-size: 10px;
+    }
+
+    .side .active {
+      background:
+        rgba(0,13,98,.38);
+
+      color: #dbe0ff;
+    }
+
+    .mainmock {
+      padding: 16px;
+    }
+
+    .mock-title {
+      font-size: 14px;
+
+      font-weight: 700;
+    }
+
+    .toggles {
+      display: grid;
+
+      gap: 10px;
+
+      margin-top: 20px;
+    }
+
+    .toggle {
+      display: flex;
+
+      justify-content:
+        space-between;
+
+      align-items: center;
+
+      padding: 13px;
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 9px;
+
+      color: #858c9c;
+
+      font-size: 11px;
+    }
+
+    .switch {
+      width: 30px;
+      height: 17px;
+
+      border-radius: 99px;
+
+      background: var(--brand);
+
+      position: relative;
+    }
+
+    .switch::after {
+      content: "";
+
+      width: 11px;
+      height: 11px;
+
+      border-radius: 50%;
+
+      background: white;
+
+      position: absolute;
+
+      right: 3px;
+      top: 3px;
+    }
+
+    /* =========================
+       CTA
+    ========================= */
+
+    .cta {
+      padding: 85px 30px;
+
+      text-align: center;
+
+      border:
+        1px solid var(--border);
+
+      border-radius: 24px;
+
+      background:
+        radial-gradient(
+          circle at 50% 100%,
+          rgba(0,13,98,.35),
+          transparent 52%
+        ),
+        #080a10;
+    }
+
+    .cta h2 {
+      max-width: 750px;
+
+      margin:
+        0 auto 17px;
+    }
+
+    .cta p {
+      color: #858c9c;
+
+      margin:
+        0 auto 28px;
+    }
+
+    /* =========================
+       FOOTER
+    ========================= */
 
     footer {
-      text-align: center;
-      padding: 40px 24px;
-      border-top: 1px solid rgba(255,255,255,0.03);
-      color: #6a78aa;
-      font-size: 0.75rem;
+      padding: 34px 0 48px;
+
+      border-top:
+        1px solid var(--border);
+
+      color: #666d7c;
+
+      font-size: 12px;
     }
 
-    @media (max-width: 750px) {
-      .hero h1 {
-        font-size: 2.2rem;
-      }
-      nav {
-        flex-direction: column;
-        gap: 12px;
-      }
-      .reviews-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-      }
+    .footer {
+      display: flex;
+
+      justify-content:
+        space-between;
+
+      gap: 20px;
     }
+
+    .footer-links {
+      display: flex;
+
+      gap: 22px;
+    }
+
+    .footer a:hover {
+      color: #fff;
+    }
+
+    /* =========================
+       ANIMATIONS
+    ========================= */
 
     .reveal {
       opacity: 0;
-      transform: translateY(16px);
-      transition: 0.5s ease;
+
+      transform:
+        translateY(20px);
+
+      transition:
+        .7s ease;
     }
+
     .reveal.visible {
       opacity: 1;
-      transform: translateY(0);
+
+      transform: none;
+    }
+
+    /* =========================
+       MOBILE
+    ========================= */
+
+    @media (max-width: 760px) {
+
+      .container {
+        width:
+          min(
+            calc(100% - 28px),
+            var(--max)
+          );
+      }
+
+      .links {
+        display: none;
+
+        position: absolute;
+
+        top: 76px;
+
+        left: 14px;
+        right: 14px;
+
+        padding: 14px;
+
+        border:
+          1px solid var(--border);
+
+        border-radius: 14px;
+
+        background: #090c12;
+
+        flex-direction: column;
+
+        align-items: stretch;
+      }
+
+      .links.open {
+        display: flex;
+      }
+
+      .links a {
+        padding: 11px;
+      }
+
+      .menu {
+        display: block;
+      }
+
+      .hero {
+        min-height: 760px;
+      }
+
+      h1 {
+        letter-spacing: -3px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .stat + .stat {
+        border-left: 0;
+
+        border-top:
+          1px solid var(--border);
+      }
+
+      .features,
+      .showcase {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        transform: none;
+
+        min-height: 360px;
+      }
+
+      .mock {
+        grid-template-columns:
+          110px 1fr;
+
+        height: 290px;
+      }
+
+      .side {
+        padding: 9px;
+      }
+
+      .side div {
+        font-size: 9px;
+      }
+
+      section {
+        padding: 85px 0;
+      }
+
+      .footer {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
+
 <body>
-<div class="grid-bg"></div>
 
-<nav>
-  <div class="logo">nexora<span>.xxx</span></div>
-  <div class="nav-links">
-    <a class="nav-features">features</a>
-    <a class="nav-pricing">pricing</a>
-    <a class="nav-reviews">reviews</a>
-    <a href="tos.html">tos</a>
-    <a href="about.html">about</a>
-    <a href="status.html">status</a>
-    <a href="login.html" class="btn-outline-nav">login</a>
-    <a href="register.html" class="btn-outline-nav">register</a>
-  </div>
-</nav>
+  <!-- =========================
+       NAVIGATION
+  ========================= -->
 
-<main>
-  <div class="container">
-    <div class="hero">
-      <div class="reveal">
-        <h1>nexora.<span>xxx</span></h1>
-        <p>private movement cheat for typical colors 2 / roblox. null strafes, edge jumps, stream proof.</p>
-        <div class="hero-buttons">
-          <a class="btn-primary nav-pricing">get access</a>
-          <a class="btn-secondary nav-features">features</a>
+  <nav>
+    <div class="container nav-inner">
+
+      <a class="logo" href="#">
+        nexora<span>.xxx</span>
+      </a>
+
+      <div class="links" id="links">
+        <a href="#features">features</a>
+        <a href="#engine">movement</a>
+        <a href="#faq">faq</a>
+        <a href="#login">login</a>
+
+        <a class="nav-cta" href="#store">
+          get nexora
+        </a>
+      </div>
+
+      <button
+        class="menu"
+        id="menu"
+        aria-label="Open menu"
+      >
+        ☰
+      </button>
+
+    </div>
+  </nav>
+
+
+  <main>
+
+    <!-- =========================
+         HERO
+    ========================= -->
+
+    <section class="hero">
+
+      <div class="hero-orb"></div>
+
+      <div class="container reveal">
+
+        <div class="eyebrow">
+          <i class="dot"></i>
+          movement software, redefined
         </div>
-      </div>
-    </div>
 
-    <div id="features" class="section">
-      <h2 class="reveal">core modules</h2>
-      <div class="features-grid">
-        <div class="feature reveal"><h3>movement</h3><p>bunnyhop, autostrafe, edge jump, long jump, mini jump, null strafes, strafe optimizer, ladder jump, jump bug, crouch bug, auto duck, smart edge bug.</p></div>
-        <div class="feature reveal"><h3>visuals</h3><p>esp, chams, glow, indicators, velocity meter, watermark, fully stream safe (obs / discord).</p></div>
-        <div class="feature reveal"><h3>aim assist</h3><p>humanized smoothing, triggerbot, hitbox selection, fov customization, randomization.</p></div>
-        <div class="feature reveal"><h3>bypass</h3><p>kernel-level active bypass, signature scrambling, weekly updates. undetected since 2024.</p></div>
-        <div class="feature reveal"><h3>web panel</h3><p>remote config, live toggles, cloud saves, export/import json — from any browser.</p></div>
-        <div class="feature reveal"><h3>support</h3><p>private discord channel, ticket-based purchases, hwid resets every 60 days.</p></div>
-      </div>
-    </div>
+        <h1>
+          Move with
+          <span class="blue">
+            precision.
+          </span>
+        </h1>
 
-    <div id="pricing" class="section">
-      <h2 class="reveal">pricing</h2>
-      <div class="pricing-grid">
-        <div class="plan reveal">
-          <h3>monthly</h3>
-          <div class="price">$3.99</div>
-          <ul>
-            <li>full movement & visuals</li>
-            <li>stream safe</li>
-            <li>web panel access</li>
-            <li>standard support</li>
-          </ul>
-          <a href="https://discord.gg/NEfheQHv" class="purchase-btn" target="_blank">purchase →</a>
+        <p>
+          Nexora brings advanced movement tools,
+          precise configuration, and a clean
+          experience together in one focused platform.
+        </p>
+
+        <div class="actions">
+
+          <a
+            class="hero-cta"
+            href="#store"
+          >
+            Get Nexora →
+          </a>
+
+          <a
+            class="ghost"
+            href="#features"
+          >
+            Explore features
+          </a>
+
         </div>
-        <div class="plan reveal">
-          <h3>lifetime</h3>
-          <div class="price">$12.99</div>
-          <ul>
-            <li>all features unlocked</li>
-            <li>priority updates</li>
-            <li>private support channel</li>
-            <li>no recurring fees</li>
-          </ul>
-          <a href="https://discord.gg/NEfheQHv" class="purchase-btn" target="_blank">get lifetime →</a>
+
+        <div style="height:65px"></div>
+
+        <div class="stats">
+
+          <div class="stat">
+            <strong>01</strong>
+            <span>
+              precision-first design
+            </span>
+          </div>
+
+          <div class="stat">
+            <strong>∞</strong>
+            <span>
+              configuration possibilities
+            </span>
+          </div>
+
+          <div class="stat">
+            <strong>24/7</strong>
+            <span>
+              built to be ready when you are
+            </span>
+          </div>
+
         </div>
+
       </div>
+    </section>
+
+
+    <!-- =========================
+         FEATURES
+    ========================= -->
+
+    <section id="features">
+
+      <div class="container">
+
+        <div class="section-head reveal">
+
+          <div class="kicker">
+            the nexora advantage
+          </div>
+
+          <h2>
+            Every movement.<br>
+            Under control.
+          </h2>
+
+          <p>
+            Purpose-built tools for players who
+            care about consistency, precision,
+            and having control over the details.
+          </p>
+
+        </div>
+
+
+        <div class="features">
+
+          <article class="card reveal">
+
+            <div class="num">
+              01 / MOVEMENT
+            </div>
+
+            <div class="icon">
+              ↗
+            </div>
+
+            <h3>
+              EdgeBug
+            </h3>
+
+            <p>
+              Precise assistance for edge interactions,
+              with configuration designed around your
+              preferred movement style.
+            </p>
+
+          </article>
+
+
+          <article class="card reveal">
+
+            <div class="num">
+              02 / MOVEMENT
+            </div>
+
+            <div class="icon">
+              ◈
+            </div>
+
+            <h3>
+              PixelSurf
+            </h3>
+
+            <p>
+              Fine-tuned surfing assistance focused
+              on control and repeatable movement.
+            </p>
+
+          </article>
+
+
+          <article class="card reveal">
+
+            <div class="num">
+              03 / ROUTING
+            </div>
+
+            <div class="icon">
+              ⌁
+            </div>
+
+            <h3>
+              Route Calculator
+            </h3>
+
+            <p>
+              Plan movement routes with a dedicated
+              calculator built to make experimentation
+              easier.
+            </p>
+
+          </article>
+
+
+          <article class="card reveal">
+
+            <div class="num">
+              04 / CONTROL
+            </div>
+
+            <div class="icon">
+              ◉
+            </div>
+
+            <h3>
+              Movement Engine
+            </h3>
+
+            <p>
+              Bring your movement tools together through
+              a configurable engine with settings made
+              for your workflow.
+            </p>
+
+          </article>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =========================
+         MOVEMENT SHOWCASE
+    ========================= -->
+
+    <section id="engine">
+
+      <div class="container showcase">
+
+        <div class="showcase-copy reveal">
+
+          <div class="kicker">
+            built around you
+          </div>
+
+          <h2>
+            Less friction.<br>
+            More movement.
+          </h2>
+
+          <p>
+            Nexora is designed to stay out of your way.
+            Configure what you need, keep the settings
+            you want, and get straight into the experience.
+          </p>
+
+
+          <div class="bullets">
+
+            <div class="bullet">
+
+              <div class="check">
+                ✓
+              </div>
+
+              <div>
+
+                <strong>
+                  Configurable by design
+                </strong>
+
+                <span>
+                  Fine-tune features instead of
+                  settling for one-size-fits-all behavior.
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <div class="bullet">
+
+              <div class="check">
+                ✓
+              </div>
+
+              <div>
+
+                <strong>
+                  Clean interface
+                </strong>
+
+                <span>
+                  A focused panel that keeps
+                  important controls easy to find.
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <div class="bullet">
+
+              <div class="check">
+                ✓
+              </div>
+
+              <div>
+
+                <strong>
+                  Fast workflow
+                </strong>
+
+                <span>
+                  Spend less time configuring and
+                  more time using Nexora.
+                </span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- MOCK NEXORA PANEL -->
+
+        <div
+          class="panel reveal"
+          aria-label="Nexora interface preview"
+        >
+
+          <div class="panel-top">
+
+            <span>
+              nexora / panel
+            </span>
+
+            <span class="status">
+              ● connected
+            </span>
+
+          </div>
+
+
+          <div class="mock">
+
+            <div class="side">
+
+              <div class="active">
+                movement
+              </div>
+
+              <div>
+                edgebug
+              </div>
+
+              <div>
+                pixelsurf
+              </div>
+
+              <div>
+                routes
+              </div>
+
+              <div>
+                settings
+              </div>
+
+            </div>
+
+
+            <div class="mainmock">
+
+              <div class="mock-title">
+                Movement
+              </div>
+
+
+              <div class="toggles">
+
+                <div class="toggle">
+
+                  <span>
+                    Auto EdgeBug
+                  </span>
+
+                  <i class="switch"></i>
+
+                </div>
+
+
+                <div class="toggle">
+
+                  <span>
+                    PixelSurf
+                  </span>
+
+                  <i class="switch"></i>
+
+                </div>
+
+
+                <div class="toggle">
+
+                  <span>
+                    Movement Assist
+                  </span>
+
+                  <i class="switch"></i>
+
+                </div>
+
+
+                <div class="toggle">
+
+                  <span>
+                    Route Calculator
+                  </span>
+
+                  <i class="switch"></i>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =========================
+         FAQ
+    ========================= -->
+
+    <section id="faq">
+
+      <div class="container">
+
+        <div class="section-head reveal">
+
+          <div class="kicker">
+            questions
+          </div>
+
+          <h2>
+            Frequently asked.
+          </h2>
+
+          <p>
+            Replace these with your final product
+            policies and support information.
+          </p>
+
+        </div>
+
+
+        <div class="features">
+
+          <article class="card reveal">
+
+            <h3>
+              What is Nexora?
+            </h3>
+
+            <p>
+              Nexora is movement-focused software
+              built around configurable movement tools
+              and a streamlined user experience.
+            </p>
+
+          </article>
+
+
+          <article class="card reveal">
+
+            <h3>
+              Where can I get it?
+            </h3>
+
+            <p>
+              Use the store button below once your
+              official purchase flow is connected.
+            </p>
+
+          </article>
+
+
+          <article class="card reveal">
+
+            <h3>
+              Is Nexora configurable?
+            </h3>
+
+            <p>
+              Yes. The concept of Nexora is centered
+              around giving users control over movement
+              features and their configuration.
+            </p>
+
+          </article>
+
+
+          <article class="card reveal">
+
+            <h3>
+              Need support?
+            </h3>
+
+            <p>
+              Add your Discord, ticket system, or
+              support portal here when those links
+              are ready.
+            </p>
+
+          </article>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =========================
+         STORE CTA
+    ========================= -->
+
+    <section id="store">
+
+      <div class="container">
+
+        <div class="cta reveal">
+
+          <div class="kicker">
+            nexora.xxx
+          </div>
+
+          <h2>
+            Stop settling.<br>
+            Move with Nexora.
+          </h2>
+
+          <p>
+            Your movement. Your settings. Your edge.
+          </p>
+
+          <div class="actions">
+
+            <a
+              class="hero-cta"
+              href="#login"
+            >
+              Get Nexora →
+            </a>
+
+            <a
+              class="ghost"
+              href="#features"
+            >
+              View features
+            </a>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- =========================
+       FOOTER
+  ========================= -->
+
+  <footer id="login">
+
+    <div class="container footer">
+
+      <div>
+        © 2026 nexora.xxx.
+        All rights reserved.
+      </div>
+
+      <div class="footer-links">
+
+        <a href="#faq">
+          faq
+        </a>
+
+        <a href="#">
+          terms
+        </a>
+
+        <a href="#">
+          discord
+        </a>
+
+        <a href="#">
+          login
+        </a>
+
+      </div>
+
     </div>
 
-    <div id="reviews" class="section">
-      <h2 class="reveal">reviews</h2>
-      <div class="reviews-grid">
-        <div class="review-card reveal"><div class="review-text">"best movement i've used, null strafes feel native. zero flags."</div><div class="review-author">— arkko</div></div>
-        <div class="review-card reveal"><div class="review-text">"clean ui, bypass is solid. been using for months without issues."</div><div class="review-author">— amari</div></div>
-        <div class="review-card reveal"><div class="review-text">"worth every dollar. edge jumps are crisp and support is fast."</div><div class="review-author">— matty</div></div>
-        <div class="review-card reveal"><div class="review-text">"stream safe actually works. i've been live for weeks, no detections."</div><div class="review-author">— rup</div></div>
-        <div class="review-card reveal"><div class="review-text">"web panel is a game changer, update configs from anywhere."</div><div class="review-author">— bonk</div></div>
-        <div class="review-card reveal"><div class="review-text">"smooth movement, great optimization. best cheat for tc2."</div><div class="review-author">— tzar</div></div>
-      </div>
-    </div>
-  </div>
-</main>
+  </footer>
 
-<footer>
-  <p>© 2025 nexora — private cheat infrastructure. no logs, invite-only.</p>
-  <p>nexora.xxx · discord.gg/NEfheQHv</p>
-</footer>
 
-<script>
-  // scroll reveal
-  const reveals = document.querySelectorAll('.reveal');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) entry.target.classList.add('visible');
+  <!-- =========================
+       JAVASCRIPT
+  ========================= -->
+
+  <script>
+
+    /* Mobile menu */
+
+    const menu =
+      document.getElementById("menu");
+
+    const links =
+      document.getElementById("links");
+
+    menu.addEventListener("click", () => {
+      links.classList.toggle("open");
     });
-  }, { threshold: 0.1, rootMargin: "0px 0px -20px 0px" });
-  reveals.forEach(el => observer.observe(el));
 
-  // smooth scroll to sections
-  function scrollToSection(id) {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }
 
-  document.querySelectorAll('.nav-features').forEach(el => {
-    el.addEventListener('click', () => scrollToSection('features'));
-  });
-  document.querySelectorAll('.nav-pricing').forEach(el => {
-    el.addEventListener('click', () => scrollToSection('pricing'));
-  });
-  document.querySelectorAll('.nav-reviews').forEach(el => {
-    el.addEventListener('click', () => scrollToSection('reviews'));
-  });
+    /* Scroll reveal animations */
 
-  // animated typing title (complete clear, then type "nexora.xxx")
-  const targetText = "nexora.xxx";
-  let step = 0;
-  let direction = 1;
-  let timeoutId;
-  const titleEl = document.querySelector('title');
+    const observer =
+      new IntersectionObserver(
+        (entries) => {
 
-  function animateTitle() {
-    if (!titleEl) return;
-    if (direction === 1) {
-      step++;
-      titleEl.textContent = targetText.substring(0, step);
-      if (step === targetText.length) {
-        direction = -1;
-        timeoutId = setTimeout(animateTitle, 1500);
-        return;
-      }
-    } else {
-      step--;
-      titleEl.textContent = targetText.substring(0, step);
-      if (step === 0) {
-        direction = 1;
-        timeoutId = setTimeout(animateTitle, 300);
-        return;
-      }
-    }
-    const speed = direction === 1 ? 120 : 80;
-    timeoutId = setTimeout(animateTitle, speed);
-  }
+          entries.forEach(entry => {
 
-  setTimeout(animateTitle, 300);
-</script>
+            if (entry.isIntersecting) {
+
+              entry.target
+                .classList
+                .add("visible");
+
+              observer.unobserve(
+                entry.target
+              );
+
+            }
+
+          });
+
+        },
+        {
+          threshold: 0.12
+        }
+      );
+
+
+    document
+      .querySelectorAll(".reveal")
+      .forEach(element => {
+
+        observer.observe(element);
+
+      });
+
+  </script>
+
 </body>
 </html>
