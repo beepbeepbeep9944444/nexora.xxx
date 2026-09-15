@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@arkko</title>
+
+  <style>
+    :root {
+      --nexora: #000d62;
+      --nexora-light: #536cff;
+      --page: #000d62;
+      --white: #ffffff;
+      --text: #111522;
+      --muted: #73798a;
+      --line: #e7e9f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--page);
+      color: var(--text);
+    }
+
+    ::selection {
+      color: #fff;
+      background: var(--nexora);
+    }
+
+    /* nexora background */
+
+    .background {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background:
+        radial-gradient(
+          circle at 50% 35%,
+          rgba(83, 108, 255, .28),
+          transparent 38%
+        ),
+        radial-gradient(
+          circle at 15% 85%,
+          rgba(83, 108, 255, .13),
+          transparent 30%
+        ),
+        #000d62;
+    }
+
+    .glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(83, 108, 255, .08);
+      filter: blur(100px);
+      animation: breathe 7s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% {
+        transform: translate(-50%, -50%) scale(.92);
+        opacity: .6;
+      }
+
+      50% {
+        transform: translate(-50%, -50%) scale(1.08);
+        opacity: 1;
+      }
+    }
+
+    /* rain */
+
+    .rain {
+      position: absolute;
+      inset: -100px;
+      overflow: hidden;
+      transform: rotate(7deg);
+    }
+
+    .drop {
+      position: absolute;
+      top: -80px;
+      width: 1px;
+      height: var(--height);
+      left: var(--left);
+      opacity: var(--opacity);
+      background: linear-gradient(
+        to bottom,
+        transparent,
+        rgba(255,255,255,.72)
+      );
+      animation: rain var(--duration) linear infinite;
+      animation-delay: var(--delay);
+    }
+
+    .drop:nth-child(1)  { --left: 2%;  --height: 70px; --opacity: .16; --duration: 1.1s; --delay: -.7s; }
+    .drop:nth-child(2)  { --left: 7%;  --height: 45px; --opacity: .10; --duration: .9s;  --delay: -.2s; }
+    .drop:nth-child(3)  { --left: 12%; --height: 85px; --opacity: .18; --duration: 1.4s; --delay: -.9s; }
+    .drop:nth-child(4)  { --left: 17%; --height: 55px; --opacity: .12; --duration: 1.05s; --delay: -.3s; }
+    .drop:nth-child(5)  { --left: 22%; --height: 95px; --opacity: .15; --duration: 1.6s; --delay: -1.1s; }
+    .drop:nth-child(6)  { --left: 27%; --height: 50px; --opacity: .09; --duration: 1s; --delay: -.5s; }
+    .drop:nth-child(7)  { --left: 32%; --height: 75px; --opacity: .17; --duration: 1.3s; --delay: -.8s; }
+    .drop:nth-child(8)  { --left: 37%; --height: 40px; --opacity: .11; --duration: .85s; --delay: -.15s; }
+    .drop:nth-child(9)  { --left: 42%; --height: 90px; --opacity: .16; --duration: 1.5s; --delay: -1.2s; }
+    .drop:nth-child(10) { --left: 47%; --height: 58px; --opacity: .1; --duration: 1.1s; --delay: -.45s; }
+    .drop:nth-child(11) { --left: 52%; --height: 80px; --opacity: .18; --duration: 1.25s; --delay: -.9s; }
+    .drop:nth-child(12) { --left: 57%; --height: 48px; --opacity: .11; --duration: .95s; --delay: -.25s; }
+    .drop:nth-child(13) { --left: 62%; --height: 100px; --opacity: .15; --duration: 1.7s; --delay: -1.3s; }
+    .drop:nth-child(14) { --left: 67%; --height: 62px; --opacity: .12; --duration: 1.05s; --delay: -.6s; }
+    .drop:nth-child(15) { --left: 72%; --height: 78px; --opacity: .17; --duration: 1.35s; --delay: -1s; }
+    .drop:nth-child(16) { --left: 77%; --height: 44px; --opacity: .09; --duration: .9s; --delay: -.35s; }
+    .drop:nth-child(17) { --left: 82%; --height: 88px; --opacity: .16; --duration: 1.5s; --delay: -1.15s; }
+    .drop:nth-child(18) { --left: 87%; --height: 52px; --opacity: .11; --duration: 1s; --delay: -.4s; }
+    .drop:nth-child(19) { --left: 92%; --height: 72px; --opacity: .18; --duration: 1.2s; --delay: -.75s; }
+    .drop:nth-child(20) { --left: 97%; --height: 60px; --opacity: .1; --duration: 1.1s; --delay: -.55s; }
+
+    @keyframes rain {
+      from {
+        transform: translateY(-100px);
+      }
+
+      to {
+        transform: translateY(120vh);
+      }
+    }
+
+    /* white platform */
+
+    .plate {
+      position: relative;
+      z-index: 5;
+      width: min(560px, calc(100% - 26px));
+      padding: 38px 34px 22px;
+      overflow: visible;
+      border: 1px solid rgba(255,255,255,.72);
+      border-radius: 20px;
+      background: #fff;
+      box-shadow:
+        0 35px 100px rgba(0,0,0,.28),
+        0 0 0 1px rgba(0,13,98,.08);
+      animation: enter .7s cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .plate::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      border-radius: inherit;
+      background:
+        linear-gradient(
+          135deg,
+          rgba(83,108,255,.08),
+          transparent 30%,
+          transparent 70%,
+          rgba(0,13,98,.045)
+        );
+      pointer-events: none;
+    }
+
+    @keyframes enter {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(.985);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+    }
+
+    /* avatar */
+
+    .avatar-wrap {
+      position: relative;
+      width: 102px;
+      height: 102px;
+      margin: 0 auto;
+      z-index: 2;
+    }
+
+    .avatar-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        transparent,
+        #536cff,
+        transparent 35%,
+        #000d62,
+        transparent 70%,
+        #536cff,
+        transparent
+      );
+      animation: spin 8s linear infinite;
+      opacity: .9;
+    }
+
+    .avatar-ring::after {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .avatar {
+      position: absolute;
+      inset: 2px;
+      z-index: 2;
+      width: 98px;
+      height: 98px;
+      object-fit: cover;
+      border: 4px solid #fff;
+      border-radius: 50%;
+    }
+
+    .status {
+      position: absolute;
+      right: 4px;
+      bottom: 5px;
+      z-index: 3;
+      width: 17px;
+      height: 17px;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      background: #536cff;
+      box-shadow: 0 0 15px rgba(83,108,255,.65);
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* username */
+
+    .username-wrap {
+      position: relative;
+      display: inline-block;
+      z-index: 10;
+      margin-top: 18px;
+    }
+
+    .username {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #111522;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -.9px;
+      cursor: default;
+    }
+
+    .verified {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--nexora-light);
+      box-shadow: 0 0 15px rgba(83,108,255,.3);
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    /* uid tooltip stays above the pfp */
+
+    .username-wrap::after {
+      content: "uid 1";
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 12px);
+      transform: translate(-50%, 7px);
+      z-index: 100;
+      padding: 7px 10px;
+      border: 1px solid rgba(83,108,255,.2);
+      border-radius: 7px;
+      color: #fff;
+      background: #000d62;
+      box-shadow:
+        0 10px 30px rgba(0,13,98,.3),
+        0 0 20px rgba(83,108,255,.16);
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition:
+        opacity .2s ease,
+        transform .2s ease;
+    }
+
+    .username-wrap:hover::after {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    /* bio */
+
+    .bio {
+      margin-top: 14px;
+      color: #505568;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.7;
+    }
+
+    .flag {
+      display: inline-block;
+      margin: 0 3px;
+      font-size: 15px;
+      vertical-align: -1px;
+    }
+
+    .accent {
+      width: 38px;
+      height: 2px;
+      margin: 25px auto 0;
+      border-radius: 20px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        #536cff,
+        transparent
+      );
+      box-shadow: 0 0 15px rgba(83,108,255,.35);
+    }
+
+    .uid {
+      margin-top: 13px;
+      color: #a0a5b2;
+      font-size: 9px;
+      letter-spacing: .08em;
+    }
+
+    /* footer */
+
+    .footer {
+      position: relative;
+      z-index: 2;
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px solid #edf0f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #a0a5b2;
+      font-size: 9px;
+    }
+
+    .brand {
+      color: #252a39;
+      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
+      font-weight: 900;
+    }
+
+    .brand span {
+      color: #536cff;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        overflow-y: auto;
+        padding: 15px 0;
+      }
+
+      .plate {
+        width: calc(100% - 18px);
+        padding: 30px 19px 20px;
+      }
+
+      .avatar-wrap {
+        width: 94px;
+        height: 94px;
+      }
+
+      .avatar {
+        width: 90px;
+        height: 90px;
+      }
+
+      .username {
+        font-size: 25px;
+      }
+
+      .bio {
+        font-size: 12px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="background">
+    <div class="glow"></div>
+
+    <div class="rain">
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+      <span class="drop"></span>
+    </div>
+  </div>
+
+
+  <main class="plate">
+
+    <div class="content">
+
+      <div class="avatar-wrap">
+
+        <div class="avatar-ring"></div>
+
+        <img
+          class="avatar"
+          src="https://cdn.discordapp.com/avatars/671903889863213078/6e521c8a1e6aef7c90bfe98b701eade9.png?size=512"
+          alt="@arkko"
+        >
+
+        <span class="status"></span>
+
+      </div>
+
+
+      <div class="username-wrap">
+
+        <div class="username">
+          @arkko
+
+          <span class="verified">
+            ✓
+          </span>
+        </div>
+
+      </div>
+
+
+      <div class="bio">
+        <span class="flag">🏳️‍⚧️</span>
+        <span class="flag">🏳️‍⚧️</span>
+        go faze!
+        <span class="flag">🏳️‍⚧️</span>
+        <span class="flag">🏳️‍⚧️</span>
+      </div>
+
+
+      <div class="accent"></div>
+
+
+      <div class="uid">
+        uid 1
+      </div>
+
+    </div>
+
+
+    <footer class="footer">
+
+      <div class="brand">
+        nexora<span>.xxx</span>
+      </div>
+
+      <div>
+        profile 01
+      </div>
+
+    </footer>
+
+  </main>
+
+</body>
+</html>
