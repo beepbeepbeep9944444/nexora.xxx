@@ -1,29 +1,33 @@
-<!doctype html>
+```html
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#050608">
-  <meta name="description" content="Nexora — precision movement software.">
-  <title>nexora.xxx — Movement, refined.</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>nexora.xxx</title>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
     :root {
-      --brand: #000D62;
-      --brand-2: #14258c;
-      --bg: #050608;
-      --surface: #090c13;
-      --surface-2: #0d111b;
-      --border: rgba(255,255,255,.075);
-      --text: #f7f8fb;
-      --muted: #9299aa;
-      --max: 1160px;
+      --bg: #030407;
+      --bg-soft: #070910;
+      --card: #090c14;
+      --card-hover: #0c1020;
+      --blue: #000d62;
+      --blue-bright: #6177ff;
+      --blue-soft: #344bd1;
+      --text: #f5f6fb;
+      --muted: #777f91;
+      --muted-2: #555c6c;
+      --line: rgba(255,255,255,.075);
+      --line-blue: rgba(88,112,255,.25);
+      --max: 1180px;
     }
 
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     html {
@@ -31,46 +35,16 @@
     }
 
     body {
-      margin: 0;
-      color: var(--text);
-      background:
-        radial-gradient(
-          circle at 50% -10%,
-          rgba(0,13,98,.34),
-          transparent 35%
-        ),
-        radial-gradient(
-          circle at 80% 35%,
-          rgba(0,13,98,.10),
-          transparent 28%
-        ),
-        var(--bg);
-      font-family: Inter, "Segoe UI", system-ui, sans-serif;
+      min-height: 100vh;
       overflow-x: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
     }
 
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: -1;
-      background-image:
-        linear-gradient(
-          rgba(255,255,255,.018) 1px,
-          transparent 1px
-        ),
-        linear-gradient(
-          90deg,
-          rgba(255,255,255,.018) 1px,
-          transparent 1px
-        );
-      background-size: 64px 64px;
-      mask-image: linear-gradient(
-        to bottom,
-        black,
-        transparent 72%
-      );
+    body::selection {
+      color: white;
+      background: rgba(83,109,255,.35);
     }
 
     a {
@@ -78,894 +52,1009 @@
       text-decoration: none;
     }
 
-    .container {
-      width: min(
-        calc(100% - 40px),
-        var(--max)
-      );
-      margin: auto;
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* =========================
-       NAVBAR
-    ========================= */
+    /* background */
 
-    nav {
+    .background {
+      position: fixed;
+      inset: 0;
+      z-index: -10;
+      overflow: hidden;
+      pointer-events: none;
+      background:
+        radial-gradient(
+          circle at 50% -10%,
+          rgba(0,13,98,.62),
+          transparent 42%
+        ),
+        var(--bg);
+    }
+
+    .grid {
+      position: absolute;
+      inset: -15%;
+      opacity: .55;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 80px 80px;
+      transform:
+        perspective(700px)
+        rotateX(58deg)
+        translateY(-14%);
+      transform-origin: center top;
+      mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        rgba(0,0,0,.8) 35%,
+        transparent 78%
+      );
+      animation: gridMove 28s linear infinite;
+    }
+
+    .glow {
+      position: absolute;
+      width: 620px;
+      height: 620px;
+      top: 22%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(0,13,98,.23);
+      filter: blur(140px);
+      animation: glow 9s ease-in-out infinite;
+    }
+
+    .glow.left {
+      width: 330px;
+      height: 330px;
+      top: 65%;
+      left: 5%;
+      background: rgba(30,48,170,.12);
+      animation-delay: -3s;
+    }
+
+    .glow.right {
+      width: 360px;
+      height: 360px;
+      top: 70%;
+      left: 95%;
+      background: rgba(39,59,190,.1);
+      animation-delay: -6s;
+    }
+
+    @keyframes gridMove {
+      from {
+        transform:
+          perspective(700px)
+          rotateX(58deg)
+          translateY(-14%);
+      }
+
+      to {
+        transform:
+          perspective(700px)
+          rotateX(58deg)
+          translateY(-2%);
+      }
+    }
+
+    @keyframes glow {
+      0%, 100% {
+        opacity: .5;
+        scale: .92;
+      }
+
+      50% {
+        opacity: .9;
+        scale: 1.08;
+      }
+    }
+
+    /* navigation */
+
+    .topbar {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
-      z-index: 20;
-      height: 76px;
-
-      background: rgba(5,6,8,.68);
-      border-bottom: 1px solid rgba(255,255,255,.05);
-
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+      z-index: 100;
+      height: 72px;
+      border-bottom: 1px solid rgba(255,255,255,.055);
+      background: rgba(3,4,7,.68);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
     }
 
-    .nav-inner {
+    .nav {
+      width: min(var(--max), calc(100% - 40px));
       height: 100%;
+      margin: auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
     .logo {
-      font-family:
-        "Segoe UI Black",
-        "Segoe UI",
-        sans-serif;
-
+      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
+      font-size: 20px;
       font-weight: 900;
-      letter-spacing: -1.7px;
-      font-size: 25px;
+      letter-spacing: -.9px;
     }
 
     .logo span {
-      color: #6973a9;
-      font-weight: 700;
+      color: var(--blue-bright);
     }
 
-    .links {
+    .nav-links {
       display: flex;
       align-items: center;
-      gap: 30px;
-
-      color: #aeb4c2;
-      font-size: 14px;
+      gap: 31px;
+      color: #777e8e;
+      font-size: 13px;
     }
 
-    .links a {
-      transition: .2s ease;
-    }
-
-    .links a:hover {
-      color: #fff;
-    }
-
-    .nav-cta,
-    .hero-cta {
-      background: var(--brand);
-
-      border: 1px solid
-        rgba(92,111,220,.45);
-
-      box-shadow:
-        0 0 35px rgba(0,13,98,.35),
-        inset 0 1px rgba(255,255,255,.12);
-
-      transition: .2s ease;
-    }
-
-    .nav-cta {
-      padding: 11px 17px;
-      border-radius: 9px;
-      color: #fff;
-    }
-
-    .nav-cta:hover,
-    .hero-cta:hover {
-      transform: translateY(-2px);
-      background: #07137b;
-    }
-
-    .menu {
-      display: none;
-      background: none;
-      color: #fff;
-      border: 0;
-      font-size: 25px;
-      cursor: pointer;
-    }
-
-    /* =========================
-       HERO
-    ========================= */
-
-    .hero {
-      min-height: 850px;
-
-      display: flex;
-      align-items: center;
-      text-align: center;
-
-      padding: 130px 0 90px;
-
+    .nav-links a {
       position: relative;
+      transition: color .25s ease;
     }
 
-    .hero-orb {
+    .nav-links a::after {
+      content: "";
       position: absolute;
-
-      width: 650px;
-      height: 650px;
-
-      border-radius: 50%;
-
       left: 50%;
-      top: 44%;
-
-      transform: translate(-50%, -50%);
-
-      background:
-        radial-gradient(
-          circle,
-          rgba(0,13,98,.38),
-          rgba(0,13,98,.09) 42%,
-          transparent 68%
-        );
-
-      filter: blur(10px);
-      pointer-events: none;
+      bottom: -8px;
+      width: 0;
+      height: 1px;
+      transform: translateX(-50%);
+      background: var(--blue-bright);
+      box-shadow: 0 0 12px var(--blue-bright);
+      transition: width .25s ease;
     }
 
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-
-      padding: 7px 11px;
-
-      border: 1px solid var(--border);
-      border-radius: 999px;
-
-      background: rgba(255,255,255,.025);
-
-      color: #aab0bf;
-
-      font-size: 12px;
-      letter-spacing: .06em;
-      text-transform: uppercase;
+    .nav-links a:hover {
+      color: white;
     }
 
-    .dot {
-      width: 6px;
-      height: 6px;
-
-      border-radius: 50%;
-
-      background: #4052b5;
-
-      box-shadow:
-        0 0 12px #4052b5;
+    .nav-links a:hover::after {
+      width: 100%;
     }
 
-    h1 {
-      margin: 25px auto 20px;
-
-      max-width: 900px;
-
-      font-family:
-        "Segoe UI Black",
-        "Segoe UI",
-        sans-serif;
-
-      font-weight: 900;
-
-      font-size:
-        clamp(
-          58px,
-          9vw,
-          112px
-        );
-
-      line-height: .91;
-
-      letter-spacing: -6px;
-    }
-
-    h1 .blue {
-      color: #7380c6;
-
-      text-shadow:
-        0 0 55px rgba(0,13,98,.55);
-    }
-
-    .hero p {
-      max-width: 590px;
-
-      margin: 0 auto 32px;
-
-      color: var(--muted);
-
-      line-height: 1.75;
-
-      font-size: 16px;
-    }
-
-    .actions {
-      display: flex;
-      justify-content: center;
-
-      gap: 12px;
-
-      flex-wrap: wrap;
-    }
-
-    .hero-cta,
-    .ghost {
-      padding: 14px 21px;
-
-      border-radius: 10px;
-
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .ghost {
-      border: 1px solid var(--border);
-
-      background:
-        rgba(255,255,255,.025);
-
-      color: #dce0e8;
-
-      transition: .2s ease;
-    }
-
-    .ghost:hover {
-      background:
-        rgba(255,255,255,.055);
-    }
-
-    /* =========================
-       STATS
-    ========================= */
-
-    .stats {
-      display: grid;
-
-      grid-template-columns:
-        repeat(3, 1fr);
-
-      border: 1px solid var(--border);
-
-      border-radius: 16px;
-
-      background:
-        rgba(255,255,255,.018);
-
-      overflow: hidden;
-    }
-
-    .stat {
-      padding: 25px;
-
-      text-align: center;
-    }
-
-    .stat + .stat {
-      border-left:
-        1px solid var(--border);
-    }
-
-    .stat strong {
-      display: block;
-
-      font-family:
-        "Segoe UI Black",
-        "Segoe UI",
-        sans-serif;
-
-      font-size: 22px;
-    }
-
-    .stat span {
-      color: #747b8c;
-
-      font-size: 12px;
-
-      margin-top: 6px;
-
-      display: block;
-    }
-
-    /* =========================
-       SECTIONS
-    ========================= */
-
-    section {
-      padding: 115px 0;
-    }
-
-    .section-head {
-      max-width: 620px;
-
-      margin-bottom: 48px;
-    }
-
-    .kicker {
-      color: #6874bb;
-
-      font-size: 12px;
-
-      font-weight: 700;
-
-      letter-spacing: .13em;
-
-      text-transform: uppercase;
-    }
-
-    h2 {
-      margin: 12px 0;
-
-      font-family:
-        "Segoe UI Black",
-        "Segoe UI",
-        sans-serif;
-
-      font-size:
-        clamp(
-          38px,
-          5vw,
-          62px
-        );
-
-      letter-spacing: -3px;
-
-      line-height: 1;
-    }
-
-    .section-head p {
-      color: var(--muted);
-
-      line-height: 1.7;
-    }
-
-    /* =========================
-       FEATURES
-    ========================= */
-
-    .features {
-      display: grid;
-
-      grid-template-columns:
-        repeat(2, 1fr);
-
-      gap: 14px;
-    }
-
-    .card {
-      position: relative;
-
-      padding: 30px;
-
-      min-height: 260px;
-
-      overflow: hidden;
-
-      border:
-        1px solid var(--border);
-
-      border-radius: 18px;
-
-      background:
-        linear-gradient(
-          145deg,
-          rgba(255,255,255,.035),
-          rgba(255,255,255,.012)
-        );
-
+    .nav-purchase {
+      padding: 10px 17px;
+      border-radius: 8px;
+      color: #050609;
+      background: white;
+      font-size: 13px;
+      font-weight: 800;
       transition: .25s ease;
     }
 
-    .card:hover {
-      transform:
-        translateY(-5px);
-
-      border-color:
-        rgba(74,91,183,.35);
+    .nav-purchase:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(255,255,255,.1);
     }
 
-    .card::after {
-      content: "";
+    /* shared */
 
-      position: absolute;
-
-      width: 180px;
-      height: 180px;
-
-      right: -90px;
-      bottom: -90px;
-
-      border-radius: 50%;
-
-      background:
-        rgba(0,13,98,.22);
-
-      filter: blur(30px);
+    .container {
+      width: min(var(--max), calc(100% - 40px));
+      margin: auto;
     }
 
-    .num {
-      color: #626b84;
-
-      font-size: 11px;
-
-      letter-spacing: .1em;
+    .section {
+      padding: 145px 0;
     }
 
-    .icon {
-      width: 42px;
-      height: 42px;
-
-      display: grid;
-      place-items: center;
-
-      margin: 28px 0 20px;
-
-      border:
-        1px solid
-        rgba(81,98,193,.3);
-
-      border-radius: 11px;
-
-      background:
-        rgba(0,13,98,.25);
-
-      color: #aeb8ee;
-
-      font-size: 18px;
+    .eyebrow-small {
+      margin-bottom: 18px;
+      color: #687cff;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .15em;
+      text-transform: lowercase;
     }
 
-    .card h3 {
-      margin: 0 0 9px;
-
-      font-size: 21px;
+    .section-title {
+      max-width: 850px;
+      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
+      font-size: clamp(45px, 6vw, 78px);
+      line-height: .92;
+      letter-spacing: -4px;
     }
 
-    .card p {
-      color: #858c9c;
+    /* hero */
 
-      line-height: 1.65;
-
-      font-size: 14px;
-
-      max-width: 440px;
-    }
-
-    /* =========================
-       SHOWCASE
-    ========================= */
-
-    .showcase {
-      display: grid;
-
-      grid-template-columns:
-        1fr 1.15fr;
-
-      gap: 60px;
-
+    .hero {
+      min-height: 930px;
+      padding-top: 72px;
+      display: flex;
       align-items: center;
     }
 
-    .showcase-copy > p {
+    .hero-inner {
+      width: 100%;
+      padding: 85px 0 50px;
+      text-align: center;
+    }
+
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid rgba(83,109,255,.22);
+      border-radius: 999px;
+      background: rgba(28,43,135,.1);
+      color: #a2adff;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      animation: fadeUp .8s ease both;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #7185ff;
+      box-shadow: 0 0 14px #7185ff;
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    .hero h1 {
+      max-width: 1000px;
+      margin: 26px auto 0;
+      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
+      font-size: clamp(65px, 10vw, 132px);
+      line-height: .83;
+      letter-spacing: -8px;
+      animation: fadeUp .9s .08s ease both;
+    }
+
+    .gradient {
+      color: transparent;
+      background:
+        linear-gradient(
+          100deg,
+          #fff 8%,
+          #d5d9ff 48%,
+          #6177ff 95%
+        );
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+
+    .hero-description {
+      max-width: 500px;
+      margin: 31px auto 0;
       color: var(--muted);
-
+      font-size: 15px;
       line-height: 1.75;
+      animation: fadeUp .9s .16s ease both;
     }
 
-    .bullets {
-      display: grid;
-
-      gap: 20px;
-
-      margin-top: 30px;
-    }
-
-    .bullet {
+    .hero-buttons {
+      margin-top: 31px;
       display: flex;
+      justify-content: center;
+      gap: 10px;
+      animation: fadeUp .9s .24s ease both;
+    }
 
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 45px;
+      padding: 0 20px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 800;
+      transition:
+        transform .25s ease,
+        box-shadow .25s ease,
+        background .25s ease,
+        border-color .25s ease;
+    }
+
+    .button.primary {
+      color: #050609;
+      background: white;
+    }
+
+    .button.secondary {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.035);
+    }
+
+    .button:hover {
+      transform: translateY(-3px);
+    }
+
+    .button.primary:hover {
+      box-shadow: 0 15px 45px rgba(255,255,255,.11);
+    }
+
+    .button.secondary:hover {
+      border-color: rgba(255,255,255,.13);
+      background: rgba(255,255,255,.065);
+    }
+
+    /* hero visual */
+
+    .orbital {
+      position: relative;
+      width: 620px;
+      height: 530px;
+      margin: 75px auto 0;
+      animation: fadeUp 1s .32s ease both;
+    }
+
+    .orbit {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      border: 1px solid rgba(96,118,255,.12);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .orbit.one {
+      width: 620px;
+      height: 220px;
+      animation: orbitOne 16s linear infinite;
+    }
+
+    .orbit.two {
+      width: 495px;
+      height: 175px;
+      animation: orbitTwo 19s linear infinite;
+    }
+
+    .orbit.three {
+      width: 365px;
+      height: 135px;
+      animation: orbitThree 13s linear infinite;
+    }
+
+    .orb-dot {
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #7185ff;
+      box-shadow:
+        0 0 13px #7185ff,
+        0 0 30px rgba(83,109,255,.75);
+    }
+
+    .dot-one {
+      left: 18%;
+      top: 25%;
+    }
+
+    .dot-two {
+      right: 13%;
+      top: 42%;
+    }
+
+    .dot-three {
+      left: 25%;
+      bottom: 20%;
+    }
+
+    .dot-four {
+      right: 23%;
+      bottom: 17%;
+    }
+
+    .dot-five {
+      left: 50%;
+      top: 9%;
+    }
+
+    .core {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 136px;
+      height: 136px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background:
+        radial-gradient(
+          circle at 32% 22%,
+          #5369ef,
+          #000d62 47%,
+          #050713 80%
+        );
+      box-shadow:
+        0 0 45px rgba(49,71,220,.45),
+        0 0 130px rgba(0,13,98,.28);
+      animation: coreFloat 5s ease-in-out infinite;
+    }
+
+    .core::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 50%;
+    }
+
+    .core::after {
+      content: "n";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-family: "Segoe UI Black", sans-serif;
+      font-size: 52px;
+    }
+
+    @keyframes orbitOne {
+      from {
+        transform: translate(-50%, -50%) rotate(16deg);
+      }
+
+      to {
+        transform: translate(-50%, -50%) rotate(376deg);
+      }
+    }
+
+    @keyframes orbitTwo {
+      from {
+        transform: translate(-50%, -50%) rotate(-30deg);
+      }
+
+      to {
+        transform: translate(-50%, -50%) rotate(330deg);
+      }
+    }
+
+    @keyframes orbitThree {
+      from {
+        transform: translate(-50%, -50%) rotate(55deg);
+      }
+
+      to {
+        transform: translate(-50%, -50%) rotate(-305deg);
+      }
+    }
+
+    @keyframes coreFloat {
+      0%, 100% {
+        margin-top: 0;
+      }
+
+      50% {
+        margin-top: -10px;
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: .5;
+        transform: scale(.8);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.15);
+      }
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* movement */
+
+    .movement-header {
+      max-width: 800px;
+    }
+
+    .feature-grid {
+      margin-top: 55px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 14px;
     }
 
-    .check {
-      flex: none;
-
-      width: 24px;
-      height: 24px;
-
-      display: grid;
-      place-items: center;
-
-      border-radius: 7px;
-
+    .feature {
+      position: relative;
+      min-height: 290px;
+      overflow: hidden;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
       background:
-        rgba(0,13,98,.5);
-
-      border:
-        1px solid
-        rgba(92,111,220,.3);
-
-      font-size: 12px;
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.045),
+          rgba(255,255,255,.008)
+        );
+      transition:
+        transform .35s cubic-bezier(.2,.8,.2,1),
+        border-color .35s ease,
+        background .35s ease;
     }
 
-    .bullet strong {
-      display: block;
-
-      font-size: 14px;
-
-      margin-bottom: 4px;
+    .feature:hover {
+      transform: translateY(-7px);
+      border-color: var(--line-blue);
+      background:
+        linear-gradient(
+          145deg,
+          rgba(29,46,150,.13),
+          rgba(255,255,255,.01)
+        );
     }
 
-    .bullet span {
-      color: #7f8697;
-
-      font-size: 13px;
-
-      line-height: 1.5;
+    .feature::before {
+      content: "";
+      position: absolute;
+      right: -150px;
+      bottom: -160px;
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      background: rgba(0,13,98,.45);
+      filter: blur(60px);
+      transition: transform .5s ease;
     }
 
-    /* =========================
-       MOCK PANEL
-    ========================= */
-
-    .panel {
-      min-height: 420px;
-
-      padding: 18px;
-
-      border:
-        1px solid var(--border);
-
-      border-radius: 20px;
-
-      background: #080b11;
-
-      box-shadow:
-        0 35px 100px
-        rgba(0,0,0,.5);
-
-      transform:
-        perspective(900px)
-        rotateY(-5deg)
-        rotateX(2deg);
+    .feature:hover::before {
+      transform: scale(1.3);
     }
 
-    .panel-top {
-      display: flex;
-
-      justify-content:
-        space-between;
-
-      align-items: center;
-
-      padding:
-        9px 10px 17px;
-
-      color: #72798b;
-
-      font-size: 11px;
-    }
-
-    .status {
-      color: #8995dc;
-    }
-
-    .mock {
-      display: grid;
-
-      grid-template-columns:
-        180px 1fr;
-
-      gap: 12px;
-
-      height: 345px;
-    }
-
-    .side,
-    .mainmock {
-      border:
-        1px solid var(--border);
-
-      background: #0b0f17;
-
-      border-radius: 12px;
-    }
-
-    .side {
-      padding: 14px;
-    }
-
-    .side div {
-      height: 31px;
-
-      border-radius: 7px;
-
-      padding: 8px;
-
-      margin-bottom: 5px;
-
-      color: #737a8c;
-
+    .feature-number {
+      color: #51586e;
       font-size: 10px;
-    }
-
-    .side .active {
-      background:
-        rgba(0,13,98,.38);
-
-      color: #dbe0ff;
-    }
-
-    .mainmock {
-      padding: 16px;
-    }
-
-    .mock-title {
-      font-size: 14px;
-
       font-weight: 700;
     }
 
-    .toggles {
-      display: grid;
-
-      gap: 10px;
-
-      margin-top: 20px;
+    .feature h3 {
+      position: relative;
+      margin-top: 96px;
+      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: -1px;
     }
 
-    .toggle {
+    .feature p {
+      position: relative;
+      max-width: 370px;
+      margin-top: 11px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    /* reviews */
+
+    .reviews-header {
       display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 30px;
+    }
 
-      justify-content:
-        space-between;
+    .rating {
+      text-align: right;
+    }
 
+    .stars {
+      color: #8190ff;
+      font-size: 15px;
+      letter-spacing: 4px;
+    }
+
+    .rating-text {
+      margin-top: 7px;
+      color: #5e6472;
+      font-size: 10px;
+    }
+
+    .review-grid {
+      margin-top: 55px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .review {
+      position: relative;
+      min-height: 255px;
+      padding: 25px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(8,10,16,.72);
+      transition:
+        transform .35s cubic-bezier(.2,.8,.2,1),
+        border-color .3s ease;
+    }
+
+    .review:hover {
+      transform: translateY(-7px);
+      border-color: var(--line-blue);
+    }
+
+    .review-stars {
+      color: #7e8dff;
+      font-size: 12px;
+      letter-spacing: 2px;
+    }
+
+    .review p {
+      margin-top: 24px;
+      color: #d8dbe4;
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .reviewer {
+      position: absolute;
+      left: 25px;
+      bottom: 23px;
+      display: flex;
       align-items: center;
+      gap: 10px;
+    }
 
-      padding: 13px;
+    .avatar {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,.12);
+    }
 
-      border:
-        1px solid var(--border);
+    .reviewer-name {
+      font-size: 11px;
+      font-weight: 800;
+    }
 
-      border-radius: 9px;
+    .reviewer-tag {
+      margin-top: 2px;
+      color: #5d6370;
+      font-size: 9px;
+    }
 
-      color: #858c9c;
+    /* purchase */
 
+    .purchase {
+      padding: 110px 0 155px;
+    }
+
+    .purchase-header {
+      max-width: 700px;
+    }
+
+    .purchase-subtitle {
+      max-width: 500px;
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .pricing-grid {
+      max-width: 900px;
+      margin-top: 58px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .price-card {
+      position: relative;
+      min-height: 425px;
+      overflow: hidden;
+      padding: 31px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.045),
+          rgba(255,255,255,.008)
+        );
+      transition:
+        transform .35s cubic-bezier(.2,.8,.2,1),
+        border-color .35s ease;
+    }
+
+    .price-card:hover {
+      transform: translateY(-7px);
+      border-color: rgba(91,112,255,.3);
+    }
+
+    .price-card.featured {
+      border-color: rgba(83,109,255,.32);
+      background:
+        radial-gradient(
+          circle at 85% 0%,
+          rgba(31,54,190,.2),
+          transparent 40%
+        ),
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.05),
+          rgba(255,255,255,.008)
+        );
+    }
+
+    .price-card::after {
+      content: "";
+      position: absolute;
+      width: 250px;
+      height: 250px;
+      right: -170px;
+      bottom: -170px;
+      border-radius: 50%;
+      background: rgba(0,13,98,.5);
+      filter: blur(70px);
+      pointer-events: none;
+    }
+
+    .popular {
+      position: absolute;
+      top: 22px;
+      right: 22px;
+      padding: 6px 9px;
+      border: 1px solid rgba(83,109,255,.25);
+      border-radius: 999px;
+      background: rgba(83,109,255,.08);
+      color: #8797ff;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .price-name {
+      display: block;
+      font-family: "Segoe UI Black", sans-serif;
+      font-size: 25px;
+      letter-spacing: -1px;
+    }
+
+    .price-description {
+      display: block;
+      margin-top: 4px;
+      color: #626979;
       font-size: 11px;
     }
 
-    .switch {
-      width: 30px;
-      height: 17px;
-
-      border-radius: 99px;
-
-      background: var(--brand);
-
-      position: relative;
+    .price {
+      margin-top: 50px;
+      font-family: "Segoe UI Black", sans-serif;
+      font-size: 62px;
+      line-height: 1;
+      letter-spacing: -3px;
     }
 
-    .switch::after {
-      content: "";
-
-      width: 11px;
-      height: 11px;
-
-      border-radius: 50%;
-
-      background: white;
-
-      position: absolute;
-
-      right: 3px;
-      top: 3px;
+    .price span {
+      color: #747b8b;
+      font-family: "Segoe UI", sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0;
     }
 
-    /* =========================
-       CTA
-    ========================= */
-
-    .cta {
-      padding: 85px 30px;
-
-      text-align: center;
-
-      border:
-        1px solid var(--border);
-
-      border-radius: 24px;
-
-      background:
-        radial-gradient(
-          circle at 50% 100%,
-          rgba(0,13,98,.35),
-          transparent 52%
-        ),
-        #080a10;
+    .price-divider {
+      height: 1px;
+      margin: 28px 0 22px;
+      background: var(--line);
     }
 
-    .cta h2 {
-      max-width: 750px;
-
-      margin:
-        0 auto 17px;
+    .price-features {
+      display: grid;
+      gap: 11px;
+      list-style: none;
     }
 
-    .cta p {
-      color: #858c9c;
-
-      margin:
-        0 auto 28px;
-    }
-
-    /* =========================
-       FOOTER
-    ========================= */
-
-    footer {
-      padding: 34px 0 48px;
-
-      border-top:
-        1px solid var(--border);
-
-      color: #666d7c;
-
+    .price-features li {
+      color: #a7acb8;
       font-size: 12px;
     }
 
-    .footer {
+    .price-features li::before {
+      content: "✓";
+      margin-right: 9px;
+      color: #667bff;
+    }
+
+    .purchase-button {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      margin-top: 28px;
+    }
+
+    /* footer */
+
+    footer {
+      width: min(var(--max), calc(100% - 40px));
+      margin: auto;
+      padding: 30px 0 40px;
+      border-top: 1px solid var(--line);
       display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #626875;
+      font-size: 10px;
+    }
 
-      justify-content:
-        space-between;
+    .footer-logo {
+      color: white;
+      font-family: "Segoe UI Black", sans-serif;
+      font-size: 13px;
+    }
 
-      gap: 20px;
+    .footer-logo span {
+      color: var(--blue-bright);
     }
 
     .footer-links {
       display: flex;
-
       gap: 22px;
     }
 
-    .footer a:hover {
-      color: #fff;
+    .footer-links a {
+      transition: color .2s ease;
     }
 
-    /* =========================
-       ANIMATIONS
-    ========================= */
-
-    .reveal {
-      opacity: 0;
-
-      transform:
-        translateY(20px);
-
-      transition:
-        .7s ease;
+    .footer-links a:hover {
+      color: white;
     }
 
-    .reveal.visible {
-      opacity: 1;
+    /* responsive */
 
-      transform: none;
-    }
-
-    /* =========================
-       MOBILE
-    ========================= */
-
-    @media (max-width: 760px) {
-
-      .container {
-        width:
-          min(
-            calc(100% - 28px),
-            var(--max)
-          );
+    @media (max-width: 900px) {
+      .feature-grid,
+      .review-grid {
+        grid-template-columns: repeat(2, 1fr);
       }
+    }
 
-      .links {
+    @media (max-width: 800px) {
+      .nav-links {
         display: none;
-
-        position: absolute;
-
-        top: 76px;
-
-        left: 14px;
-        right: 14px;
-
-        padding: 14px;
-
-        border:
-          1px solid var(--border);
-
-        border-radius: 14px;
-
-        background: #090c12;
-
-        flex-direction: column;
-
-        align-items: stretch;
-      }
-
-      .links.open {
-        display: flex;
-      }
-
-      .links a {
-        padding: 11px;
-      }
-
-      .menu {
-        display: block;
       }
 
       .hero {
-        min-height: 760px;
+        min-height: auto;
       }
 
-      h1 {
+      .hero-inner {
+        padding: 105px 0 50px;
+      }
+
+      .hero h1 {
+        letter-spacing: -5px;
+      }
+
+      .orbital {
+        width: 100%;
+        height: 300px;
+        margin-top: 55px;
+      }
+
+      .orbit.one {
+        width: 100%;
+      }
+
+      .orbit.two {
+        width: 78%;
+      }
+
+      .orbit.three {
+        width: 58%;
+      }
+
+      .reviews-header {
+        display: block;
+      }
+
+      .rating {
+        margin-top: 20px;
+        text-align: left;
+      }
+
+      .section {
+        padding: 105px 0;
+      }
+
+      .purchase {
+        padding: 90px 0 110px;
+      }
+    }
+
+    @media (max-width: 650px) {
+      .feature-grid,
+      .review-grid,
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .feature {
+        min-height: 260px;
+      }
+
+      .feature h3 {
+        margin-top: 75px;
+      }
+    }
+
+    @media (max-width: 500px) {
+      .container,
+      .nav,
+      footer {
+        width: calc(100% - 28px);
+      }
+
+      .hero h1 {
+        font-size: 64px;
+      }
+
+      .hero-description {
+        font-size: 14px;
+      }
+
+      .hero-buttons {
+        width: 200px;
+        margin-left: auto;
+        margin-right: auto;
+        flex-direction: column;
+      }
+
+      .orbital {
+        height: 260px;
+      }
+
+      .core {
+        width: 105px;
+        height: 105px;
+      }
+
+      .core::after {
+        font-size: 42px;
+      }
+
+      .section-title {
         letter-spacing: -3px;
       }
 
-      .stats {
-        grid-template-columns: 1fr;
-      }
-
-      .stat + .stat {
-        border-left: 0;
-
-        border-top:
-          1px solid var(--border);
-      }
-
-      .features,
-      .showcase {
-        grid-template-columns: 1fr;
-      }
-
-      .panel {
-        transform: none;
-
-        min-height: 360px;
-      }
-
-      .mock {
-        grid-template-columns:
-          110px 1fr;
-
-        height: 290px;
-      }
-
-      .side {
-        padding: 9px;
-      }
-
-      .side div {
-        font-size: 9px;
-      }
-
-      section {
-        padding: 85px 0;
-      }
-
-      .footer {
+      footer {
         flex-direction: column;
+        align-items: flex-start;
+        gap: 18px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
       }
     }
   </style>
@@ -973,586 +1062,481 @@
 
 <body>
 
-  <!-- =========================
-       NAVIGATION
-  ========================= -->
+  <div class="background">
+    <div class="grid"></div>
+    <div class="glow"></div>
+    <div class="glow left"></div>
+    <div class="glow right"></div>
+  </div>
 
-  <nav>
-    <div class="container nav-inner">
 
-      <a class="logo" href="#">
+  <header class="topbar">
+    <nav class="nav">
+
+      <a href="#" class="logo">
         nexora<span>.xxx</span>
       </a>
 
-      <div class="links" id="links">
-        <a href="#features">features</a>
-        <a href="#engine">movement</a>
-        <a href="#faq">faq</a>
-        <a href="#login">login</a>
-
-        <a class="nav-cta" href="#store">
-          get nexora
-        </a>
+      <div class="nav-links">
+        <a href="#movement">movement</a>
+        <a href="#reviews">reviews</a>
+        <a href="#purchase">purchase</a>
       </div>
 
-      <button
-        class="menu"
-        id="menu"
-        aria-label="Open menu"
+      <a
+        href="https://discord.gg/7FBssWkesu"
+        class="nav-purchase"
+        target="_blank"
+        rel="noopener noreferrer"
       >
-        ☰
-      </button>
+        purchase
+      </a>
 
-    </div>
-  </nav>
+    </nav>
+  </header>
 
 
   <main>
 
-    <!-- =========================
-         HERO
-    ========================= -->
+    <!-- hero -->
 
     <section class="hero">
 
-      <div class="hero-orb"></div>
-
-      <div class="container reveal">
-
-        <div class="eyebrow">
-          <i class="dot"></i>
-          movement software, redefined
-        </div>
-
-        <h1>
-          Move with
-          <span class="blue">
-            precision.
-          </span>
-        </h1>
-
-        <p>
-          Nexora brings advanced movement tools,
-          precise configuration, and a clean
-          experience together in one focused platform.
-        </p>
-
-        <div class="actions">
-
-          <a
-            class="hero-cta"
-            href="#store"
-          >
-            Get Nexora →
-          </a>
-
-          <a
-            class="ghost"
-            href="#features"
-          >
-            Explore features
-          </a>
-
-        </div>
-
-        <div style="height:65px"></div>
-
-        <div class="stats">
-
-          <div class="stat">
-            <strong>01</strong>
-            <span>
-              precision-first design
-            </span>
-          </div>
-
-          <div class="stat">
-            <strong>∞</strong>
-            <span>
-              configuration possibilities
-            </span>
-          </div>
-
-          <div class="stat">
-            <strong>24/7</strong>
-            <span>
-              built to be ready when you are
-            </span>
-          </div>
-
-        </div>
-
-      </div>
-    </section>
-
-
-    <!-- =========================
-         FEATURES
-    ========================= -->
-
-    <section id="features">
-
       <div class="container">
 
-        <div class="section-head reveal">
+        <div class="hero-inner">
 
-          <div class="kicker">
-            the nexora advantage
+          <div class="hero-pill">
+            <span class="status-dot"></span>
+            movement, reworked
           </div>
 
-          <h2>
-            Every movement.<br>
-            Under control.
-          </h2>
+          <h1>
+            move
+            <span class="gradient">different.</span>
+          </h1>
 
-          <p>
-            Purpose-built tools for players who
-            care about consistency, precision,
-            and having control over the details.
+          <p class="hero-description">
+            nexora is a cleaner way to build your movement setup.
+            keep what you need, change what you want, and keep moving.
           </p>
 
-        </div>
-
-
-        <div class="features">
-
-          <article class="card reveal">
-
-            <div class="num">
-              01 / MOVEMENT
-            </div>
-
-            <div class="icon">
-              ↗
-            </div>
-
-            <h3>
-              EdgeBug
-            </h3>
-
-            <p>
-              Precise assistance for edge interactions,
-              with configuration designed around your
-              preferred movement style.
-            </p>
-
-          </article>
-
-
-          <article class="card reveal">
-
-            <div class="num">
-              02 / MOVEMENT
-            </div>
-
-            <div class="icon">
-              ◈
-            </div>
-
-            <h3>
-              PixelSurf
-            </h3>
-
-            <p>
-              Fine-tuned surfing assistance focused
-              on control and repeatable movement.
-            </p>
-
-          </article>
-
-
-          <article class="card reveal">
-
-            <div class="num">
-              03 / ROUTING
-            </div>
-
-            <div class="icon">
-              ⌁
-            </div>
-
-            <h3>
-              Route Calculator
-            </h3>
-
-            <p>
-              Plan movement routes with a dedicated
-              calculator built to make experimentation
-              easier.
-            </p>
-
-          </article>
-
-
-          <article class="card reveal">
-
-            <div class="num">
-              04 / CONTROL
-            </div>
-
-            <div class="icon">
-              ◉
-            </div>
-
-            <h3>
-              Movement Engine
-            </h3>
-
-            <p>
-              Bring your movement tools together through
-              a configurable engine with settings made
-              for your workflow.
-            </p>
-
-          </article>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         MOVEMENT SHOWCASE
-    ========================= -->
-
-    <section id="engine">
-
-      <div class="container showcase">
-
-        <div class="showcase-copy reveal">
-
-          <div class="kicker">
-            built around you
-          </div>
-
-          <h2>
-            Less friction.<br>
-            More movement.
-          </h2>
-
-          <p>
-            Nexora is designed to stay out of your way.
-            Configure what you need, keep the settings
-            you want, and get straight into the experience.
-          </p>
-
-
-          <div class="bullets">
-
-            <div class="bullet">
-
-              <div class="check">
-                ✓
-              </div>
-
-              <div>
-
-                <strong>
-                  Configurable by design
-                </strong>
-
-                <span>
-                  Fine-tune features instead of
-                  settling for one-size-fits-all behavior.
-                </span>
-
-              </div>
-
-            </div>
-
-
-            <div class="bullet">
-
-              <div class="check">
-                ✓
-              </div>
-
-              <div>
-
-                <strong>
-                  Clean interface
-                </strong>
-
-                <span>
-                  A focused panel that keeps
-                  important controls easy to find.
-                </span>
-
-              </div>
-
-            </div>
-
-
-            <div class="bullet">
-
-              <div class="check">
-                ✓
-              </div>
-
-              <div>
-
-                <strong>
-                  Fast workflow
-                </strong>
-
-                <span>
-                  Spend less time configuring and
-                  more time using Nexora.
-                </span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <!-- MOCK NEXORA PANEL -->
-
-        <div
-          class="panel reveal"
-          aria-label="Nexora interface preview"
-        >
-
-          <div class="panel-top">
-
-            <span>
-              nexora / panel
-            </span>
-
-            <span class="status">
-              ● connected
-            </span>
-
-          </div>
-
-
-          <div class="mock">
-
-            <div class="side">
-
-              <div class="active">
-                movement
-              </div>
-
-              <div>
-                edgebug
-              </div>
-
-              <div>
-                pixelsurf
-              </div>
-
-              <div>
-                routes
-              </div>
-
-              <div>
-                settings
-              </div>
-
-            </div>
-
-
-            <div class="mainmock">
-
-              <div class="mock-title">
-                Movement
-              </div>
-
-
-              <div class="toggles">
-
-                <div class="toggle">
-
-                  <span>
-                    Auto EdgeBug
-                  </span>
-
-                  <i class="switch"></i>
-
-                </div>
-
-
-                <div class="toggle">
-
-                  <span>
-                    PixelSurf
-                  </span>
-
-                  <i class="switch"></i>
-
-                </div>
-
-
-                <div class="toggle">
-
-                  <span>
-                    Movement Assist
-                  </span>
-
-                  <i class="switch"></i>
-
-                </div>
-
-
-                <div class="toggle">
-
-                  <span>
-                    Route Calculator
-                  </span>
-
-                  <i class="switch"></i>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         FAQ
-    ========================= -->
-
-    <section id="faq">
-
-      <div class="container">
-
-        <div class="section-head reveal">
-
-          <div class="kicker">
-            questions
-          </div>
-
-          <h2>
-            Frequently asked.
-          </h2>
-
-          <p>
-            Replace these with your final product
-            policies and support information.
-          </p>
-
-        </div>
-
-
-        <div class="features">
-
-          <article class="card reveal">
-
-            <h3>
-              What is Nexora?
-            </h3>
-
-            <p>
-              Nexora is movement-focused software
-              built around configurable movement tools
-              and a streamlined user experience.
-            </p>
-
-          </article>
-
-
-          <article class="card reveal">
-
-            <h3>
-              Where can I get it?
-            </h3>
-
-            <p>
-              Use the store button below once your
-              official purchase flow is connected.
-            </p>
-
-          </article>
-
-
-          <article class="card reveal">
-
-            <h3>
-              Is Nexora configurable?
-            </h3>
-
-            <p>
-              Yes. The concept of Nexora is centered
-              around giving users control over movement
-              features and their configuration.
-            </p>
-
-          </article>
-
-
-          <article class="card reveal">
-
-            <h3>
-              Need support?
-            </h3>
-
-            <p>
-              Add your Discord, ticket system, or
-              support portal here when those links
-              are ready.
-            </p>
-
-          </article>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-    <!-- =========================
-         STORE CTA
-    ========================= -->
-
-    <section id="store">
-
-      <div class="container">
-
-        <div class="cta reveal">
-
-          <div class="kicker">
-            nexora.xxx
-          </div>
-
-          <h2>
-            Stop settling.<br>
-            Move with Nexora.
-          </h2>
-
-          <p>
-            Your movement. Your settings. Your edge.
-          </p>
-
-          <div class="actions">
+          <div class="hero-buttons">
 
             <a
-              class="hero-cta"
-              href="#login"
+              href="https://discord.gg/7FBssWkesu"
+              class="button primary"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              Get Nexora →
+              purchase
             </a>
 
+            <a href="#movement" class="button secondary">
+              explore
+            </a>
+
+          </div>
+
+
+          <div class="orbital">
+
+            <div class="orbit one"></div>
+            <div class="orbit two"></div>
+            <div class="orbit three"></div>
+
+            <div class="orb-dot dot-one"></div>
+            <div class="orb-dot dot-two"></div>
+            <div class="orb-dot dot-three"></div>
+            <div class="orb-dot dot-four"></div>
+            <div class="orb-dot dot-five"></div>
+
+            <div class="core"></div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- movement -->
+
+    <section class="section" id="movement">
+
+      <div class="container">
+
+        <div class="movement-header">
+
+          <div class="eyebrow-small">
+            movement
+          </div>
+
+          <h2 class="section-title">
+            everything you need.
+          </h2>
+
+        </div>
+
+
+        <div class="feature-grid">
+
+          <div class="feature">
+
+            <div class="feature-number">
+              01
+            </div>
+
+            <h3>
+              edgebug
+            </h3>
+
+            <p>
+              keep your edgebug setup ready without
+              digging through a bunch of stuff.
+            </p>
+
+          </div>
+
+
+          <div class="feature">
+
+            <div class="feature-number">
+              02
+            </div>
+
+            <h3>
+              pixelsurf
+            </h3>
+
+            <p>
+              keep your pixelsurf setup close and
+              ready whenever you need it.
+            </p>
+
+          </div>
+
+
+          <div class="feature">
+
+            <div class="feature-number">
+              03
+            </div>
+
+            <h3>
+              route calculator
+            </h3>
+
+            <p>
+              plan routes, check your setup, and
+              keep the useful stuff in one place.
+            </p>
+
+          </div>
+
+
+          <div class="feature">
+
+            <div class="feature-number">
+              04
+            </div>
+
+            <h3>
+              movement engine
+            </h3>
+
+            <p>
+              keep your movement tools working
+              together without unnecessary clutter.
+            </p>
+
+          </div>
+
+
+          <div class="feature">
+
+            <div class="feature-number">
+              05
+            </div>
+
+            <h3>
+              movement assist
+            </h3>
+
+            <p>
+              useful movement options that stay easy
+              to access whenever you need them.
+            </p>
+
+          </div>
+
+
+          <div class="feature">
+
+            <div class="feature-number">
+              06
+            </div>
+
+            <h3>
+              custom setup
+            </h3>
+
+            <p>
+              change your setup around your own
+              style and keep what you actually use.
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- reviews -->
+
+    <section class="section" id="reviews">
+
+      <div class="container">
+
+        <div class="reviews-header">
+
+          <div>
+
+            <div class="eyebrow-small">
+              reviews
+            </div>
+
+            <h2 class="section-title">
+              straight from the community.
+            </h2>
+
+          </div>
+
+          <div class="rating">
+
+            <div class="stars">
+              ★★★★★
+            </div>
+
+            <div class="rating-text">
+              from the nexora community
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="review-grid">
+
+          <div class="review">
+
+            <div class="review-stars">
+              ★★★★★
+            </div>
+
+            <p>
+              "really clean. i opened it once and
+              immediately knew where everything was."
+            </p>
+
+            <div class="reviewer">
+
+              <img
+                class="avatar"
+                src="https://cdn.discordapp.com/avatars/834874573257441350/63ffaffaecf68f9edf2559fc7b4e9672.png?size=512"
+                alt="rup"
+              >
+
+              <div>
+                <div class="reviewer-name">
+                  rup
+                </div>
+
+                <div class="reviewer-tag">
+                  nexora user
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="review">
+
+            <div class="review-stars">
+              ★★★★★
+            </div>
+
+            <p>
+              "doesn't feel overloaded. everything
+              just feels like it belongs there."
+            </p>
+
+            <div class="reviewer">
+
+              <img
+                class="avatar"
+                src="https://cdn.discordapp.com/avatars/288857148203597836/546931fc5f8a44844d24c9750bac68b5.png?size=512"
+                alt="amari"
+              >
+
+              <div>
+                <div class="reviewer-name">
+                  amari
+                </div>
+
+                <div class="reviewer-tag">
+                  nexora user
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="review">
+
+            <div class="review-stars">
+              ★★★★★
+            </div>
+
+            <p>
+              "the whole thing feels way more polished
+              than i expected. super easy to use."
+            </p>
+
+            <div class="reviewer">
+
+              <img
+                class="avatar"
+                src="https://cdn.discordapp.com/avatars/395656040147976202/9953b578df0a3dbf5d4d6e076bdc9d8f.png?size=512"
+                alt="bonk"
+              >
+
+              <div>
+                <div class="reviewer-name">
+                  bonk
+                </div>
+
+                <div class="reviewer-tag">
+                  nexora user
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- purchase -->
+
+    <section class="purchase" id="purchase">
+
+      <div class="container">
+
+        <div class="purchase-header">
+
+          <div class="eyebrow-small">
+            purchase
+          </div>
+
+          <h2 class="section-title">
+            pick your plan.
+          </h2>
+
+          <p class="purchase-subtitle">
+            get full access to nexora and choose
+            whichever option works best for you.
+          </p>
+
+        </div>
+
+
+        <div class="pricing-grid">
+
+          <div class="price-card">
+
+            <span class="price-name">
+              monthly
+            </span>
+
+            <span class="price-description">
+              cancel whenever
+            </span>
+
+            <div class="price">
+              $5<span>/month</span>
+            </div>
+
+            <div class="price-divider"></div>
+
+            <ul class="price-features">
+              <li>full nexora access</li>
+              <li>all movement features</li>
+              <li>future updates</li>
+              <li>easy setup</li>
+            </ul>
+
             <a
-              class="ghost"
-              href="#features"
+              href="https://discord.gg/7FBssWkesu"
+              class="button secondary purchase-button"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              View features
+              purchase monthly
+            </a>
+
+          </div>
+
+
+          <div class="price-card featured">
+
+            <div class="popular">
+              best value
+            </div>
+
+            <span class="price-name">
+              lifetime
+            </span>
+
+            <span class="price-description">
+              one time payment
+            </span>
+
+            <div class="price">
+              $10<span> forever</span>
+            </div>
+
+            <div class="price-divider"></div>
+
+            <ul class="price-features">
+              <li>full nexora access</li>
+              <li>all movement features</li>
+              <li>future updates</li>
+              <li>one payment</li>
+            </ul>
+
+            <a
+              href="https://discord.gg/7FBssWkesu"
+              class="button primary purchase-button"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              purchase lifetime
             </a>
 
           </div>
@@ -1566,101 +1550,25 @@
   </main>
 
 
-  <!-- =========================
-       FOOTER
-  ========================= -->
+  <footer>
 
-  <footer id="login">
+    <div class="footer-logo">
+      nexora<span>.xxx</span>
+    </div>
 
-    <div class="container footer">
+    <div class="footer-links">
+      <a href="#movement">movement</a>
+      <a href="#reviews">reviews</a>
+      <a href="#purchase">purchase</a>
+    </div>
 
-      <div>
-        © 2026 nexora.xxx.
-        All rights reserved.
-      </div>
-
-      <div class="footer-links">
-
-        <a href="#faq">
-          faq
-        </a>
-
-        <a href="#">
-          terms
-        </a>
-
-        <a href="#">
-          discord
-        </a>
-
-        <a href="#">
-          login
-        </a>
-
-      </div>
-
+    <div>
+      © 2026 nexora.xxx
     </div>
 
   </footer>
 
 
-  <!-- =========================
-       JAVASCRIPT
-  ========================= -->
-
-  <script>
-
-    /* Mobile menu */
-
-    const menu =
-      document.getElementById("menu");
-
-    const links =
-      document.getElementById("links");
-
-    menu.addEventListener("click", () => {
-      links.classList.toggle("open");
-    });
-
-
-    /* Scroll reveal animations */
-
-    const observer =
-      new IntersectionObserver(
-        (entries) => {
-
-          entries.forEach(entry => {
-
-            if (entry.isIntersecting) {
-
-              entry.target
-                .classList
-                .add("visible");
-
-              observer.unobserve(
-                entry.target
-              );
-
-            }
-
-          });
-
-        },
-        {
-          threshold: 0.12
-        }
-      );
-
-
-    document
-      .querySelectorAll(".reveal")
-      .forEach(element => {
-
-        observer.observe(element);
-
-      });
-
-  </script>
-
 </body>
 </html>
+```
