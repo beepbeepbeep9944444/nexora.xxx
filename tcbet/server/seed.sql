@@ -387,7 +387,7 @@ insert into catalog(name,v,hf,unu,fx,q,weapon,fbs,fany) values
 ('Cold Companion',1.07,4.97038555192155,true,ARRAY['S1','UX']::text[],NULL,false,0,0),
 ('Electric Energy',1.07,0.8180395723828208,true,ARRAY['S5','UX']::text[],NULL,false,0,0),
 ('Strange Lever Shotgun',1.07,0,false,'{}'::text[],'Strange',true,0,0),
-('Summer Blockers',1.06,3.7582617193167223,true,ARRAY['S2','UX']::text[],NULL,false,0,0),
+('Summer Blockers',1.06,5.9,true,ARRAY['S2','UX']::text[],NULL,false,0,0),
 ('Colonial Corporal',1.05,0.7025393204070952,true,ARRAY['S5','UX']::text[],NULL,false,0,0),
 ('Cosmetic Crate 1',1.05,0,false,'{}'::text[],NULL,false,0,0),
 ('Loveable Librarian',1.05,0.9100425825617375,true,ARRAY['S5','UX']::text[],NULL,false,0,0),
@@ -742,8 +742,8 @@ insert into effects(name,m,g) values
 ('Summer Dew',4.08,ARRAY['UX']::text[]),
 ('Haunted',1800,ARRAY['HAUNT']::text[]);
 insert into cases(id,name,price,sort) values
-('golden-gamble','Golden Gamble',501.75,0),
-('unusual-box','Unusual Box',2210.59,1),
+('golden-gamble','Golden Gamble',502.79,0),
+('unusual-box','Unusual Box',2223.68,1),
 ('collectors-cache','Collector''s Cache',60.24,2),
 ('all-encompassing-crate','All-Encompassing Crate',17.2,3),
 ('alpha-assortment-crate','Alpha Assortment Crate',25.61,4),
@@ -773,7 +773,7 @@ insert into cases(id,name,price,sort) values
 ('strange-weapon-crate-of-defense','Strange Weapon Crate of Defense',1.44,28),
 ('strange-weapon-crate-of-offense','Strange Weapon Crate of Offense',1.35,29),
 ('strange-weapon-crate-of-support','Strange Weapon Crate of Support',1.01,30),
-('summer-2021-blue-cosmetic-cooler','Summer 2021 Blue Cosmetic Cooler',61.58,31),
+('summer-2021-blue-cosmetic-cooler','Summer 2021 Blue Cosmetic Cooler',68.08,31),
 ('summer-2021-green-cosmetic-cooler','Summer 2021 Green Cosmetic Cooler',54.4,32),
 ('summer-2021-yellow-cosmetic-cooler','Summer 2021 Yellow Cosmetic Cooler',66.31,33),
 ('summer-2022-cosmetic-chest','Summer 2022 Cosmetic Chest',5.31,34),

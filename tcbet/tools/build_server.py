@@ -74,9 +74,13 @@ def category_mult(it):
     if (it.get("yr") or 2022) <= 2018: return 5.0
     if it["name"] in SUMMER_2023: return 2.5
     return 0.0
+# Individually priced hats: Summer Blockers trades like a 2018, Nebula on it a bit above a Golden Frying Pan
+HAT_OVERRIDE = {"Summer Blockers": 5.9}
 for it in ITEMS:
     if not it.get("unu"): continue
-    if it["name"] in GRAILS:
+    if it["name"] in HAT_OVERRIDE:
+        it["hf"] = HAT_OVERRIDE[it["name"]]
+    elif it["name"] in GRAILS:
         it["hf"] = GRAILS[it["name"]]
     elif it["name"] in TOP_HATS:
         r = TOP_HATS.index(it["name"])
@@ -178,6 +182,7 @@ open(sys.argv[3], "w", encoding="utf-8").write("\n".join(L) + "\n")
 print(len(cases), "cases;", [(c["name"], c["price"]) for c in cases[:4]])
 for h, f in [("Knightmare", "Burning"), ("Disaster Spellcaster", "Burning"), ("Open Mind", "Burning"), ("Sheik", "Burning"), ("Dead Eye", "Burning"), ("Attack Wrap", "Burning"), ("Big Bruncher", "Nebula"), ("Hard News", "Sparking"), ("Occult Classic", "Massed Fireflies"), ("Knightmare", "VIP")]: print(f, h, "=", value(h, f))
 print("Golden Frying Pan =", value("Golden Frying Pan"))
+print("Summer Blockers:", {f: value("Summer Blockers", f) for f in ("Nebula", "Sunrise", "Dawn", "Dust Devil", "Bubble Bath", "Far-out Beat", "VIP")})
 for h in ["Welding Mask", "Rider", "Driller", "Ugly Ursidae", "Beast's Bonnet", "Antler Branches", "Big Bruncher"] + sorted(SUMMER_2023)[:2] + [i["name"] for i in ITEMS if i.get("unu") and (i.get("yr") or 2022) <= 2018 and i["name"] not in TOP_HATS and i["name"] not in GRAILS][:2]: print(f"  {h}: hat x{ITEM[h]['hf']:.2f}  Burning={value(h, 'Burning') if any(e['name']=='Burning' and legal(ITEM[h], e) for e in EFFECTS) else '-'}")
 print("top 5 unusuals:", sorted(((value(h["name"], e["name"]), e["name"] + " " + h["name"]) for h in ITEMS if h.get("unu") for e in EFFECTS if legal(h, e)), reverse=True)[:5])
 print("2018 burning/scorching under 10k:", [h["name"] for h in ITEMS if h.get("unu") and (h.get("yr") or 2022) <= 2018 for e in EFFECTS if e["name"] in ("Burning", "Scorching Energy") and legal(h, e) and value(h["name"], e["name"]) < 10000])
