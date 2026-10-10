@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a4f"/><stop offset="1" stop-color="#c92a2a"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5ee38b"/><stop offset="1" stop-color="#1f9d55"/></linearGradient>
+    <clipPath id="s"><path d="M32 3 L57 12 V30 C57 45 46 55 32 61 C18 55 7 45 7 30 V12 Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#s)">
+    <rect x="0" y="0" width="32" height="64" fill="url(#r)"/>
+    <rect x="32" y="0" width="32" height="64" fill="url(#g)"/>
+    <path d="M0 64 L64 0 V8 L8 64 Z" fill="#000" opacity=".12"/>
+  </g>
+  <path d="M32 3 L57 12 V30 C57 45 46 55 32 61 C18 55 7 45 7 30 V12 Z" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2"/>
+  <text x="32" y="41" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="23" fill="#fff" letter-spacing="-1">TC</text>
+</svg>
