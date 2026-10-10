@@ -191,7 +191,41 @@ gc = build("grail-crate", "Grail Crate", ITEM["Golden Frying Pan"]["img"], tuned
     dict(n="Golden Frying Pan", w=6), dict(n="Frying Pan", w=9), dict(n="Golden Knife", w=12), dict(n="Golden Wrench", w=12),
     dict(n="Collector's Rising Sun Katana", w=14),
     unusual_entry([ITEM[h] for h in GRAILS], STD + ["HAUNT"], 20), *grail_fill], grail_fill, 25000 / 1.5), "Classic", "Golden Frying Pan odds")
-cases = [gc, cv, fv, gg, ub, cc] + cases
+# ---- lower-tier house crates
+CRATE_IMG = {c["name"]: c["img"] for c in CRATES}
+def season_pool(prefix):
+    return sorted({n for c in CRATES if c["name"].startswith(prefix) for n in c["items"] if n in ITEM}, key=lambda n: ITEM[n]["v"])
+def low_crate(cid, name, img, pool, hats, groups, unu_share, season, tag):
+    entries = [dict(n=n, w=1 / max(ITEM[n]["v"], .05) ** .75) for n in pool]
+    tw = sum(e["w"] for e in entries)
+    hats = [h for h in hats if fx_for(h, groups)]
+    normal = list(entries)
+    if hats and unu_share: entries.append(unusual_entry(hats, groups, tw * unu_share))
+    c = build(cid, name, img, list(entries), season, tag)
+    if hats and c["price"] <= 5.01 and c["ev"] < 5 / 1.15:      # sits at the 5-coin floor: raise the unusual odds so it still pays ~87%
+        c = build(cid, name, img, tuned(entries, normal, 5 / 1.15), season, tag)
+    return c
+ranked = set(TOP_HATS) | set(GRAILS) | set(HAT_OVERRIDE)
+summer_g, hallo_g, holi_g = ["S2", "S5", "S6", "S8"], ["S3", "S9"], ["S4", "S7", "S10"]
+cheap = [i["name"] for i in sorted(ITEMS, key=lambda i: i["v"]) if not i.get("weapon") and i["v"] < 1.2][:45]
+new_hats = [i for i in ITEMS if i.get("unu") and (i.get("yr") or 0) >= 2024 and i["name"] not in ranked]
+low = [
+    low_crate("rookie-crate", "Rookie Crate", CRATE_IMG.get("Cosmetic Crate 1"), cheap, new_hats, ["S8", "S9", "S10"], .004, "Classic", "Starter crate"),
+    low_crate("summer-splash", "Summer Splash", CRATE_IMG.get("Summer 2024 Pink Cosmetic Cooler"), season_pool("Summer"),
+              [ITEM[n] for n in season_pool("Summer") if ITEM[n].get("unu") and n not in ranked], summer_g, .008, "Summer", "Summer items"),
+    low_crate("spooky-sack", "Spooky Sack", CRATE_IMG.get("Halloween 2024 Petrifying Jack-o-Crate"), season_pool("Halloween"),
+              [ITEM[n] for n in season_pool("Halloween") if ITEM[n].get("unu") and n not in ranked], hallo_g, .008, "Halloween", "Halloween items"),
+    low_crate("holiday-haul", "Holiday Haul", CRATE_IMG.get("Holiday 2024 Green Cosmetic Basket"), season_pool("Holiday"),
+              [ITEM[n] for n in season_pool("Holiday") if ITEM[n].get("unu") and n not in ranked], holi_g, .008, "Holiday", "Holiday items"),
+    build("strange-stash", "Strange Stash", CRATE_IMG.get("Strange Weapon Crate of Offense") or CRATE_IMG.get("Cosmetic Crate 1"),
+          [*[dict(n=i["name"], w=1) for i in ITEMS if i.get("q") == "Strange" and i.get("base") and i.get("base") != "Rising Sun Katana"],
+           *[dict(n=i["name"], w=.012) for i in ITEMS if i.get("q") == "Collector's" and i.get("base") != "Rising Sun Katana"]], "Weapons", "Strange weapons"),
+    low_crate("classic-sampler", "Classic Sampler", CRATE_IMG.get("Alpha Assortment Crate"),
+              sorted({n for c in CRATES if c["fx"] == ["S1"] and not c.get("weapons") and c["name"] not in ("Time Capsule", "All-Encompassing Crate") for n in c["items"] if n in ITEM and n not in ranked and ITEM[n]["v"] < 20}),
+              [i for i in ITEMS if i.get("unu") and "S1" in i["fx"] and i["name"] not in ranked and (i.get("yr") or 0) >= 2019], ["S1"], .006, "Classic", "Year-round items"),
+]
+for c in low: print(f"  low tier {c['name']}: price {c['price']}  avg payout {c['ev']}  unusual {sum(e['p'] for e in c['entries'] if e.get('unusual')) * 100:.2f}%")
+cases = [gc, cv, fv, gg, ub, cc] + low + cases
 for i, c in enumerate(cases): c["sort"] = i
 
 # ---- client data

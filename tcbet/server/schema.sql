@@ -14,11 +14,12 @@ create table if not exists case_entries (case_id text references cases on delete
 create table if not exists profiles (
   id uuid primary key references auth.users on delete cascade,
   username text not null,
-  balance numeric(14,2) not null default 100 check (balance >= 0),
+  balance numeric(14,2) not null default 1000 check (balance >= 0),
   daily_at timestamptz, chat_at timestamptz,
   opened int not null default 0,
   created_at timestamptz not null default now());
 create unique index if not exists profiles_username_ci on profiles (lower(username));
+alter table profiles alter column balance set default 1000;   -- new players start with 1,000 coins
 -- player | vip. Only changed by hand in the SQL editor (see vip.sql); no game function touches it.
 alter table profiles add column if not exists rank text not null default 'player';   -- player | vip | owner
 alter table profiles add column if not exists avatar text;                              -- 'class:Agent' or 'item:Knightmare|Burning'

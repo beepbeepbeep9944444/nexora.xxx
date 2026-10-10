@@ -300,7 +300,7 @@ function randomUnusual(hats = UNU_HATS) {
 function openAuth(mode = "login") {
   const m = modal(`<div class="auth">
     <img src="logo-mark.svg" alt="" class="auth-logo"><h2>${mode === "login" ? "Welcome back" : "Create your account"}</h2>
-    <p class="muted">${mode === "login" ? "Sign in to open cases, flip and trade." : "Free to play. You start with 100 fun-coins and a few items."}</p>
+    <p class="muted">${mode === "login" ? "Sign in to open cases, flip and trade." : "Free to play. You start with 1,000 fun-coins and a few items."}</p>
     <form id="authForm"><label>Username<input id="auUser" autocomplete="username" maxlength="20" required></label>
       <label>Password<input id="auPass" type="password" autocomplete="${mode === "login" ? "current-password" : "new-password"}" minlength="6" required></label>
       ${mode === "signup" ? `<label>Confirm password<input id="auPass2" type="password" autocomplete="new-password" minlength="6" required></label>` : ""}
@@ -322,7 +322,7 @@ function openAuth(mode = "login") {
         if (!(await rpc("username_available", { p_name: u }))) throw new Error("That username is taken.");
         const { error } = await sb.auth.signUp({ email: emailFor(u), password: p, options: { data: { username: u } } });
         if (error) throw error;
-        toast(`Welcome to TCBET, ${esc(u)}! Here's 100 fun-coins to start.`, "good");
+        toast(`Welcome to TCBET, ${esc(u)}! Here's 1,000 fun-coins to start.`, "good");
       } else {
         const { error } = await sb.auth.signInWithPassword({ email: emailFor(u), password: p });
         if (error) throw new Error(/invalid/i.test(error.message) ? "Wrong username or password." : error.message);
