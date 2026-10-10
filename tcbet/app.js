@@ -81,6 +81,14 @@ const SFX = (() => {
     coin() { tone(2600, .18, "triangle", .08); tone(3900, .12, "sine", .04, .02); },
     land() { tone(180, .12, "sine", .2, 0, 90); tone(2200, .3, "triangle", .06, .02); },
     count() { tone(660, .09, "square", .05); },
+    heartbeat() { tone(70, .12, "sine", .35, 0, 50); tone(65, .12, "sine", .25, .18, 45); },
+    join() { notes([784, 1175], .08, "triangle", .1); tone(1568, .25, "sine", .05, .16); },
+    drumroll(ms) { const n = Math.floor(ms / 55); for (let i = 0; i < n; i++) noise(.05, .05 + .05 * i / n, 260, i * .055); },
+    cash() { notes([1319, 1568, 2093], .06, "triangle", .1); for (let i = 0; i < 10; i++) tone(2800 + Math.random() * 1400, .1, "triangle", .04, .15 + i * .05); },
+    click2() { tone(260, .03, "square", .12); noise(.04, .12, 3000); },
+    spinCyl() { for (let i = 0; i < 6; i++) tone(420 + i * 30, .03, "square", .06, i * .07); },
+    bang() { noise(.6, .55, 180); tone(90, .35, "sawtooth", .25, 0, 40); },
+    survive() { notes([523, 659, 784, 1047, 1319], .1, "triangle", .14); },
     go() { tone(990, .18, "square", .06); },
     jackpot() {   // casino bells + coin shower for big wins
       for (let r = 0; r < 4; r++) notes([523, 659, 784, 1047, 784, 1047, 1319], .075, "triangle", .12, r * .62);
@@ -625,7 +633,8 @@ function watchFlip(g) {
   watchingFlip = g.id;
   const a = { name: g.creator_name, side: g.side, items: fromJ(g.creator_items), v: +g.creator_value };
   modal(`<h2 style="text-align:center">Coinflip #${g.id}</h2><div class="vs cf-vs" style="margin-top:12px"><div class="cf-side">${flipCol(a)}</div>${coinStage()}
-    <div class="cf-side cf-empty"><div class="pfp" style="background:var(--panel2)">?</div><b class="muted">Waiting for a player…</b></div></div><div id="cfRes" style="text-align:center;margin-top:12px" class="muted">You're spectating. The flip plays here when someone joins.</div>`);
+    <div class="cf-side cf-empty"><div class="player" style="justify-content:center;flex-direction:column"><div class="pfp wait-pfp">?</div><b class="muted">Waiting for a player…</b><span class="chip">${sideChip(g.side === "RED" ? "GRN" : "RED")}${g.side === "RED" ? "GRN" : "RED"}</span></div></div></div>
+    <div id="cfRes" style="text-align:center;margin-top:12px"><span class="spectate-tag">👁 Spectating</span><div class="muted" style="margin-top:6px">The flip plays here as soon as someone joins.</div></div>`);
 }
 // result is decided on the server the moment someone joins; everyone sees it 5 seconds later
 async function showFlip(g, replay = false) {
@@ -635,16 +644,17 @@ async function showFlip(g, replay = false) {
   const b = { name: g.joiner_name, side: g.side === "RED" ? "GRN" : "RED", items: fromJ(g.joiner_items), v: +g.joiner_value };
   $("#modal").dataset.lock = 1;
   modal(`<h2 style="text-align:center">Coinflip #${g.id}</h2><div class="vs cf-vs" style="margin-top:12px"><div class="cf-side" data-side="${a.side}">${flipCol(a)}</div>${coinStage()}
-    <div class="cf-side" data-side="${b.side}">${flipCol(b)}</div></div><div id="cfRes" style="text-align:center;margin-top:12px" class="muted">${esc(b.name)} joined! Flipping for ${fmt(a.v + b.v)}…</div>`);
+    <div class="cf-side" data-side="${b.side}">${flipCol(b)}</div></div><div id="cfRes" style="text-align:center;margin-top:12px" class="muted">${ME.user && [g.creator, g.joiner].includes(ME.user.id) ? "" : `<span class="spectate-tag">👁 Spectating</span> `}${esc(b.name)} joined! Flipping for ${fmt(a.v + b.v)}…</div>`);
+  SFX.join();
   const flipAt = replay ? Date.now() + 3000 : new Date(g.finished_at).getTime() + FLIP_WAIT;
   let lastN = null;
   while (Date.now() < flipAt && $("#cfCount")) {
     const n = Math.ceil((flipAt - Date.now()) / 1000);
-    if (n !== lastN) { lastN = n; $("#cfCount").textContent = n; $("#cfCount").classList.remove("pop"); void $("#cfCount").offsetWidth; $("#cfCount").classList.add("pop"); SFX.count(); }
+    if (n !== lastN) { lastN = n; $("#cfCount").textContent = n; $("#cfCount").classList.remove("pop"); void $("#cfCount").offsetWidth; $("#cfCount").classList.add("pop"); SFX.count(); SFX.heartbeat(); }
     await sleep(100);
   }
   if (!$("#cfCount")) return;
-  $("#cfCount").textContent = ""; SFX.go(); SFX.whoosh();
+  $("#cfCount").textContent = ""; SFX.go(); SFX.whoosh(); SFX.drumroll(FLIP_TOSS * .8);
   const spins = 18 + (g.winner_side === "GRN" ? .5 : 0), T = FLIP_TOSS;
   $("#cfToss").animate([{ transform: "translateY(0) scale(1)" }, { transform: "translateY(-170px) scale(1.3)", offset: .42 }, { transform: "translateY(0) scale(1)", offset: .82 },
     { transform: "translateY(-22px) scale(1.05)", offset: .9 }, { transform: "translateY(0) scale(1)", offset: .96 }, { transform: "translateY(0) scale(1)" }], { duration: T, easing: "ease-in-out", fill: "forwards" });
@@ -658,7 +668,7 @@ async function showFlip(g, replay = false) {
   $$(".cf-side").forEach(s => s.classList.add(s.dataset.side === g.winner_side ? "cf-win" : "cf-lose"));
   $("#coin3d").classList.add("glow-" + g.winner_side);
   confetti($("#coin3d"), won ? 100 : 50, g.winner_side === "RED" ? ["#ef4444", "#ff8a80", "#f5b83d", "#fff"] : ["#22c55e", "#86efac", "#f5b83d", "#fff"]);
-  if (won && pot >= BIG_WIN) bigWin(pot, "Coinflip #" + g.id); else if (won) SFX.good(); else if (ME.user && [g.creator, g.joiner].includes(ME.user.id)) SFX.lose(); else SFX.win();
+  if (won && pot >= BIG_WIN) bigWin(pot, "Coinflip #" + g.id); else if (won) { SFX.good(); SFX.cash(); } else if (ME.user && [g.creator, g.joiner].includes(ME.user.id)) SFX.lose(); else SFX.win();
   $("#cfRes").innerHTML = `<h2 style="color:${g.winner_side === "RED" ? "var(--red)" : "var(--grn)"}">${g.winner_side} wins!</h2>${won ? `You won ${coinVal(pot)}!` : `${userLink(winner.name)} took the pot of ${coinVal(pot)}.`}<div style="margin-top:14px"><button class="btn" data-close>Close</button></div>`;
   watchingFlip = null;
   await refreshMe(); bumpBalance(); loadFlips();
@@ -738,7 +748,7 @@ setInterval(async () => {
   if (!JP.round || JP.spinning) return;
   const s = secsLeft();
   if ($("#jpTime")) $("#jpTime").textContent = s === null ? "Waiting" : s + "s";
-  if (s === 0 && !JP.settling && sb) { JP.settling = true; try { await rpc("jackpot_settle"); } catch {} JP.settling = false; }
+  if (s === 0 && !JP.settling && sb && ME.user) { JP.settling = true; try { await rpc("jackpot_settle"); } catch {} JP.settling = false; }
 }, 1000);
 
 // ---------------------------------------------------------------- market
@@ -1062,6 +1072,143 @@ function showBattleFinal(b, animated = false) {
   }
 }
 
+// ---------------------------------------------------------------- russian roulette
+let RR = [], CUR_RR = null; const animatedRR = new Set();
+async function loadRoulette() {
+  if (!sb) return;
+  const [{ data: open }, { data: done }] = await Promise.all([
+    sb.from("roulette_games").select("*").eq("status", "open").order("stake", { ascending: false }).limit(30),
+    sb.from("roulette_games").select("*").eq("status", "done").order("finished_at", { ascending: false }).limit(8)]);
+  const list = [...(open || []), ...(done || [])];
+  const { data: pl } = list.length ? await sb.from("roulette_players").select("*").in("game_id", list.map(g => g.id)) : { data: [] };
+  for (const g of list) g.players = (pl || []).filter(x => x.game_id === g.id);
+  RR = list; drawRoulette();
+}
+function viewRoulette() {
+  $("#view").innerHTML = `<div class="page-head"><div><h1>Russian Roulette</h1><p>6 seats. Everyone buys in with items within 10% of the first player's. Each round the chamber knocks one player out. The last one standing takes the whole pile.</p></div><button class="btn btn-red" id="rrCreate">Open a table</button></div>
+    <div class="cf-list" id="rrList"><div class="empty">Loading…</div></div><div class="section-title" style="margin-top:22px">Recent games</div><div class="cf-list" id="rrDone"></div>`;
+  $("#rrCreate").onclick = async () => {
+    if (needLogin()) return;
+    const items = await pickItems({ title: "Open a Russian Roulette table", min: .5, confirm: "Open table", hint: "Your buy-in. Others must match it within 10%." });
+    if (items) try { const id = await rpc("rr_create", { p_ids: items.map(i => i.id) }); await refreshMe(); go("roulette/" + id); } catch (e) { fail(e); }
+  };
+  loadRoulette();
+}
+const rrSeats = g => Array.from({ length: g.seats }, (_, s) => { const p = g.players.find(x => x.slot === s); return p ? `<div class="seat">${p.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(p.username)}</div>` : `<div class="seat seat-empty"></div>`; }).join("");
+function drawRoulette() {
+  const el = $("#rrList"); if (!el) return;
+  const row = (g, open) => `<div class="panel b-row rr-row" data-rr="${g.id}">
+      <div class="b-mode"><b>#${g.id}</b><div class="muted" style="font-size:12px">by ${esc(g.creator_name)}</div></div>
+      <div class="b-seats">${rrSeats(g)}<span class="muted" style="margin-left:6px">${g.players.length}/${g.seats}</span></div>
+      <div>${open ? `Buy-in ${coinVal(g.stake)}<div class="muted" style="font-size:11px">${fmt(g.stake * .9)} – ${fmt(g.stake * 1.1)}</div>` : `${esc(g.winner_name)} won ${coinVal(g.pot)}`}</div>
+      <div><button class="btn ${open ? "btn-red" : ""}">${open ? "Sit down" : "Replay"}</button></div></div>`;
+  el.innerHTML = RR.filter(g => g.status === "open").map(g => row(g, true)).join("") || `<div class="empty">No open tables. Open one!</div>`;
+  $("#rrDone").innerHTML = RR.filter(g => g.status === "done").map(g => row(g, false)).join("") || `<div class="muted">No games yet.</div>`;
+  el.onclick = $("#rrDone").onclick = e => { const r = e.target.closest("[data-rr]"); if (r) go("roulette/" + r.dataset.rr); };
+}
+async function viewRouletteGame(id) {
+  id = +id;
+  const [{ data: g }, { data: pl }] = await Promise.all([sb.from("roulette_games").select("*").eq("id", id).maybeSingle(), sb.from("roulette_players").select("*").eq("game_id", id)]);
+  if (!g) { $("#view").innerHTML = `<div class="empty">Table not found. <a href="#/roulette">Back</a></div>`; return; }
+  g.players = pl || []; CUR_RR = g;
+  const me = ME.user && g.players.find(x => x.user_id === ME.user.id), creator = ME.user && g.creator === ME.user.id;
+  const pot = g.players.reduce((s, x) => s + +x.value, 0);
+  const seat = s => { const p = g.players.find(x => x.slot === s), items = p ? fromJ(p.items) : [];
+    return `<div class="rr-seat" data-slot="${s}" style="--a:${s * 60 - 90}deg"><div class="rr-seat-in">
+      ${p ? `${p.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(p.username)}<b>${p.is_bot ? "House Bot" : userLink(p.username)}</b><div class="muted" style="font-size:12px">${coinVal(p.value)}</div><div class="mini-items">${minis(items, 3)}</div>`
+        : g.status === "open" && ME.user && !me ? `<button class="btn btn-red" data-rrjoin="1">Sit down</button><div class="muted" style="font-size:11px">${fmt(g.stake * .9)} – ${fmt(g.stake * 1.1)}</div>` : `<div class="pfp wait-pfp">?</div><span class="muted">Empty seat</span>`}
+      <div class="rr-x">✕</div></div></div>`; };
+  $("#view").innerHTML = `<div class="page-head"><div><a href="#/roulette" class="muted">← All tables</a><h1>Russian Roulette #${g.id}</h1><p>Buy-in ${coinVal(g.stake)} · ${g.players.length}/${g.seats} seated</p></div>
+      <div style="display:flex;gap:8px">${g.status === "open" && creator ? `<button class="btn btn-red" id="rrBots">Fill with bots & start</button><button class="btn" id="rrCancel">Cancel</button>` : ""}${g.status === "done" ? `<button class="btn" id="rrReplay">Replay</button>` : ""}</div></div>
+    <div class="rr-table">${Array.from({ length: g.seats }, (_, s) => seat(s)).join("")}
+      <div class="rr-center"><div class="rr-cyl" id="rrCyl">${Array.from({ length: 6 }, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div><div class="rr-pot">${coinVal(g.status === "done" ? g.pot : pot)}</div><div class="rr-msg" id="rrMsg">${g.status === "open" ? "Waiting for players…" : g.status === "cancelled" ? "Cancelled" : ""}</div></div>
+      <div class="rr-pointer" id="rrPointer"></div></div>`;
+  $("#view").onclick = async e => {
+    if (!e.target.closest("[data-rrjoin]")) return;
+    if (needLogin()) return;
+    const items = await pickItems({ title: `Sit down at table #${g.id}`, min: g.stake * .9, max: g.stake * 1.1, confirm: "Buy in", hint: `Buy in with items worth ${fmt(g.stake * .9)} – ${fmt(g.stake * 1.1)}.` });
+    if (items) try { await rpc("rr_join", { p_id: g.id, p_ids: items.map(i => i.id) }); await refreshMe(); SFX.join(); viewRouletteGame(g.id); } catch (x) { fail(x); }
+  };
+  $("#rrBots") && ($("#rrBots").onclick = async () => { try { await rpc("rr_fill_bots", { p_id: g.id }); viewRouletteGame(g.id); } catch (e) { fail(e); } });
+  $("#rrCancel") && ($("#rrCancel").onclick = async () => { try { await rpc("rr_cancel", { p_id: g.id }); await refreshMe(); toast("Table closed, items returned."); go("roulette"); } catch (e) { fail(e); } });
+  $("#rrReplay") && ($("#rrReplay").onclick = () => runRoulette(g));
+  if (g.status === "done") { if (!animatedRR.has(g.id) && Date.now() - new Date(g.finished_at).getTime() < 90000) runRoulette(g); else rrFinal(g); }
+}
+async function runRoulette(g) {
+  animatedRR.add(g.id);
+  $$(".rr-seat").forEach(s => s.classList.remove("out", "winner", "aim"));
+  const msg = t => $("#rrMsg") && ($("#rrMsg").innerHTML = t);
+  const name = s => { const p = g.players.find(x => x.slot === s); return p ? (p.is_bot ? "House Bot" : p.username) : "?"; };
+  msg("Loading the chamber…"); SFX.spinCyl(); await sleep(1200);
+  let angle = 0;
+  for (let r = 0; r < g.eliminated.length; r++) {
+    if (!$("#rrPointer")) return;
+    const target = g.eliminated[r], alive = Array.from({ length: g.seats }, (_, s) => s).filter(s => !g.eliminated.slice(0, r).includes(s));
+    msg(`Round ${r + 1}: spinning…`);
+    $("#rrCyl").animate([{ transform: "rotate(0)" }, { transform: `rotate(${720 + rand(0, 360)}deg)` }], { duration: 1800, easing: "cubic-bezier(.2,.7,.2,1)" });
+    SFX.spinCyl(); setTimeout(() => SFX.spinCyl(), 700);
+    // pointer sweeps across live seats, then settles on the unlucky one
+    const hops = 6 + Math.floor(rand(0, 5));
+    for (let h = 0; h < hops; h++) {
+      const s = h === hops - 1 ? target : pick(alive);
+      $$(".rr-seat").forEach(x => x.classList.toggle("aim", +x.dataset.slot === s));
+      angle = s * 60 - 90; $("#rrPointer").style.transform = `rotate(${angle}deg)`;
+      SFX.tick(); await sleep(140 + h * 45);
+    }
+    msg(`<b>${esc(name(target))}</b>…`); SFX.heartbeat(); await sleep(700); SFX.heartbeat(); await sleep(700);
+    SFX.click2(); await sleep(350);
+    SFX.bang(); document.body.classList.add("shake"); setTimeout(() => document.body.classList.remove("shake"), 450);
+    const seat = $(`.rr-seat[data-slot="${target}"]`); seat?.classList.remove("aim"); seat?.classList.add("out");
+    msg(`💥 <b>${esc(name(target))}</b> is out! ${g.seats - r - 1} left`); await sleep(1300);
+  }
+  rrFinal(g, true);
+}
+function rrFinal(g, animated = false) {
+  if (!$("#rrMsg")) return;
+  $$(".rr-seat").forEach(s => { s.classList.remove("aim"); s.classList.toggle("out", (g.eliminated || []).includes(+s.dataset.slot)); s.classList.toggle("winner", +s.dataset.slot === g.winner_slot); });
+  $("#rrPointer").style.transform = `rotate(${g.winner_slot * 60 - 90}deg)`;
+  $("#rrMsg").innerHTML = `🏆 <b>${esc(g.winner_name)}</b> survived and takes ${coinVal(g.pot)}!`;
+  if (animated) {
+    const winP = g.players.find(x => x.slot === g.winner_slot), iWon = ME.user && winP?.user_id === ME.user.id;
+    confetti($(`.rr-seat[data-slot="${g.winner_slot}"]`) || $("#rrMsg"), 90);
+    if (iWon && +g.pot >= BIG_WIN) bigWin(+g.pot, "Russian Roulette #" + g.id); else { SFX.survive(); if (iWon) SFX.cash(); }
+    refreshMe();
+  }
+}
+
+// ---------------------------------------------------------------- value list: every item and every possible unusual
+let ALL_VALUES = null;
+function allValues() {
+  if (ALL_VALUES) return ALL_VALUES;
+  const out = ITEMS.map(i => ({ n: i.name, fx: null }));
+  for (const h of UNU_HATS) for (const e of allowedFx(h)) out.push({ n: h.name, fx: e.name });
+  for (const it of out) it.v = value(it);
+  return ALL_VALUES = out.sort((a, b) => b.v - a.v);
+}
+function viewValues() {
+  const all = allValues();
+  $("#view").innerHTML = `<div class="page-head"><div><h1>Value List</h1><p>Every item on TCBET and every unusual that can actually exist (${all.length.toLocaleString()} total), from most to least expensive.</p></div></div>
+    <div class="toolbar"><input id="vlQ" placeholder="Search items or effects…" autocomplete="off">
+      <div class="tabs" id="vlTab"><button data-t="all" class="on">All</button><button data-t="unu">Unusuals</button><button data-t="items">Items</button><button data-t="weap">Weapons</button></div></div>
+    <div class="vl-head"><span>#</span><span></span><span>Item</span><span>Type</span><span style="text-align:right">Value</span></div>
+    <div id="vlList" class="vl-list"></div><div style="text-align:center;margin-top:14px"><button class="btn" id="vlMore">Show more</button></div>`;
+  let tab = "all", list = all, page = 0; const PAGE = 100;
+  const row = (it, i) => { const b = ITEM[it.n], q = !it.fx && b.q;
+    return `<div class="vl-row" style="--rc:${rarity(it.v, it.fx)}"><span class="vl-rank">${i + 1}</span><span class="vl-img">${thumb(it)}</span>
+      <span class="vl-name ${it.fx ? "unu" : ""}" ${q ? `style="color:${QCOLOR[q]}"` : ""}>${esc(label(it))}</span>
+      <span class="muted vl-type">${it.fx ? FX[it.fx].series + " · " + esc(b.worn) : (q ? q + " · " : "") + esc(b.worn)}</span><span class="vl-v">${coinVal(it.v)}</span></div>`; };
+  const more = () => { const s = list.slice(page * PAGE, ++page * PAGE); $("#vlList").insertAdjacentHTML("beforeend", s.map((it, k) => row(it, all.indexOf(it))).join("")); $("#vlMore").hidden = page * PAGE >= list.length; };
+  const draw = () => {
+    const q = $("#vlQ").value.toLowerCase().trim();
+    list = all.filter(it => (tab === "all" || (tab === "unu" ? it.fx : tab === "weap" ? !it.fx && ITEM[it.n].weapon : !it.fx && !ITEM[it.n].weapon)) && (!q || label(it).toLowerCase().includes(q)));
+    page = 0; $("#vlList").innerHTML = list.length ? "" : `<div class="empty">Nothing found.</div>`; more();
+  };
+  let t = 0; $("#vlQ").oninput = () => { clearTimeout(t); t = setTimeout(draw, 150); };
+  $("#vlTab").onclick = e => { const b = e.target.closest("button"); if (!b) return; tab = b.dataset.t; $$("#vlTab button").forEach(x => x.classList.toggle("on", x === b)); draw(); };
+  $("#vlMore").onclick = more;
+  draw();
+}
+
 // ---------------------------------------------------------------- profiles
 async function viewProfile(name) {
   if (!name) return go("players");
@@ -1234,6 +1381,16 @@ function connectRealtime() {
       if (r[0] === "battles") loadBattles();
       if (r[0] === "battle" && +r[1] === p.new.battle_id && CUR_BATTLE?.status === "open") viewBattle(p.new.battle_id);
     })
+    .on("postgres_changes", { event: "*", schema: "public", table: "roulette_games" }, p => {
+      const r = route();
+      if (r[0] === "roulette" && !r[1]) loadRoulette();
+      if (r[0] === "roulette" && +r[1] === p.new?.id && p.new.status !== CUR_RR?.status) viewRouletteGame(p.new.id);
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "roulette_players" }, p => {
+      const r = route();
+      if (r[0] === "roulette" && !r[1]) loadRoulette();
+      if (r[0] === "roulette" && +r[1] === p.new.game_id && CUR_RR?.status === "open") { SFX.join(); viewRouletteGame(p.new.game_id); }
+    })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "tips" }, p => {
       if (ME.user && p.new.receiver === ME.user.id) { toast(`${esc(p.new.sender_name)} tipped you ${fmt(p.new.amount)} coins!`, "good"); refreshMe().then(bumpBalance); }
     })
@@ -1263,7 +1420,7 @@ function render() {
   closeModal();
   const [r, arg] = route();
   $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r)));
-  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg) }[r] || viewCases)();
+  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues }[r] || viewCases)();
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", render);

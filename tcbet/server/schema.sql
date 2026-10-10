@@ -37,6 +37,14 @@ create table if not exists battles (
   results jsonb, totals jsonb, winner_team int,
   created_at timestamptz not null default now(), finished_at timestamptz);
 create table if not exists battle_players (battle_id bigint references battles on delete cascade, slot int, user_id uuid, username text, is_bot bool not null default false, primary key (battle_id, slot));
+create table if not exists roulette_games (
+  id bigint generated always as identity primary key,
+  creator uuid, creator_name text, stake numeric(14,2) not null,       -- the creator's buy-in; others must be within 10%
+  seats int not null default 6, status text not null default 'open', -- open | done | cancelled
+  eliminated int[], winner_slot int, winner_name text, pot numeric(14,2),
+  created_at timestamptz not null default now(), finished_at timestamptz);
+create table if not exists roulette_players (game_id bigint references roulette_games on delete cascade, slot int, user_id uuid, username text,
+  is_bot bool not null default false, items jsonb, value numeric(14,2), primary key (game_id, slot));
 create table if not exists tips (id bigint generated always as identity primary key, sender uuid, sender_name text, receiver uuid, receiver_name text, amount numeric(14,2), created_at timestamptz not null default now());
 
 create table if not exists inventory (
@@ -70,7 +78,7 @@ create table if not exists trades (
 
 -- ============================================================ read-only access for clients
 do $$ declare t text; begin
-  foreach t in array array['catalog','effects','cases','case_entries','profiles','inventory','drops','chat','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players'] loop
+  foreach t in array array['catalog','effects','cases','case_entries','profiles','inventory','drops','chat','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players','roulette_games','roulette_players'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists read_all on %I', t);
     if t not in ('trades', 'tips') then execute format('create policy read_all on %I for select using (true)', t); end if;
@@ -529,6 +537,75 @@ begin
   return to_jsonb(b);
 end $$;
 
+-- ============================================================ russian roulette
+-- 6 seats, every buy-in within 10% of the creator's. One random player is knocked out per round; the last one standing takes the pile.
+create or replace function rr_create(p_ids bigint[]) returns bigint language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); j jsonb; uname text; gid bigint;
+begin
+  if (select count(*) from roulette_games where creator = uid and status = 'open') >= 2 then raise exception 'You already have 2 open roulette tables'; end if;
+  j := _claim_items(p_ids, uid, 'roulette');
+  if _jsum(j) < 0.5 then raise exception 'Buy in with at least 0.50 worth of items'; end if;
+  select username into uname from profiles where id = uid;
+  insert into roulette_games (creator, creator_name, stake) values (uid, uname, _jsum(j)) returning id into gid;
+  insert into roulette_players (game_id, slot, user_id, username, items, value) values (gid, 0, uid, uname, j, _jsum(j));
+  return gid;
+end $$;
+
+create or replace function rr_join(p_id bigint, p_ids bigint[]) returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); g roulette_games; j jsonb; v numeric; s int;
+begin
+  select * into g from roulette_games where id = p_id for update;
+  if not found or g.status <> 'open' then raise exception 'That table is no longer open'; end if;
+  if exists (select 1 from roulette_players where game_id = p_id and user_id = uid) then raise exception 'You are already at this table'; end if;
+  j := _claim_items(p_ids, uid, 'roulette'); v := _jsum(j);
+  if v < g.stake * 0.9 or v > g.stake * 1.1 then raise exception 'Your buy-in must be within 10%% of %', g.stake; end if;
+  select min(x) into s from generate_series(0, g.seats - 1) x where x not in (select slot from roulette_players where game_id = p_id);
+  insert into roulette_players (game_id, slot, user_id, username, items, value) values (p_id, s, uid, (select username from profiles where id = uid), j, v);
+  return _rr_maybe_run(p_id);
+end $$;
+
+-- creator fills the empty seats with House bots (they stake real items) and starts the game
+create or replace function rr_fill_bots(p_id bigint) returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); g roulette_games; hj jsonb; s int;
+begin
+  select * into g from roulette_games where id = p_id for update;
+  if not found or g.status <> 'open' or g.creator <> uid then raise exception 'Only the creator of an open table can call bots'; end if;
+  for s in select x from generate_series(0, g.seats - 1) x where x not in (select slot from roulette_players where game_id = p_id) loop
+    hj := _house_items(g.stake);
+    insert into roulette_players (game_id, slot, username, is_bot, items, value) values (p_id, s, 'House Bot', true, hj, _jsum(hj));
+  end loop;
+  return _rr_maybe_run(p_id);
+end $$;
+
+create or replace function rr_cancel(p_id bigint) returns void language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); g roulette_games;
+begin
+  select * into g from roulette_games where id = p_id for update;
+  if not found or g.status <> 'open' or g.creator <> uid then raise exception 'That table is no longer open'; end if;
+  update inventory set state = 'inv' where id = any(select unnest(_jids(items)) from roulette_players where game_id = p_id and not is_bot);
+  update roulette_games set status = 'cancelled', finished_at = now() where id = p_id;
+end $$;
+
+create or replace function _rr_maybe_run(p_id bigint) returns jsonb language plpgsql set search_path = public as $$
+declare g roulette_games; order_ int[]; w roulette_players; total_ numeric; pl roulette_players;
+begin
+  select * into g from roulette_games where id = p_id;
+  if (select count(*) from roulette_players where game_id = p_id) < g.seats then return to_jsonb(g); end if;
+  order_ := array(select slot from roulette_players where game_id = p_id order by random());   -- elimination order; the last slot survives
+  select * into w from roulette_players where game_id = p_id and slot = order_[g.seats];
+  select sum(value) into total_ from roulette_players where game_id = p_id;
+  for pl in select * from roulette_players where game_id = p_id and not is_bot loop perform _wager(pl.user_id, pl.value); end loop;
+  if w.is_bot then
+    delete from inventory where id = any(select unnest(_jids(items)) from roulette_players where game_id = p_id and not is_bot);
+  else
+    update inventory set owner = w.user_id, state = 'inv' where id = any(select unnest(_jids(items)) from roulette_players where game_id = p_id and not is_bot);
+    insert into inventory (owner, name, fx) select w.user_id, x->>'n', x->>'fx' from roulette_players rp, jsonb_array_elements(rp.items) x where rp.game_id = p_id and rp.is_bot;
+  end if;
+  update roulette_games set status = 'done', eliminated = order_[1:g.seats - 1], winner_slot = w.slot, winner_name = w.username, pot = total_, finished_at = now() where id = p_id returning * into g;
+  if total_ >= 500 then insert into chat (username, body) values ('TCBET', w.username || ' survived Russian Roulette #' || p_id || ' and took ' || round(total_, 2) || '!'); end if;
+  return to_jsonb(g);
+end $$;
+
 -- ============================================================ tipping
 create or replace function tip(p_to text, p_amount numeric) returns numeric language plpgsql security definer set search_path = public as $$
 declare uid uuid := _uid(); me profiles; rc profiles; amt numeric := round(coalesce(p_amount, 0), 2);
@@ -580,11 +657,12 @@ grant execute on function claim_daily(), open_case(text, int), sell_items(bigint
   jackpot_deposit(bigint[]), jackpot_withdraw(), jackpot_settle(),
   trade_send(text, bigint[], bigint[], numeric), trade_respond(bigint, bool), trade_cancel(bigint), chat_send(text),
   claim_rakeback(), open_level_crate(), tip(text, numeric), set_avatar(text, text),
-  battle_create(text[], int, int, bool), battle_join(bigint, int), battle_fill_bots(bigint), battle_cancel(bigint) to authenticated;
+  battle_create(text[], int, int, bool), battle_join(bigint, int), battle_fill_bots(bigint), battle_cancel(bigint),
+  rr_create(bigint[]), rr_join(bigint, bigint[]), rr_fill_bots(bigint), rr_cancel(bigint) to authenticated;
 grant execute on function level_of(numeric), rake_rate(int, text), is_vip(text) to anon, authenticated;
 
 do $$ declare t text; begin
-  foreach t in array array['chat','drops','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players'] loop
+  foreach t in array array['chat','drops','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players','roulette_games','roulette_players'] loop
     begin execute format('alter publication supabase_realtime add table %I', t); exception when duplicate_object then null; end;
   end loop;
 end $$;
