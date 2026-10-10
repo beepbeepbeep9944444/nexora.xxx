@@ -185,7 +185,7 @@ function syncTop() {
     $("#avatarInitial").innerHTML = inner || esc(p.username[0].toUpperCase());
     $("#avatarLink").classList.toggle("has-av", !!inner);
     $("#avatarLink").classList.toggle("is-vip", isVip());
-    $("#avatarLink").href = "#/u/" + encodeURIComponent(p.username);
+    $("#avatarLink").href = "#/inventory";   // inventory is where you sell; it links on to your profile
     $("#lvlChip").textContent = "Lv " + levelOf(p.xp); $("#lvlChip").hidden = false;
     const rewards = Math.max(0, levelOf(p.xp) - 1 - p.crates_claimed) + (+p.rakeback >= 0.01 ? 1 : 0);
     $("#rewardBadge").textContent = rewards; $("#rewardBadge").hidden = !rewards;
@@ -801,7 +801,7 @@ function viewInventory() {
   if (!ME.user) { $("#view").innerHTML = `<div class="empty"><h2>Your inventory</h2><p>Sign in to see your items.</p><button class="btn btn-gold" id="ivLogin">Sign in</button></div>`; $("#ivLogin").onclick = () => openAuth(); return; }
   const sel = new Set(), p = ME.profile;
   $("#view").innerHTML = `<div class="panel inv-hero">${pfp(p.username)}<div style="flex:1"><h1 style="margin:0;font:800 22px Rubik">${esc(p.username)} ${vipTag(p.rank)}</h1><div class="muted">${ME.inv.length} items · joined ${new Date(p.created_at).toLocaleDateString()}</div></div>
-      <div class="stat"><small>Inventory value</small><b>${coinVal(total(ME.inv))}</b></div><div class="stat"><small>Cases opened</small><b>${p.opened}</b></div><button class="btn" id="signOut">Sign out</button></div>
+      <div class="stat"><small>Inventory value</small><b>${coinVal(total(ME.inv))}</b></div><div class="stat"><small>Cases opened</small><b>${p.opened}</b></div><a class="btn" href="#/u/${encodeURIComponent(p.username)}">View profile</a><button class="btn" id="signOut">Sign out</button></div>
     <div class="toolbar"><input id="ivQ" placeholder="Search your items…"><button class="btn" id="ivAll">Select all</button></div>
     <form class="panel bulk-sell" id="ivBulk"><b>Sell by value</b><span class="muted">Select every item</span>
       <select id="ivDir"><option value="under">under</option><option value="over">over</option></select>
@@ -1293,7 +1293,7 @@ async function viewProfile(name) {
         <div class="muted">Level ${L} · joined ${new Date(p.created_at).toLocaleDateString()}</div>
         <div class="xpbar" title="${fmt(p.xp)} / ${fmt(next)} xp"><div style="width:${Math.min(100, (p.xp - prev) / (next - prev) * 100)}%"></div></div>
         <div class="muted" style="font-size:12px">${fmt(p.xp - prev)} / ${fmt(next - prev)} xp to level ${L + 1}</div>
-        <div class="profile-actions">${me ? `<button class="btn" id="pfAvatar">Change picture</button><a class="btn" href="#/rewards">Rewards</a>` : ME.user ? `<a class="btn btn-gold" href="#/trade/${encodeURIComponent(p.username)}">Trade</a><button class="btn" id="pfTip">Tip coins</button>` : ""}</div></div>
+        <div class="profile-actions">${me ? `<a class="btn btn-gold" href="#/inventory">Sell items</a><button class="btn" id="pfAvatar">Change picture</button><a class="btn" href="#/rewards">Rewards</a>` : ME.user ? `<a class="btn btn-gold" href="#/trade/${encodeURIComponent(p.username)}">Trade</a><button class="btn" id="pfTip">Tip coins</button>` : ""}</div></div>
       <div class="profile-stats">
         <div class="stat"><small>Inventory value</small><b>${coinVal(total(items))}</b></div>
         <div class="stat"><small>Wagered</small><b>${coinVal(p.xp)}</b></div>
