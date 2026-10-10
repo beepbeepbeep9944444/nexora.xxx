@@ -494,3 +494,5 @@ body.shake{animation:shake .45s}
 .b-joinbig{width:100%;padding:14px;font-size:15px}
 .vs-tag.big{font-size:26px;padding:0 4px}
 @media (max-width:900px){.b-board{flex-direction:column}.vs-tag.big{align-self:center}.b-col{min-width:130px}}
+.b-share{margin-top:4px;font-size:12px;font-weight:700;color:var(--grn)}
+.b-share.house{color:var(--muted)}

@@ -1079,11 +1079,16 @@ function showBattleFinal(b, animated = false) {
   const teamTot = (b.totals || []).map(Number), pot = res.reduce((s, r) => s + +r.v, 0);
   $$(".b-team").forEach(t => t.classList.add(+t.dataset.team === b.winner_team ? "b-win" : "b-lose"));
   $$(".b-team").forEach(t => t.insertAdjacentHTML("beforeend", `<div class="b-teamtot">${coinVal(teamTot[+t.dataset.team] || 0)}</div>`));
+  // each winning seat's equal share of the pot (bots' shares stay with the House)
+  for (const [slot, v] of Object.entries(b.payout || {})) {
+    const col = $(`.b-col[data-slot="${slot}"]`), bot = b.players.find(p => p.slot === +slot)?.is_bot;
+    col?.querySelector(".b-total").insertAdjacentHTML("beforeend", `<div class="b-share ${bot ? "house" : ""}">${bot ? "House keeps" : "Gets"} ${coinVal(v)}</div>`);
+  }
   const winners = b.players.filter(p => Math.floor(p.slot / b.team_size) === b.winner_team).map(p => p.is_bot ? "House Bot" : p.username);
-  $("#bStatus").innerHTML = `<h2 style="margin:6px 0">${winners.map(esc).join(" & ")} win${winners.length === 1 ? "s" : ""} ${coinVal(pot)}!</h2>${b.crazy ? "Crazy mode: the lowest total took it." : ""}`;
+  $("#bStatus").innerHTML = `<h2 style="margin:6px 0">${winners.map(esc).join(" & ")} win${winners.length === 1 ? "s" : ""} ${coinVal(pot)}!</h2>${winners.length > 1 ? `Split ${winners.length} ways, about ${coinVal(pot / winners.length)} each. ` : ""}${b.crazy ? "Crazy mode: the lowest total took it." : ""}`;
   if (animated) {
     const iWon = ME.user && b.players.some(p => p.user_id === ME.user.id && Math.floor(p.slot / b.team_size) === b.winner_team);
-    const share = iWon ? pot / Math.max(1, b.players.filter(p => !p.is_bot && Math.floor(p.slot / b.team_size) === b.winner_team).length) : 0;
+    const mine = b.players.find(p => ME.user && p.user_id === ME.user.id), share = iWon ? +(b.payout?.[mine.slot] ?? pot / b.team_size) : 0;
     confetti($(".b-team.b-win") || $("#bStatus"), 80);
     if (iWon && share >= BIG_WIN) bigWin(share, "Case battle #" + b.id); else if (iWon) SFX.good(); else SFX.win();
     refreshMe();

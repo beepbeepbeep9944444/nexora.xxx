@@ -36,6 +36,7 @@ create table if not exists battles (
   status text not null default 'open',                                             -- open | done | cancelled
   results jsonb, totals jsonb, winner_team int,
   created_at timestamptz not null default now(), finished_at timestamptz);
+alter table battles add column if not exists payout jsonb;   -- {slot: value received} for the winning team
 create table if not exists battle_players (battle_id bigint references battles on delete cascade, slot int, user_id uuid, username text, is_bot bool not null default false, primary key (battle_id, slot));
 create table if not exists roulette_games (
   id bigint generated always as identity primary key,
@@ -523,16 +524,23 @@ begin
   best := case when b.crazy then (select min(x) from unnest(tot) x) else (select max(x) from unnest(tot) x) end;
   ties := array(select i2 from generate_subscripts(tot, 1) i2 where tot[i2] = best);
   wt := ties[1 + floor(random() * cardinality(ties))::int] - 1;
-  -- every item goes to the winning team's human players, always to whoever has received the least so far
-  winners := array(select user_id from battle_players where battle_id = p_id and slot / b.team_size = wt and not is_bot order by slot);
-  if cardinality(winners) > 0 then
-    got := array_fill(0::numeric, array[cardinality(winners)]);
-    for it in select x from jsonb_array_elements(res) x order by (x->>'v')::numeric desc loop
-      k := 1; for i in 2..cardinality(winners) loop if got[i] < got[k] then k := i; end if; end loop;
-      insert into inventory (owner, name, fx) values (winners[k], it->>'n', it->>'fx');
-      got[k] := got[k] + (it->>'v')::numeric;
-    end loop;
-  end if;
+  -- the pot is split evenly (by value) between every seat on the winning team: each item goes to whoever has
+  -- received the least so far. A House bot's share stays with the House.
+  winners := array(select user_id from battle_players where battle_id = p_id and slot / b.team_size = wt order by slot);
+  got := array_fill(0::numeric, array[cardinality(winners)]);
+  for it in select x from jsonb_array_elements(res) x order by (x->>'v')::numeric desc loop
+    k := 1; for i in 2..cardinality(winners) loop if got[i] < got[k] then k := i; end if; end loop;
+    if winners[k] is not null then insert into inventory (owner, name, fx) values (winners[k], it->>'n', it->>'fx'); end if;
+    got[k] := got[k] + (it->>'v')::numeric;
+  end loop;
+  -- items can't be cut in pieces, so anyone who got less than an equal share is topped up with coins
+  for i in 1..cardinality(winners) loop
+    if winners[i] is not null and got[i] < (select sum(x) from unnest(got) x) / cardinality(got) then
+      update profiles set balance = balance + round((select sum(x) from unnest(got) x) / cardinality(got) - got[i], 2) where id = winners[i];
+    end if;
+  end loop;
+  update battles set payout = (select jsonb_object_agg((wt * b.team_size + gs.n - 1)::text,
+      round(greatest(got[gs.n], (select sum(x) from unnest(got) x) / cardinality(got)), 2)) from generate_series(1, cardinality(got)) gs(n)) where id = p_id;
   update battles set status = 'done', results = res, totals = to_jsonb(tot), winner_team = wt, finished_at = now() where id = p_id returning * into b;
   if (select sum(x) from unnest(tot) x) >= 1000 then
     insert into chat (username, body, show_at) values ('TCBET', 'Case battle #' || p_id || ' (' || (select string_agg(username, ', ') from battle_players where battle_id = p_id and slot / b.team_size = wt) || ') won ' || round((select sum(x) from unnest(tot) x), 2) || ' in items!', now() + make_interval(secs => cardinality(b.cases) * 3.2 + 2));
