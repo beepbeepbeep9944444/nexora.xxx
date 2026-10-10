@@ -67,15 +67,22 @@ def other_age(yr):  # unlisted hats: small age bonus, never reaching TOP_LO
     return 1.1 if yr <= 2018 else 1.0 if yr <= 2020 else .9 if yr <= 2021 else .8 if yr <= 2022 else .7 if yr <= 2023 else .6
 missing = [n for n in [*TOP_HATS, *GRAILS, *SHOP_HATS] if n not in {i["name"] for i in ITEMS}]
 assert not missing, missing
+# Hat category multipliers vs a normal hat (1x): shop 7x, 2018-and-older 5x, Summer 2023 coolers 2.5x
+SUMMER_2023 = {n for c in CRATES if c["name"].startswith("Summer 2023") for n in c["items"]}
+def category_mult(it):
+    if it["name"] in SHOP_HATS: return 7.0
+    if (it.get("yr") or 2022) <= 2018: return 5.0
+    if it["name"] in SUMMER_2023: return 2.5
+    return 0.0
 for it in ITEMS:
     if not it.get("unu"): continue
     if it["name"] in GRAILS:
         it["hf"] = GRAILS[it["name"]]
     elif it["name"] in TOP_HATS:
         r = TOP_HATS.index(it["name"])
-        it["hf"] = TOP_HI * (TOP_LO / TOP_HI) ** (r / (len(TOP_HATS) - 1))
+        it["hf"] = max(TOP_HI * (TOP_LO / TOP_HI) ** (r / (len(TOP_HATS) - 1)), category_mult(it))
     else:
-        it["hf"] = (0.3 if it.get("bp") else 1) * other_age(it.get("yr") or 2022) * (0.85 + 0.3 * fnv01(it["name"]))
+        it["hf"] = category_mult(it) or (0.3 if it.get("bp") else 1) * other_age(it.get("yr") or 2022) * (0.85 + 0.3 * fnv01(it["name"]))
     it["fbs"] = BURN_FLOOR if (it.get("yr") or 2022) <= 2018 else 0     # 2018 hats: Burning / Scorching Energy never below 10k
     it["fany"] = SHOP_FLOOR if it["name"] in SHOP_HATS else 0          # shop hats: any non-Unusualifier effect >= 5k
 
@@ -171,5 +178,6 @@ open(sys.argv[3], "w", encoding="utf-8").write("\n".join(L) + "\n")
 print(len(cases), "cases;", [(c["name"], c["price"]) for c in cases[:4]])
 for h, f in [("Knightmare", "Burning"), ("Disaster Spellcaster", "Burning"), ("Open Mind", "Burning"), ("Sheik", "Burning"), ("Dead Eye", "Burning"), ("Attack Wrap", "Burning"), ("Big Bruncher", "Nebula"), ("Hard News", "Sparking"), ("Occult Classic", "Massed Fireflies"), ("Knightmare", "VIP")]: print(f, h, "=", value(h, f))
 print("Golden Frying Pan =", value("Golden Frying Pan"))
+for h in ["Welding Mask", "Rider", "Driller", "Ugly Ursidae", "Beast's Bonnet", "Antler Branches", "Big Bruncher"] + sorted(SUMMER_2023)[:2] + [i["name"] for i in ITEMS if i.get("unu") and (i.get("yr") or 2022) <= 2018 and i["name"] not in TOP_HATS and i["name"] not in GRAILS][:2]: print(f"  {h}: hat x{ITEM[h]['hf']:.2f}  Burning={value(h, 'Burning') if any(e['name']=='Burning' and legal(ITEM[h], e) for e in EFFECTS) else '-'}")
 print("top 5 unusuals:", sorted(((value(h["name"], e["name"]), e["name"] + " " + h["name"]) for h in ITEMS if h.get("unu") for e in EFFECTS if legal(h, e)), reverse=True)[:5])
 print("2018 burning/scorching under 10k:", [h["name"] for h in ITEMS if h.get("unu") and (h.get("yr") or 2022) <= 2018 for e in EFFECTS if e["name"] in ("Burning", "Scorching Energy") and legal(h, e) and value(h["name"], e["name"]) < 10000])

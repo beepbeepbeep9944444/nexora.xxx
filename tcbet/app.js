@@ -571,6 +571,11 @@ function viewInventory() {
   $("#view").innerHTML = `<div class="panel inv-hero">${pfp(p.username)}<div style="flex:1"><h1 style="margin:0;font:800 22px Rubik">${esc(p.username)} ${vipTag(p.rank)}</h1><div class="muted">${ME.inv.length} items · joined ${new Date(p.created_at).toLocaleDateString()}</div></div>
       <div class="stat"><small>Inventory value</small><b>${coinVal(total(ME.inv))}</b></div><div class="stat"><small>Cases opened</small><b>${p.opened}</b></div><button class="btn" id="signOut">Sign out</button></div>
     <div class="toolbar"><input id="ivQ" placeholder="Search your items…"><button class="btn" id="ivAll">Select all</button></div>
+    <form class="panel bulk-sell" id="ivBulk"><b>Sell by value</b><span class="muted">Select every item</span>
+      <select id="ivDir"><option value="under">under</option><option value="over">over</option></select>
+      <span class="val"><i class="coin"></i><input id="ivAmt" type="number" min="0" step="0.01" placeholder="1.00" required></span>
+      <label class="chk"><input type="checkbox" id="ivKeepUnu" checked> keep unusuals</label>
+      <button class="btn">Select</button><span id="ivBulkInfo" class="muted"></span></form>
     <div class="grid" id="ivGrid"></div>
     <div class="sel-bar" id="ivBar" hidden><span class="grow" id="ivInfo"></span><button class="btn" id="ivClear">Clear</button><button class="btn btn-gold" id="ivSell">Sell</button></div>`;
   const draw = () => {
@@ -584,7 +589,24 @@ function viewInventory() {
   $("#ivGrid").onclick = e => { const c = e.target.closest(".card"); if (!c) return; const id = +c.dataset.id; sel.has(id) ? sel.delete(id) : sel.add(id); draw(); };
   $("#ivAll").onclick = () => { ME.inv.forEach(i => sel.add(i.id)); draw(); };
   $("#ivClear").onclick = () => { sel.clear(); draw(); };
-  $("#ivSell").onclick = async () => { try { await rpc("sell_items", { p_ids: [...sel] }); await refreshMe(); bumpBalance(); toast("Sold!", "good"); viewInventory(); } catch (e) { fail(e); } };
+  $("#ivBulk").onsubmit = e => {
+    e.preventDefault();
+    const amt = +$("#ivAmt").value, over = $("#ivDir").value === "over", keepUnu = $("#ivKeepUnu").checked;
+    const hit = ME.inv.filter(it => (over ? value(it) > amt : value(it) < amt) && !(keepUnu && it.fx));
+    sel.clear(); hit.forEach(i => sel.add(i.id)); draw();
+    $("#ivBulkInfo").innerHTML = hit.length ? `${hit.length} item${hit.length === 1 ? "" : "s"} ${over ? "over" : "under"} ${fmt(amt)} selected · worth ${coinVal(total(hit))}` : `No items ${over ? "over" : "under"} ${fmt(amt)}`;
+  };
+  $("#ivSell").onclick = () => {
+    const items = ME.inv.filter(i => sel.has(i.id)), get = r2(total(items) * sellRate()), unu = items.filter(i => i.fx).length;
+    const m = modal(`<h2>Sell ${items.length} item${items.length === 1 ? "" : "s"}?</h2><p class="muted">You'll get ${coinVal(get)}${isVip() ? " (VIP: full value)" : " (95% of value)"}. This can't be undone.</p>
+      ${unu ? `<p style="color:var(--unu2)">Includes ${unu} unusual${unu === 1 ? "" : "s"}.</p>` : ""}
+      <div class="mini-items" style="flex-wrap:wrap;margin:12px 0">${minis(items.sort((a, b) => value(b) - value(a)), 24)}</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn" data-close>Cancel</button><button class="btn btn-gold" id="ivSellOk">Sell for ${fmt(get)}</button></div>`);
+    $("#ivSellOk", m).onclick = async () => {
+      $("#ivSellOk").disabled = true;
+      try { await rpc("sell_items", { p_ids: [...sel] }); closeModal(); await refreshMe(); bumpBalance(); toast(`Sold ${items.length} items for ${fmt(get)}`, "good"); viewInventory(); } catch (x) { fail(x); $("#ivSellOk").disabled = false; }
+    };
+  };
   $("#signOut").onclick = async () => { await sb.auth.signOut(); go("cases"); };
   draw();
 }
