@@ -474,3 +474,23 @@ body.shake{animation:shake .45s}
 @media (max-width:640px){.rv-seat{width:86px;padding:8px 4px}.rv-seat .pfp{width:36px;height:36px}.rv-seat .rr-val{display:none}.rv-gun{width:100px}.rv-center{width:52%}.rv-center .rr-banner{font-size:16px}}
 .live-dot{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:pulse 1s infinite;vertical-align:middle}
 .live-row{border-color:var(--gold2)}
+
+/* ---------- battle board: fill the page ---------- */
+.b-rounds{gap:8px;padding:10px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.b-round{padding:6px}
+.b-round .bcase{width:64px;height:64px}
+.b-board{display:flex;gap:14px;align-items:stretch;width:100%}
+.b-team{flex:1 1 0;min-width:0;padding:14px;gap:10px}
+.b-col{flex:1 1 0;width:auto;min-width:150px}
+.b-head{min-height:52px;font-size:14px}
+.b-head .pfp{width:44px;height:44px;border-radius:11px}
+.vreel-wrap{height:300px}
+.vcard{height:190px}
+.vcard .vc-v{font-size:14px}
+.b-total{font-size:20px;font-weight:800;padding:6px 0;border-radius:9px;background:var(--bg2)}
+.b-items{max-height:none;min-height:60px}
+.b-items .mini{width:54px;height:54px}
+.b-empty .vreel-wrap{display:grid;place-items:center;border-style:dashed}
+.b-joinbig{width:100%;padding:14px;font-size:15px}
+.vs-tag.big{font-size:26px;padding:0 4px}
+@media (max-width:900px){.b-board{flex-direction:column}.vs-tag.big{align-self:center}.b-col{min-width:130px}}

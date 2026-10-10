@@ -9,11 +9,14 @@ grab = lambda k: json.loads(re.search(r"window\." + k + r"=(.*?);\n", src).group
 ITEMS, EFFECTS, CRATES = grab("TC2_ITEMS"), grab("TC2_EFFECTS"), grab("TC2_CRATES")
 
 # owner-set fixed values
-VALUE_OVERRIDE = {"Strange Rising Sun Katana": 3500, "Collector's Rising Sun Katana": 10000}
+# the Golden Frying Pan is the end goal of the economy; the other grails sit well below it
+VALUE_OVERRIDE = {"Golden Frying Pan": 100000, "Frying Pan": 40000, "Golden Knife": 18000, "Golden Wrench": 16000,
+                  "Strange Rising Sun Katana": 3500, "Collector's Rising Sun Katana": 10000}
 for i in ITEMS:
     if i["name"] in VALUE_OVERRIDE: i["v"] = VALUE_OVERRIDE[i["name"]]
+    elif i.get("q") == "Haunted": i["v"] = round(i["v"] * 2.5, 2)       # one-of-a-kind haunted weapons
 # owner-set case prices
-PRICE_OVERRIDE = {"collectors-cache": 250, "unusual-box": 1500, "golden-gamble": 3000}
+PRICE_OVERRIDE = {"collectors-cache": 250, "golden-gamble": 3000, "grail-crate": 25000}
 
 # players can't get developer/contributor items or dev/community effects, so they don't exist on TCBET
 ADMIN_GROUPS = {"DEV", "COMM"}
@@ -25,7 +28,7 @@ for i in ITEMS:
 
 # Effect multipliers on a hat's base unusual price (site owner's numbers; ranges use the middle).
 # value = hat factor * BASE_UNIT * multiplier, so Burning (1.75x) on Sheik lands next to a Golden Frying Pan.
-BASE_UNIT = 1487
+BASE_UNIT = 2200   # unusual price scale: Burning on a costume grail ~ half a Golden Frying Pan
 # Most desirable effects, in the owner's order: Nebula > Burning > Scorching Energy > Dawn > Singularity
 EFFECT_MULT = {"Nebula": 2.0, "Burning": 1.85, "Scorching Energy": 1.7, "Dawn": 1.55, "Singularity": 1.45,
                "Sunrise": 1.3, "Scorching Summon": 1.2, "Black Hole": 1.1}
@@ -70,7 +73,7 @@ TOP_HATS = ["Sheik", "Dead Eye", "Safety First", "Attack Wrap", "Hard News", "Dr
 TOP_HI, TOP_LO = 11.8, 1.5   # Sheik sits right behind the costume grails
 # Fitten Co. shop hats (and the three named costume grails): any real unusual on them is worth at least 5,000
 SHOP_HATS = {"Spiked Raider", "Sheik", "Driller", "Hard News", "Welding Mask", "Rider", "Knightmare", "Disaster Spellcaster", "Omniscient Oculi"}
-BURN_FLOOR, SHOP_FLOOR, CAP = 10000, 5000, 100000
+BURN_FLOOR, SHOP_FLOOR, CAP = 15000, 7500, 95000
 def other_age(yr):  # unlisted hats: small age bonus, never reaching TOP_LO
     return 1.1 if yr <= 2018 else 1.0 if yr <= 2020 else .9 if yr <= 2021 else .8 if yr <= 2022 else .7 if yr <= 2023 else .6
 missing = [n for n in [*TOP_HATS, *GRAILS, *SHOP_HATS] if n not in {i["name"] for i in ITEMS}]
@@ -179,7 +182,16 @@ cc = build("collectors-cache", "Collector's Cache", ITEM["Collector's Rising Sun
     dict(n="Collector's Rising Sun Katana", w=.05), dict(n="Strange Rising Sun Katana", w=.25),
     *[dict(n=i["name"], w=.5) for i in col], *cc_fill], cc_fill, 190),
     "Weapons", "Collector's weapons")
-cases = [gg, ub, cc] + cases
+# ---- top-tier vaults
+FOUNDERS = [h for h in TOP_HATS[:16] if ITEM[h].get("unu")]
+fv = build("founders-vault", "Founders' Vault", ITEM["Sheik"]["img"], [unusual_entry([ITEM[h] for h in FOUNDERS], STD, 1)], "Classic", "2017-18 grail unusual")
+cv = build("costume-vault", "Costume Vault", ITEM["Knightmare"]["img"], [unusual_entry([ITEM[h] for h in GRAILS], STD + ["HAUNT"], 1)], "Classic", "Costume hat unusual")
+grail_fill = [unusual_entry([ITEM[h] for h in FOUNDERS], STD, 40)]
+gc = build("grail-crate", "Grail Crate", ITEM["Golden Frying Pan"]["img"], tuned([
+    dict(n="Golden Frying Pan", w=6), dict(n="Frying Pan", w=9), dict(n="Golden Knife", w=12), dict(n="Golden Wrench", w=12),
+    dict(n="Collector's Rising Sun Katana", w=14),
+    unusual_entry([ITEM[h] for h in GRAILS], STD + ["HAUNT"], 20), *grail_fill], grail_fill, 25000 / 1.5), "Classic", "Golden Frying Pan odds")
+cases = [gc, cv, fv, gg, ub, cc] + cases
 for i, c in enumerate(cases): c["sort"] = i
 
 # ---- client data
@@ -211,6 +223,8 @@ L.append("delete from inventory where name not in (select name from catalog) or 
 L.append("commit;")
 open(sys.argv[3], "w", encoding="utf-8").write("\n".join(L) + "\n")
 print(len(cases), "cases;", [(c["name"], c["price"]) for c in cases[:4]])
+for c in (gc, cv, fv, ub, gg): print(f"  {c['name']}: price {c['price']:,} avg payout {c['ev']:,.0f} ({c['ev'] / c['price'] * 100:.0f}%)")
+print("  grail odds:", [(e.get("n", "unusual"), f"{e['p'] * 100:.1f}%") for e in gc["entries"]])
 for h, f in [("Knightmare", "Burning"), ("Disaster Spellcaster", "Burning"), ("Open Mind", "Burning"), ("Sheik", "Burning"), ("Dead Eye", "Burning"), ("Attack Wrap", "Burning"), ("Big Bruncher", "Nebula"), ("Hard News", "Sparking"), ("Occult Classic", "Massed Fireflies"), ("Knightmare", "VIP")]: print(f, h, "=", value(h, f))
 print("Golden Frying Pan =", value("Golden Frying Pan"))
 print("Summer Blockers:", {f: value("Summer Blockers", f) for f in ("Nebula", "Sunrise", "Dawn", "Dust Devil", "Bubble Bath", "Far-out Beat", "VIP")})

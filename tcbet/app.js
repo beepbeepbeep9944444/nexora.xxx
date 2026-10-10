@@ -1003,15 +1003,19 @@ function createBattle() {
   draw(); drawPick();
 }
 let CUR_BATTLE = null; const animatedBattles = new Set(); let BATTLE_ANIM = null;
+let BV_TOKEN = 0;
 async function viewBattle(id) {
   id = +id;
   if (BATTLE_ANIM === id && $("#bRounds")) return;
+  const tok = ++BV_TOKEN;
   const [{ data: b }, { data: pl }] = await Promise.all([sb.from("battles").select("*").eq("id", id).maybeSingle(), sb.from("battle_players").select("*").eq("battle_id", id)]);
+  if (tok !== BV_TOKEN || (BATTLE_ANIM === id && $("#bRounds"))) return;    // a newer draw (or a running animation) wins
   if (!b) { $("#view").innerHTML = `<div class="empty">Battle not found. <a href="#/battles">Back to battles</a></div>`; return; }
   b.players = pl || []; CUR_BATTLE = b;
   const seats = b.teams * b.team_size, me = ME.user && b.players.find(x => x.user_id === ME.user.id), creator = ME.user && b.creator === ME.user.id;
   const col = slot => { const p = b.players.find(x => x.slot === slot);
-    return `<div class="b-col" data-slot="${slot}"><div class="b-head">${p ? (p.is_bot ? `<div class="pfp bot">🤖</div><b>House Bot</b>` : `${pfp(p.username)}<b>${userLink(p.username)}</b>`) : (b.status === "open" && ME.user && !me ? `<button class="btn btn-gold" data-bjoin="${b.id}" data-slot="${slot}">Join ${coinVal(b.cost)}</button>` : `<span class="muted">Empty seat</span>`)}</div>
+    return `<div class="b-col ${p ? "" : "b-empty"}" data-slot="${slot}"><div class="b-head">${p ? (p.is_bot ? `<div class="pfp bot">🤖</div><b>House Bot</b>` : `${pfp(p.username)}<b>${userLink(p.username)}</b>`) : `<div class="pfp wait-pfp">?</div><span class="muted">Empty seat</span>`}</div>
+      ${!p && b.status === "open" && ME.user && !me ? `<button class="btn btn-gold b-joinbig" data-bjoin="${b.id}" data-slot="${slot}">Join for ${coinVal(b.cost)}</button>` : ""}
       <div class="vreel-wrap"><div class="vreel"></div></div><div class="b-total">${coinVal(0)}</div><div class="b-items"></div></div>`; };
   $("#view").innerHTML = `<div class="page-head"><div><a href="#/battles" class="muted">← All battles</a><h1>${modeName(b)} ${b.crazy ? `<span class="chip crazy">CRAZY</span>` : ""} battle #${b.id}</h1>
       <p>${b.crazy ? "Lowest" : "Highest"} total wins · ${coinVal(b.cost)} per seat · ${b.cases.length} cases</p></div>
@@ -1038,6 +1042,7 @@ async function runBattleInner(b) {
   const res = (b.results || []).map(r => ({ ...r, it: { n: r.n, fx: r.fx || null } })).filter(r => ITEM[r.n]);
   const tots = {}; $$(".b-items").forEach(x => x.innerHTML = ""); $$(".b-total").forEach(x => x.innerHTML = coinVal(0));
   $$(".b-team").forEach(t => t.classList.remove("b-win", "b-lose"));
+  $$(".b-teamtot").forEach(x => x.remove());
   for (let r = 1; r <= b.cases.length; r++) {
     if (!$("#bRounds")) return;
     $$(".b-round").forEach(x => x.classList.toggle("on", +x.dataset.r === r));
@@ -1046,11 +1051,11 @@ async function runBattleInner(b) {
     SFX.whoosh();
     await Promise.all(rows.map(async row => {
       const colEl = $(`.b-col[data-slot="${row.slot}"]`); if (!colEl) return;
-      const reel = colEl.querySelector(".vreel"), H = 128, N = 30, WIN = 25;
+      const reel = colEl.querySelector(".vreel"), H = 190, N = 30, WIN = 25;
       reel.innerHTML = Array.from({ length: N }, (_, i) => i === WIN ? (row.it.fx ? `<div class="vcard mystery">★</div>` : vcard(row.it)) : (e => e.unusual ? `<div class="vcard mystery">★</div>` : vcard({ n: e.n }))(rollEntry(c))).join("");
       reel.style.transition = "none"; reel.style.transform = "translateY(0)"; void reel.offsetWidth;
       reel.style.transition = "transform 2600ms cubic-bezier(.1,.75,.15,1)";
-      reel.style.transform = `translateY(${-(WIN * H) + rand(-30, 30)}px)`;
+      reel.style.transform = `translateY(${-(WIN * H) + (reel.parentElement.clientHeight - H) / 2 + rand(-40, 40)}px)`;
       if (row.slot === 0) reelTicks(reel, H, 2600, "y");
       await sleep(2700);
       if (row.it.fx) { reel.children[WIN].outerHTML = vcard(row.it); colEl.classList.add("unu-hit"); SFX.rare(); await sleep(500); colEl.classList.remove("unu-hit"); }
@@ -1128,10 +1133,13 @@ const REVOLVER_SVG = `<svg viewBox="0 0 120 60" class="revolver-svg"><defs><line
   <path d="M40 18 L28 16 L18 22 L10 52 Q9 58 16 58 L30 58 Q35 58 35 53 L38 34 L46 32 Z" fill="#7c4a24"/><path d="M14 50 L30 50" stroke="#5a3418" stroke-width="2"/>
   <path d="M44 32 Q46 42 56 41 L56 37 Q49 38 49 32 Z" fill="none" stroke="#9ca3af" stroke-width="2.5"/><path d="M50 32 L52 38" stroke="#d1d5db" stroke-width="2"/></svg>`;
 const seatAngle = s => -90 + s * 60;     // seat 0 at the top, clockwise
+let RV_TOKEN = 0;
 async function viewRouletteGame(id) {
   id = +id;
   if (RR_ANIM === id && $("#rvTable")) return;          // never redraw a table mid-animation (it would show the result)
+  const tok = ++RV_TOKEN;
   const [{ data: g }, { data: pl }] = await Promise.all([sb.from("roulette_games").select("*").eq("id", id).maybeSingle(), sb.from("roulette_players").select("*").eq("game_id", id)]);
+  if (tok !== RV_TOKEN || (RR_ANIM === id && $("#rvTable"))) return;
   if (!g) { $("#view").innerHTML = `<div class="empty">Table not found. <a href="#/roulette">Back</a></div>`; return; }
   g.players = pl || []; CUR_RR = g;
   const me = ME.user && g.players.find(x => x.user_id === ME.user.id), creator = ME.user && g.creator === ME.user.id;
