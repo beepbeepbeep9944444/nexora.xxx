@@ -8,6 +8,13 @@ src = open(sys.argv[1], encoding="utf-8").read()
 grab = lambda k: json.loads(re.search(r"window\." + k + r"=(.*?);\n", src).group(1))
 ITEMS, EFFECTS, CRATES = grab("TC2_ITEMS"), grab("TC2_EFFECTS"), grab("TC2_CRATES")
 
+# owner-set fixed values
+VALUE_OVERRIDE = {"Strange Rising Sun Katana": 3500, "Collector's Rising Sun Katana": 10000}
+for i in ITEMS:
+    if i["name"] in VALUE_OVERRIDE: i["v"] = VALUE_OVERRIDE[i["name"]]
+# owner-set case prices
+PRICE_OVERRIDE = {"collectors-cache": 250, "unusual-box": 1500, "golden-gamble": 3000}
+
 # players can't get developer/contributor items or dev/community effects, so they don't exist on TCBET
 ADMIN_GROUPS = {"DEV", "COMM"}
 ITEMS = [i for i in ITEMS if "Developer/Contributor-only" not in i.get("tags", [])]
@@ -120,7 +127,8 @@ def build(cid, name, img, entries, season, tag, price=None, markup=None):
     ev = sum(e["p"] * (e["ev"] if e.get("unusual") else value(e["n"])) for e in entries)
     # house keeps ~15%; cheap crates get a floor so 1%-unusual lottery tickets can't be spammed with free coins
     floor = 2.5 if season == "Weapons" else 5
-    return dict(id=cid, name=name, img=img, season=season, tag=tag, entries=entries, ev=r2(ev), price=price or max(floor, r2(ev * (markup or tier_markup(ev)))))
+    price = PRICE_OVERRIDE.get(cid) or price or max(floor, r2(ev * (markup or tier_markup(ev))))
+    return dict(id=cid, name=name, img=img, season=season, tag=tag, entries=entries, ev=r2(ev), price=price)
 
 def season_of(c):
     if c.get("weapons"): return "Weapons"
@@ -143,18 +151,34 @@ all_hats = [h for h in ITEMS if h.get("unu") and fx_for(h, STD)]
 ub = build("unusual-box", "Unusual Box", "logo-mark.svg", [unusual_entry(all_hats, STD, 1)], "Classic", "100% Unusual")
 top = [i for i in ITEMS if not i.get("weapon") and i["v"] > 150][:14]
 mid = [i for i in ITEMS if 3 < i["v"] < 30][:18]
-gg = build("golden-gamble", "Golden Gamble", ITEM["Golden Frying Pan"]["img"], [
+def tuned(entries, filler, target_ev):
+    """scale the weight of the cheap 'filler' entries so the case pays back target_ev on average"""
+    val = lambda x: x["ev"] if x.get("unusual") else value(x["n"])
+    hi = [x for x in entries if x not in filler]
+    lo_w, hi_w = 1e-6, 1e6
+    for _ in range(200):
+        k = (lo_w * hi_w) ** .5
+        tw = sum(x["w"] for x in hi) + k * sum(x["w"] for x in filler)
+        ev = (sum(x["w"] * val(x) for x in hi) + k * sum(x["w"] * val(x) for x in filler)) / tw
+        lo_w, hi_w = (k, hi_w) if ev > target_ev else (lo_w, k)
+    for x in filler: x["w"] *= k
+    return entries
+
+gg_fill = [dict(n=i["name"], w=12) for i in mid]
+gg = build("golden-gamble", "Golden Gamble", ITEM["Golden Frying Pan"]["img"], tuned([
     dict(n="Golden Frying Pan", w=.4), dict(n="Frying Pan", w=.9), dict(n="Golden Knife", w=1.6), dict(n="Golden Wrench", w=1.8),
-    dict(n="Collector's Rising Sun Katana", w=3),
+    dict(n="Collector's Rising Sun Katana", w=1.2),
     *[dict(n=i["name"], w=4000 / i["v"]) for i in ITEMS if i.get("q") == "Haunted"],
     *[dict(n=i["name"], w=6) for i in top],
     unusual_entry(all_hats, STD, 20),
-    *[dict(n=i["name"], w=12) for i in mid]], "Classic", "Golden Frying Pan inside")
+    *gg_fill], gg_fill, 2000), "Classic", "Golden Frying Pan inside")
 col = [i for i in ITEMS if i.get("q") == "Collector's" and i.get("base") != "Rising Sun Katana"]
-strg = [i for i in ITEMS if i.get("q") == "Strange" and i.get("base")]
-cc = build("collectors-cache", "Collector's Cache", ITEM["Collector's Rising Sun Katana"]["img"],
-           [*[dict(n=i["name"], w=.12) for i in col], dict(n="Strange Rising Sun Katana", w=.6), *[dict(n=i["name"], w=1) for i in strg]],
-           "Weapons", "Collector's weapons")
+strg = [i for i in ITEMS if i.get("q") == "Strange" and i.get("base") and i.get("base") != "Rising Sun Katana"]
+cc_fill = [dict(n=i["name"], w=1) for i in strg]
+cc = build("collectors-cache", "Collector's Cache", ITEM["Collector's Rising Sun Katana"]["img"], tuned([
+    dict(n="Collector's Rising Sun Katana", w=.05), dict(n="Strange Rising Sun Katana", w=.25),
+    *[dict(n=i["name"], w=.5) for i in col], *cc_fill], cc_fill, 190),
+    "Weapons", "Collector's weapons")
 cases = [gg, ub, cc] + cases
 for i, c in enumerate(cases): c["sort"] = i
 

@@ -582,6 +582,7 @@ async function loadFlips() {
   FLIPS = [...(open || []), ...(done || [])];
   drawFlips();
 }
+setInterval(() => { if (route()[0] === "coinflip" && FLIPS.some(flipLive)) drawFlips(); }, 2000);
 function viewCoinflip() {
   $("#view").innerHTML = `<div class="page-head"><div><h1>Coinflip</h1><p>RED or GRN. Match the other player's items within ±10% and flip for everything. Nobody joining? Flip against the House for coins.</p></div><button class="btn btn-gold" id="cfCreate">Create game</button></div>
     <div class="cf-list" id="cfList"><div class="empty">Loading…</div></div><div class="section-title" style="margin-top:22px">Recent flips</div><div class="cf-list" id="cfDone"></div>`;
@@ -590,12 +591,16 @@ function viewCoinflip() {
 const sideChip = s => `<span class="side ${s}" style="position:static;display:inline-block;width:10px;height:10px;border:0;border-radius:50%"></span>`;
 function drawFlips() {
   const el = $("#cfList"); if (!el) return;
-  const open = FLIPS.filter(g => g.status === "open"), done = FLIPS.filter(g => g.status === "done");
+  const open = FLIPS.filter(g => g.status === "open"), live = FLIPS.filter(flipLive), done = FLIPS.filter(g => g.status === "done" && !flipLive(g));
   el.innerHTML = open.map(g => { const items = fromJ(g.creator_items), v = +g.creator_value, mine = ME.user && g.creator === ME.user.id, other = g.side === "RED" ? "GRN" : "RED"; return `<div class="panel cf-row">
       <div class="player"><div class="pfp" style="background:${pfpColor(g.creator_name)}">${esc(g.creator_name[0].toUpperCase())}<span class="side ${g.side}"></span></div><div><div class="nm">${userLink(g.creator_name)}</div><div class="muted" style="font-size:12px">${items.length} items · ${g.side}</div></div></div>
       <div class="mini-items">${minis(items, 7)}</div>
       <div>${coinVal(v)}<div class="muted" style="font-size:11px">${fmt(v * .9)} – ${fmt(v * 1.1)}</div></div>
-      <div style="display:flex;gap:6px">${mine ? `<button class="btn" data-house="${g.id}" style="flex:1">vs House</button><button class="btn" data-cancel="${g.id}" title="Cancel">✕</button>` : `<button class="btn btn-${other === "GRN" ? "grn" : "red"}" data-join="${g.id}" style="flex:1">Join as ${other}</button>`}<button class="btn" data-watch="${g.id}" title="Watch">👁</button></div></div>`; }).join("") || `<div class="empty">No open games. Create one!</div>`;
+      <div style="display:flex;gap:6px">${mine ? `<button class="btn" data-house="${g.id}" style="flex:1">vs House</button><button class="btn" data-cancel="${g.id}" title="Cancel">✕</button>` : `<button class="btn btn-${other === "GRN" ? "grn" : "red"}" data-join="${g.id}" style="flex:1">Join as ${other}</button>`}<button class="btn" data-watch="${g.id}" title="Watch">👁</button></div></div>`; }).join("")
+    + live.map(g => `<div class="panel cf-row live-row"><div class="player">${pfp(g.creator_name)}<div><div class="nm">${userLink(g.creator_name)}</div><div class="muted" style="font-size:12px">${g.side}</div></div></div>
+      <div class="player">${pfp(g.joiner_name)}<div><div class="nm">${userLink(g.joiner_name)}</div><div class="muted" style="font-size:12px">${g.side === "RED" ? "GRN" : "RED"}</div></div></div>
+      <div>${coinVal(+g.creator_value + +g.joiner_value)}</div><div><button class="btn btn-gold" data-livewatch="${g.id}" style="width:100%"><span class="live-dot"></span>LIVE · Watch</button></div></div>`).join("")
+    || `<div class="empty">No open games. Create one!</div>`;
   $("#cfDone").innerHTML = done.map(g => `<div class="panel cf-row" style="opacity:.8">
       <div class="player">${pfp(g.creator_name)}<div><div class="nm">${userLink(g.creator_name)}</div><div class="muted" style="font-size:12px">${g.side} ${g.winner_side === g.side ? "· won" : ""}</div></div></div>
       <div class="player">${pfp(g.joiner_name)}<div><div class="nm">${userLink(g.joiner_name)}</div><div class="muted" style="font-size:12px">${g.side === "RED" ? "GRN" : "RED"} ${g.winner_side !== g.side ? "· won" : ""}</div></div></div>
@@ -604,6 +609,7 @@ function drawFlips() {
   el.onclick = async e => {
     const j = e.target.closest("[data-join]"), h = e.target.closest("[data-house]"), c = e.target.closest("[data-cancel]"), w = e.target.closest("[data-watch]");
     if (w) watchFlip(FLIPS.find(g => g.id === +w.dataset.watch));
+    const lw = e.target.closest("[data-livewatch]"); if (lw) showFlip(FLIPS.find(g => g.id === +lw.dataset.livewatch), true);
     if (j) joinFlip(FLIPS.find(g => g.id === +j.dataset.join));
     if (h) { try { const r = await rpc("coinflip_house", { p_id: +h.dataset.house }); showFlip(r); } catch (x) { fail(x); } }
     if (c) { try { await rpc("coinflip_cancel", { p_id: +c.dataset.cancel }); toast("Flip cancelled, items returned."); await refreshMe(); loadFlips(); } catch (x) { fail(x); } }
@@ -624,6 +630,7 @@ async function createFlip() {
   try { await rpc("coinflip_create", { p_ids: items.map(i => i.id), p_side: side }); toast("Game created. Waiting for an opponent…"); await refreshMe(); loadFlips(); } catch (e) { fail(e); }
 }
 const shownFlips = new Set();
+const flipLive = g => g.status === "done" && Date.now() < new Date(g.finished_at).getTime() + 5000 + 5200 + 800;
 let watchingFlip = null;
 const FLIP_WAIT = 5000, FLIP_TOSS = 5200;
 const flipCol = p => `<div><div class="player" style="justify-content:center;flex-direction:column">${pfp(p.name)}<b>${userLink(p.name)}</b><span class="chip">${sideChip(p.side)}${p.side}</span></div><div style="margin-top:8px">${coinVal(p.v)}</div><div class="mini-items" style="justify-content:center;margin-top:8px;flex-wrap:wrap">${p.items.length ? minis(p.items, 6) : `<span class="muted">${p.name === "House" ? "coins" : "…"}</span>`}</div></div>`;
@@ -646,7 +653,7 @@ async function showFlip(g, replay = false) {
   modal(`<h2 style="text-align:center">Coinflip #${g.id}</h2><div class="vs cf-vs" style="margin-top:12px"><div class="cf-side" data-side="${a.side}">${flipCol(a)}</div>${coinStage()}
     <div class="cf-side" data-side="${b.side}">${flipCol(b)}</div></div><div id="cfRes" style="text-align:center;margin-top:12px" class="muted">${ME.user && [g.creator, g.joiner].includes(ME.user.id) ? "" : `<span class="spectate-tag">👁 Spectating</span> `}${esc(b.name)} joined! Flipping for ${fmt(a.v + b.v)}…</div>`);
   SFX.join();
-  const flipAt = replay ? Date.now() + 3000 : new Date(g.finished_at).getTime() + FLIP_WAIT;
+  const realAt = new Date(g.finished_at).getTime() + FLIP_WAIT, flipAt = replay && realAt < Date.now() ? Date.now() + 3000 : realAt;
   let lastN = null;
   while (Date.now() < flipAt && $("#cfCount")) {
     const n = Math.ceil((flipAt - Date.now()) / 1000);
@@ -915,6 +922,7 @@ function drawOffers() {
 const MODES = [{ k: "1v1", t: 2, s: 1 }, { k: "1v1v1", t: 3, s: 1 }, { k: "2v2", t: 2, s: 2 }, { k: "3v3", t: 2, s: 3 }, { k: "3v3v3", t: 3, s: 3 }];
 const modeName = b => MODES.find(m => m.t === b.teams && m.s === b.team_size)?.k || `${b.teams}x${b.team_size}`;
 const caseById = id => CASES.find(c => c.id === id);
+const battleLive = b => b.status === "done" && Date.now() < new Date(b.finished_at).getTime() + b.cases.length * 3200 + 2000;
 let BATTLES = [];
 async function loadBattles() {
   if (!sb) return;
@@ -933,6 +941,7 @@ const seatHtml = (b, slot, joinable) => {
 };
 const teamsHtml = (b, joinable) => Array.from({ length: b.teams }, (_, t) => `<div class="seat-team">${Array.from({ length: b.team_size }, (_, i) => seatHtml(b, t * b.team_size + i, joinable)).join("")}</div>`).join(`<span class="vs-tag">VS</span>`);
 const caseStrip = (ids, n = 8) => ids.slice(0, n).map(id => { const c = caseById(id); return c ? `<img class="bcase" src="${c.img.startsWith("http") ? sized(c.img, 96) : c.img}" title="${esc(c.name)}" referrerpolicy="no-referrer">` : ""; }).join("") + (ids.length > n ? `<span class="muted">+${ids.length - n}</span>` : "");
+setInterval(() => { if (route()[0] === "battles" && BATTLES.some(battleLive)) drawBattles(); }, 2000);
 function viewBattles() {
   $("#view").innerHTML = `<div class="page-head"><div><h1>Case Battles</h1><p>Everyone opens the same cases. <b>Normal</b>: highest total wins. <b>Crazy</b>: lowest total wins. The winning team takes every item.</p></div><button class="btn btn-gold" id="bCreate">Create battle</button></div>
     <div class="cf-list" id="bList"><div class="empty">Loading…</div></div><div class="section-title" style="margin-top:22px">Recent battles</div><div class="cf-list" id="bDone"></div>`;
@@ -944,9 +953,9 @@ function drawBattles() {
       <div class="b-mode"><b>${modeName(b)}</b>${b.crazy ? `<span class="chip crazy">CRAZY</span>` : `<span class="chip">Normal</span>`}<div class="muted" style="font-size:12px">${b.cases.length} case${b.cases.length === 1 ? "" : "s"}</div></div>
       <div class="b-cases">${caseStrip(b.cases)}</div>
       <div class="b-seats">${teamsHtml(b, open && ME.user && !b.players.some(x => x.user_id === ME.user.id))}</div>
-      <div class="b-cost">${coinVal(b.cost)}<div class="muted" style="font-size:11px">${open ? "per seat" : "pot " + fmt((b.results || []).reduce((s, r) => s + +r.v, 0))}</div></div></div>`;
-  el.innerHTML = BATTLES.filter(b => b.status === "open").map(b => row(b, true)).join("") || `<div class="empty">No open battles. Create one!</div>`;
-  $("#bDone").innerHTML = BATTLES.filter(b => b.status === "done").map(b => row(b, false)).join("") || `<div class="muted">No battles yet.</div>`;
+      <div class="b-cost">${battleLive(b) ? `<span class="btn btn-gold"><span class="live-dot"></span>LIVE · Watch</span>` : `${coinVal(b.cost)}<div class="muted" style="font-size:11px">${open ? "per seat" : "pot " + fmt((b.results || []).reduce((s, r) => s + +r.v, 0))}</div>`}</div></div>`;
+  el.innerHTML = BATTLES.filter(b => b.status === "open" || battleLive(b)).map(b => row(b, b.status === "open")).join("") || `<div class="empty">No open battles. Create one!</div>`;
+  $("#bDone").innerHTML = BATTLES.filter(b => b.status === "done" && !battleLive(b)).map(b => row(b, false)).join("") || `<div class="muted">No battles yet.</div>`;
   const click = async e => {
     const j = e.target.closest("[data-bjoin]");
     if (j) { e.stopPropagation(); return joinBattle(+j.dataset.bjoin, +j.dataset.slot); }
@@ -993,9 +1002,10 @@ function createBattle() {
   };
   draw(); drawPick();
 }
-let CUR_BATTLE = null; const animatedBattles = new Set();
+let CUR_BATTLE = null; const animatedBattles = new Set(); let BATTLE_ANIM = null;
 async function viewBattle(id) {
   id = +id;
+  if (BATTLE_ANIM === id && $("#bRounds")) return;
   const [{ data: b }, { data: pl }] = await Promise.all([sb.from("battles").select("*").eq("id", id).maybeSingle(), sb.from("battle_players").select("*").eq("battle_id", id)]);
   if (!b) { $("#view").innerHTML = `<div class="empty">Battle not found. <a href="#/battles">Back to battles</a></div>`; return; }
   b.players = pl || []; CUR_BATTLE = b;
@@ -1014,13 +1024,17 @@ async function viewBattle(id) {
   $("#bCancel") && ($("#bCancel").onclick = async () => { try { await rpc("battle_cancel", { p_id: b.id }); await refreshMe(); toast("Battle cancelled, coins refunded."); go("battles"); } catch (e) { fail(e); } });
   $("#bReplay") && ($("#bReplay").onclick = () => runBattle(b, true));
   if (b.status === "done") {
-    const fresh = Date.now() - new Date(b.finished_at).getTime() < 90000;
+    const fresh = battleLive(b) || Date.now() - new Date(b.finished_at).getTime() < 90000;
     if (!animatedBattles.has(b.id) && fresh) runBattle(b); else showBattleFinal(b);
   }
 }
 const vcard = it => { const v = value(it); return `<div class="vcard ${it.fx ? "unusual" : ""}" style="--rc:${rarity(v, it.fx)}">${thumb(it)}<div class="vc-v">${coinVal(v)}</div></div>`; };
 async function runBattle(b, replay = false) {
-  animatedBattles.add(b.id);
+  if (BATTLE_ANIM === b.id) return;
+  animatedBattles.add(b.id); BATTLE_ANIM = b.id;
+  try { await runBattleInner(b); } finally { BATTLE_ANIM = null; }
+}
+async function runBattleInner(b) {
   const res = (b.results || []).map(r => ({ ...r, it: { n: r.n, fx: r.fx || null } })).filter(r => ITEM[r.n]);
   const tots = {}; $$(".b-items").forEach(x => x.innerHTML = ""); $$(".b-total").forEach(x => x.innerHTML = coinVal(0));
   $$(".b-team").forEach(t => t.classList.remove("b-win", "b-lose"));
@@ -1073,7 +1087,8 @@ function showBattleFinal(b, animated = false) {
 }
 
 // ---------------------------------------------------------------- russian roulette
-let RR = [], CUR_RR = null; const animatedRR = new Set();
+let RR = [], CUR_RR = null; const animatedRR = new Set(); let RR_ANIM = null;
+const rrLive = g => g.status === "done" && Date.now() < new Date(g.finished_at).getTime() + (2 + (g.rounds || []).reduce((s, r) => s + 3.4 + r.pulls.length * 3, 0)) * 1000;
 async function loadRoulette() {
   if (!sb) return;
   const [{ data: open }, { data: done }] = await Promise.all([
@@ -1084,6 +1099,7 @@ async function loadRoulette() {
   for (const g of list) g.players = (pl || []).filter(x => x.game_id === g.id);
   RR = list; drawRoulette();
 }
+setInterval(() => { if (route()[0] === "roulette" && !route()[1] && RR.some(rrLive)) drawRoulette(); }, 2000);
 function viewRoulette() {
   $("#view").innerHTML = `<div class="page-head"><div><h1>Russian Roulette</h1><p>6 seats. Everyone buys in with items within 10% of the first player's. Each round the chamber knocks one player out. The last one standing takes the whole pile.</p></div><button class="btn btn-red" id="rrCreate">Open a table</button></div>
     <div class="cf-list" id="rrList"><div class="empty">Loading…</div></div><div class="section-title" style="margin-top:22px">Recent games</div><div class="cf-list" id="rrDone"></div>`;
@@ -1100,10 +1116,10 @@ function drawRoulette() {
   const row = (g, open) => `<div class="panel b-row rr-row" data-rr="${g.id}">
       <div class="b-mode"><b>#${g.id}</b><div class="muted" style="font-size:12px">by ${esc(g.creator_name)}</div></div>
       <div class="b-seats">${rrSeats(g)}<span class="muted" style="margin-left:6px">${g.players.length}/${g.seats}</span></div>
-      <div>${open ? `Buy-in ${coinVal(g.stake)}<div class="muted" style="font-size:11px">${fmt(g.stake * .9)} – ${fmt(g.stake * 1.1)}</div>` : `${esc(g.winner_name)} won ${coinVal(g.pot)}`}</div>
-      <div><button class="btn ${open ? "btn-red" : ""}">${open ? "Sit down" : "Replay"}</button></div></div>`;
-  el.innerHTML = RR.filter(g => g.status === "open").map(g => row(g, true)).join("") || `<div class="empty">No open tables. Open one!</div>`;
-  $("#rrDone").innerHTML = RR.filter(g => g.status === "done").map(g => row(g, false)).join("") || `<div class="muted">No games yet.</div>`;
+      <div>${open ? `Buy-in ${coinVal(g.stake)}<div class="muted" style="font-size:11px">${fmt(g.stake * .9)} – ${fmt(g.stake * 1.1)}</div>` : rrLive(g) ? `Pot ${coinVal(g.pot)}` : `${esc(g.winner_name === "House Bot" ? "Bot " + (g.winner_slot + 1) : g.winner_name)} won ${coinVal(g.pot)}`}</div>
+      <div>${rrLive(g) ? `<button class="btn btn-gold"><span class="live-dot"></span>LIVE · Watch</button>` : `<button class="btn ${open ? "btn-red" : ""}">${open ? "Sit down" : "Replay"}</button>`}</div></div>`;
+  el.innerHTML = RR.filter(g => g.status === "open" || rrLive(g)).map(g => row(g, g.status === "open")).join("") || `<div class="empty">No open tables. Open one!</div>`;
+  $("#rrDone").innerHTML = RR.filter(g => g.status === "done" && !rrLive(g)).map(g => row(g, false)).join("") || `<div class="muted">No games yet.</div>`;
   el.onclick = $("#rrDone").onclick = e => { const r = e.target.closest("[data-rr]"); if (r) go("roulette/" + r.dataset.rr); };
 }
 const REVOLVER_SVG = `<svg viewBox="0 0 120 60" class="revolver-svg"><defs><linearGradient id="gm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfd5df"/><stop offset="1" stop-color="#6b7280"/></linearGradient></defs>
@@ -1114,6 +1130,7 @@ const REVOLVER_SVG = `<svg viewBox="0 0 120 60" class="revolver-svg"><defs><line
 const seatAngle = s => -90 + s * 60;     // seat 0 at the top, clockwise
 async function viewRouletteGame(id) {
   id = +id;
+  if (RR_ANIM === id && $("#rvTable")) return;          // never redraw a table mid-animation (it would show the result)
   const [{ data: g }, { data: pl }] = await Promise.all([sb.from("roulette_games").select("*").eq("id", id).maybeSingle(), sb.from("roulette_players").select("*").eq("game_id", id)]);
   if (!g) { $("#view").innerHTML = `<div class="empty">Table not found. <a href="#/roulette">Back</a></div>`; return; }
   g.players = pl || []; CUR_RR = g;
@@ -1144,7 +1161,7 @@ async function viewRouletteGame(id) {
   $("#rrCancel") && ($("#rrCancel").onclick = async () => { try { await rpc("rr_cancel", { p_id: g.id }); await refreshMe(); toast("Table closed, items returned."); go("roulette"); } catch (e) { fail(e); } });
   $("#rrReplay") && ($("#rrReplay").onclick = () => runRoulette(g));
   gunTo(null, 0);
-  if (g.status === "done") { if (!animatedRR.has(g.id) && Date.now() - new Date(g.finished_at).getTime() < 120000) runRoulette(g); else rrFinal(g); }
+  if (g.status === "done") { if (!animatedRR.has(g.id) && (rrLive(g) || Date.now() - new Date(g.finished_at).getTime() < 120000)) runRoulette(g); else rrFinal(g); }
 }
 const rrName = (g, s) => { const p = g.players.find(x => x.slot === s); return p ? (p.is_bot ? `Bot ${s + 1}` : p.username) : "?"; };   // bots get seat numbers so you can tell them apart
 // slide the revolver to a seat (barrel pointing at that player), or back to the middle of the table
@@ -1152,13 +1169,18 @@ function gunTo(slot, ms = 650) {
   const gun = $("#rvGun"); if (!gun) return;
   gun.style.transition = ms ? `transform ${ms}ms cubic-bezier(.3,.8,.3,1)` : "none";
   if (slot === null) { gun.style.transform = "translate(-50%,-50%) translate(0,110px) rotate(-20deg) scale(.9)"; return; }
-  const a = seatAngle(slot), r = $("#rvTable").clientWidth * .2, rad = a * Math.PI / 180;
+  const a = seatAngle(slot), r = $("#rvTable").clientWidth * .25, rad = a * Math.PI / 180;
   gun.style.transform = `translate(-50%,-50%) translate(${Math.cos(rad) * r}px,${Math.sin(rad) * r}px) rotate(${a}deg) ${a > 90 && a < 270 ? "scaleY(-1)" : ""}`;
 }
 const bubble = (slot, text, cls = "") => { const b = $(`.rv-seat[data-slot="${slot}"] .rv-bubble`); if (!b) return; b.className = "rv-bubble show " + cls; b.textContent = text; setTimeout(() => b.classList.remove("show"), 900); };
 let rrSkip = false;
 async function runRoulette(g) {
-  animatedRR.add(g.id); rrSkip = false;
+  if (RR_ANIM === g.id) return;
+  animatedRR.add(g.id); RR_ANIM = g.id;
+  try { await runRouletteInner(g); } finally { RR_ANIM = null; }
+}
+async function runRouletteInner(g) {
+  rrSkip = false;
   if ($("#rrSkip")) { $("#rrSkip").hidden = false; $("#rrSkip").onclick = () => { rrSkip = true; }; }
   const rounds = g.rounds?.length ? g.rounds : (g.eliminated || []).map(o => ({ bullet: 1, pulls: [o], out: o }));   // older games had no trigger log
   const banner = (t, pop) => { const b = $("#rrBanner"); if (!b) return; b.innerHTML = t; if (pop) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); } };
@@ -1360,6 +1382,8 @@ function viewRewards() {
 }
 
 // ---------------------------------------------------------------- live drops + chat
+// the server stamps announcements with show_at so nobody sees a result before the animation ends
+const later = (row, fn) => { const ms = row.show_at ? new Date(row.show_at) - Date.now() : 0; ms > 0 ? setTimeout(() => fn(row), ms) : fn(row); };
 function pushDrop(d) {
   const t = $("#tickerTrack"), it = { n: d.name, fx: d.fx }; if (!t || !ITEM[it.n]) return;
   const el = document.createElement("div"); el.className = "drop"; el.style.setProperty("--rc", rarity(+d.value, it.fx));
@@ -1398,8 +1422,8 @@ setInterval(syncDaily, 30000);
 // ---------------------------------------------------------------- realtime
 function connectRealtime() {
   sb.channel("feed")
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat" }, p => chatLine(p.new))
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "drops" }, p => pushDrop(p.new))
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat" }, p => later(p.new, chatLine))
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "drops" }, p => later(p.new, pushDrop))
     .on("postgres_changes", { event: "*", schema: "public", table: "coinflips" }, p => {
       const g = p.new;
       if (g && g.status === "done" && (watchingFlip === g.id || (ME.user && g.creator === ME.user.id))) showFlip(g);   // someone joined a flip I made or am watching
@@ -1447,8 +1471,8 @@ async function loadFeeds() {
     sb.from("chat").select("*").order("id", { ascending: false }).limit(40),
     sb.from("drops").select("*").order("id", { ascending: false }).limit(30),
   ]);
-  $("#chatLog").innerHTML = ""; (chat || []).reverse().forEach(chatLine);
-  (drops || []).reverse().forEach(pushDrop);
+  $("#chatLog").innerHTML = ""; (chat || []).reverse().forEach(m => later(m, chatLine));
+  (drops || []).reverse().forEach(d => later(d, pushDrop));
 }
 
 // ---------------------------------------------------------------- router

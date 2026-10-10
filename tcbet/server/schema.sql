@@ -59,6 +59,8 @@ create index if not exists inventory_owner on inventory (owner);
 create table if not exists drops (id bigint generated always as identity primary key, username text, name text, fx text, value numeric(14,2), source text, created_at timestamptz not null default now());
 create table if not exists chat (id bigint generated always as identity primary key, user_id uuid, username text, body text, created_at timestamptz not null default now());
 alter table chat add column if not exists rank text;
+alter table chat add column if not exists show_at timestamptz not null default now();
+alter table drops add column if not exists show_at timestamptz not null default now();
 
 create table if not exists coinflips (
   id bigint generated always as identity primary key,
@@ -174,7 +176,7 @@ create or replace function _roll_case(p_case text, p_uid uuid, p_uname text, p_s
 declare it jsonb := _pick(p_case); nid bigint;
 begin
   insert into inventory (owner, name, fx) values (p_uid, it->>'n', it->>'fx') returning id into nid;
-  insert into drops (username, name, fx, value, source) values (p_uname, it->>'n', it->>'fx', (it->>'v')::numeric, p_source);
+  insert into drops (username, name, fx, value, source, show_at) values (p_uname, it->>'n', it->>'fx', (it->>'v')::numeric, p_source, now() + interval '6 seconds');
   perform _best(p_uid, it->>'n', it->>'fx', (it->>'v')::numeric);
   return it || jsonb_build_object('id', nid);
 end $$;
@@ -225,7 +227,7 @@ begin
   if roll < ch then
     insert into inventory (owner, name, fx) values (uid, p_hat, p_fx) returning id into nid;
     select username into uname from profiles where id = uid;
-    insert into drops (username, name, fx, value, source) values (uname, p_hat, p_fx, t, 'Unusualifier');
+    insert into drops (username, name, fx, value, source, show_at) values (uname, p_hat, p_fx, t, 'Unusualifier', now() + interval '5 seconds');
     perform _best(uid, p_hat, p_fx, t);
   end if;
   return jsonb_build_object('win', roll < ch, 'roll', roll, 'chance', ch, 'id', nid);
@@ -362,7 +364,7 @@ begin
   end loop;
   update inventory set owner = w.user_id, state = 'inv' where id = any(select unnest(_jids(items)) from jackpot_entries where round_id = r.id);
   update jackpot_rounds set status = 'done', winner = w.user_id, winner_name = w.username, total = tot, ticket = t, finished_at = now() where id = r.id returning * into r;
-  insert into chat (username, body) values ('TCBET', w.username || ' won jackpot #' || r.id || ' worth ' || tot || ' with ' || round(w.value / tot * 100, 1) || '%');
+  insert into chat (username, body, show_at) values ('TCBET', w.username || ' won jackpot #' || r.id || ' worth ' || tot || ' with ' || round(w.value / tot * 100, 1) || '%', now() + interval '8 seconds');
   insert into jackpot_rounds default values;
   return to_jsonb(r);
 end $$;
@@ -513,7 +515,7 @@ begin
       res := res || jsonb_build_object('round', r, 'slot', pl.slot, 'n', it->>'n', 'fx', it->>'fx', 'v', (it->>'v')::numeric);
       tot[pl.slot / b.team_size + 1] := tot[pl.slot / b.team_size + 1] + (it->>'v')::numeric;
       if not pl.is_bot then
-        insert into drops (username, name, fx, value, source) values (pl.username, it->>'n', it->>'fx', (it->>'v')::numeric, 'Case Battle');
+        insert into drops (username, name, fx, value, source, show_at) values (pl.username, it->>'n', it->>'fx', (it->>'v')::numeric, 'Case Battle', now() + make_interval(secs => cardinality(b.cases) * 3.2 + 2));
         perform _best(pl.user_id, it->>'n', it->>'fx', (it->>'v')::numeric);
       end if;
     end loop;
@@ -533,7 +535,7 @@ begin
   end if;
   update battles set status = 'done', results = res, totals = to_jsonb(tot), winner_team = wt, finished_at = now() where id = p_id returning * into b;
   if (select sum(x) from unnest(tot) x) >= 1000 then
-    insert into chat (username, body) values ('TCBET', 'Case battle #' || p_id || ' (' || (select string_agg(username, ', ') from battle_players where battle_id = p_id and slot / b.team_size = wt) || ') won ' || round((select sum(x) from unnest(tot) x), 2) || ' in items!');
+    insert into chat (username, body, show_at) values ('TCBET', 'Case battle #' || p_id || ' (' || (select string_agg(username, ', ') from battle_players where battle_id = p_id and slot / b.team_size = wt) || ') won ' || round((select sum(x) from unnest(tot) x), 2) || ' in items!', now() + make_interval(secs => cardinality(b.cases) * 3.2 + 2));
   end if;
   return to_jsonb(b);
 end $$;
@@ -623,7 +625,8 @@ begin
     insert into inventory (owner, name, fx) select w.user_id, x->>'n', x->>'fx' from roulette_players rp, jsonb_array_elements(rp.items) x where rp.game_id = p_id and rp.is_bot;
   end if;
   update roulette_games set status = 'done', eliminated = order_[1:g.seats - 1], winner_slot = w.slot, winner_name = w.username, pot = total_, finished_at = now() where id = p_id returning * into g;
-  if total_ >= 500 then insert into chat (username, body) values ('TCBET', w.username || ' survived Russian Roulette #' || p_id || ' and took ' || round(total_, 2) || '!'); end if;
+  if total_ >= 500 then insert into chat (username, body, show_at) values ('TCBET', w.username || ' survived Russian Roulette #' || p_id || ' and took ' || round(total_, 2) || '!',
+    now() + make_interval(secs => 2 + (select count(*) * 3.4 + coalesce(sum(jsonb_array_length(x->'pulls')), 0) * 3.0 from jsonb_array_elements((select rounds from roulette_games where id = p_id)) x))); end if;
   return to_jsonb(g);
 end $$;
 

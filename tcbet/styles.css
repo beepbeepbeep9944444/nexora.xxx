@@ -472,3 +472,5 @@ body.shake{animation:shake .45s}
 .rv-hand.load{animation:hand 1.3s ease-in-out}
 @keyframes hand{0%{opacity:0;transform:translate(-50%,-20px)}35%,65%{opacity:1;transform:translate(-50%,120px)}100%{opacity:0;transform:translate(-50%,-20px)}}
 @media (max-width:640px){.rv-seat{width:86px;padding:8px 4px}.rv-seat .pfp{width:36px;height:36px}.rv-seat .rr-val{display:none}.rv-gun{width:100px}.rv-center{width:52%}.rv-center .rr-banner{font-size:16px}}
+.live-dot{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:pulse 1s infinite;vertical-align:middle}
+.live-row{border-color:var(--gold2)}
