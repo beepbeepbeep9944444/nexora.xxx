@@ -19,12 +19,13 @@ for i in ITEMS:
 # Effect multipliers on a hat's base unusual price (site owner's numbers; ranges use the middle).
 # value = hat factor * BASE_UNIT * multiplier, so Burning (1.75x) on Sheik lands next to a Golden Frying Pan.
 BASE_UNIT = 1487
-EFFECT_MULT = {"Burning": 1.75, "Scorching Summon": 2.5, "Nebula": 3.0, "Sunrise": 3.5, "Dawn": 3.5,
-               "Black Hole": 1.2, "Singularity": 1.5, "Scorching Energy": 1.5}
+# Most desirable effects, in the owner's order: Nebula > Burning > Scorching Energy > Dawn > Singularity
+EFFECT_MULT = {"Nebula": 2.0, "Burning": 1.85, "Scorching Energy": 1.7, "Dawn": 1.55, "Singularity": 1.45,
+               "Sunrise": 1.3, "Scorching Summon": 1.2, "Black Hole": 1.1}
 for e in EFFECTS:
     if "UX" in e["g"]: continue                      # Unusualifier effects stay near-worthless
     if e["name"] in EFFECT_MULT: e["m"] = BASE_UNIT * EFFECT_MULT[e["name"]]
-    else: e["m"] = min(e["m"], 1.3 * BASE_UNIT)      # tier-list effects keep their order but stay below the named ones
+    else: e["m"] = e["m"] * 0.4                      # everything else keeps its tier order but sits well below the desirable ones
 ITEM = {i["name"]: i for i in ITEMS}
 FX = {e["name"]: e for e in EFFECTS}
 STD = ["S%d" % i for i in range(1, 11)]
@@ -47,8 +48,8 @@ def age(yr):
 
 # The site owner's base-hat ranking, most to least valuable. These always beat every unlisted hat.
 # Halloween 2018 Costume Crate hats (Time Capsule, any effect from 2020 and under) are the grails: Burning Knightmare is #1.
-GRAILS = {"Knightmare": 15.5, "Disaster Spellcaster": 13.0, "Omniscient Oculi": 12.0, "Pigeon Mask": 11.5, "Terror-Vision": 11.2,
-          "Ugly Ursidae": 10.9, "Haunted Headgear": 10.7, "Ostracized Elephant": 10.5, "Brim Full of Brains": 10.3, "Open Mind": 10.1}
+GRAILS = {"Knightmare": 12.6, "Disaster Spellcaster": 12.5, "Omniscient Oculi": 12.45, "Pigeon Mask": 12.4, "Terror-Vision": 12.35,
+          "Ugly Ursidae": 12.3, "Haunted Headgear": 12.2, "Ostracized Elephant": 12.15, "Brim Full of Brains": 12.1, "Open Mind": 12.0}
 # Burning Sheik / Dead Eye sit around a Golden Frying Pan; the list then tapers geometrically down to Big Bruncher
 TOP_HATS = ["Sheik", "Dead Eye", "Safety First", "Attack Wrap", "Hard News", "Drama Queen", "Driller",
     "Spiked Raider", "Soldier on Safari", "Vae Victis", "Occult Classic", "Ghast Mask", "Rider",
@@ -59,7 +60,7 @@ TOP_HATS = ["Sheik", "Dead Eye", "Safety First", "Attack Wrap", "Hard News", "Dr
     "Scubanist", "Battle Bronco", "Silly Serpent", "Jumper's Jammies", "Blind Warrior", "Private Sandbox",
     "Life Doctor", "Visor Advisor", "Troopceratops", "Fisher Man", "Shoreline Shot", "Lucky Lid",
     "Brutish Captain", "Arcade Ace", "Sweet Memories", "Subway Sprayer", "Truck Month", "Big Bruncher"]  # Summer 2021
-TOP_HI, TOP_LO = 9.8, 1.5
+TOP_HI, TOP_LO = 11.8, 1.5   # Sheik sits right behind the costume grails
 # Fitten Co. shop hats (and the three named costume grails): any real unusual on them is worth at least 5,000
 SHOP_HATS = {"Spiked Raider", "Sheik", "Driller", "Hard News", "Welding Mask", "Rider", "Knightmare", "Disaster Spellcaster", "Omniscient Oculi"}
 BURN_FLOOR, SHOP_FLOOR, CAP = 10000, 5000, 100000
@@ -75,7 +76,7 @@ def category_mult(it):
     if it["name"] in SUMMER_2023: return 2.5
     return 0.0
 # Individually priced hats: Summer Blockers trades like a 2018, Nebula on it a bit above a Golden Frying Pan
-HAT_OVERRIDE = {"Summer Blockers": 5.9}
+HAT_OVERRIDE = {"Summer Blockers": 8.85}   # Nebula Summer Blockers ~ a Golden Frying Pan and up
 for it in ITEMS:
     if not it.get("unu"): continue
     if it["name"] in HAT_OVERRIDE:

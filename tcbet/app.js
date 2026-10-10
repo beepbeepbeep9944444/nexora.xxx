@@ -1114,15 +1114,17 @@ async function viewRouletteGame(id) {
   const me = ME.user && g.players.find(x => x.user_id === ME.user.id), creator = ME.user && g.creator === ME.user.id;
   const pot = g.players.reduce((s, x) => s + +x.value, 0);
   const seat = s => { const p = g.players.find(x => x.slot === s), items = p ? fromJ(p.items) : [];
-    return `<div class="rr-seat" data-slot="${s}" style="--a:${s * 60 - 90}deg"><div class="rr-seat-in">
-      ${p ? `${p.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(p.username)}<b>${p.is_bot ? "House Bot" : userLink(p.username)}</b><div class="muted" style="font-size:12px">${coinVal(p.value)}</div><div class="mini-items">${minis(items, 3)}</div>`
-        : g.status === "open" && ME.user && !me ? `<button class="btn btn-red" data-rrjoin="1">Sit down</button><div class="muted" style="font-size:11px">${fmt(g.stake * .9)} – ${fmt(g.stake * 1.1)}</div>` : `<div class="pfp wait-pfp">?</div><span class="muted">Empty seat</span>`}
-      <div class="rr-x">✕</div></div></div>`; };
-  $("#view").innerHTML = `<div class="page-head"><div><a href="#/roulette" class="muted">← All tables</a><h1>Russian Roulette #${g.id}</h1><p>Buy-in ${coinVal(g.stake)} · ${g.players.length}/${g.seats} seated</p></div>
+    return `<div class="rr-seat" data-slot="${s}"><div class="rr-badge"></div>
+      ${p ? `${p.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(p.username)}<b>${p.is_bot ? `Bot ${s + 1}` : userLink(p.username)}</b><div class="rr-val">${coinVal(p.value)}</div><div class="mini-items">${minis(items, 3)}</div>`
+        : g.status === "open" && ME.user && !me ? `<div class="pfp wait-pfp">+</div><button class="btn btn-red" data-rrjoin="1">Sit down</button><div class="muted" style="font-size:11px">${fmt(g.stake * .9)} – ${fmt(g.stake * 1.1)}</div>` : `<div class="pfp wait-pfp">?</div><span class="muted">Empty seat</span>`}</div>`; };
+  $("#view").innerHTML = `<div class="page-head"><div><a href="#/roulette" class="muted">← All tables</a><h1>Russian Roulette #${g.id}</h1><p>Buy-in ${coinVal(g.stake)} · ${g.players.length}/${g.seats} seated · pot ${coinVal(g.status === "done" ? g.pot : pot)}</p></div>
       <div style="display:flex;gap:8px">${g.status === "open" && creator ? `<button class="btn btn-red" id="rrBots">Fill with bots & start</button><button class="btn" id="rrCancel">Cancel</button>` : ""}${g.status === "done" ? `<button class="btn" id="rrReplay">Replay</button>` : ""}</div></div>
-    <div class="rr-table">${Array.from({ length: g.seats }, (_, s) => seat(s)).join("")}
-      <div class="rr-center"><div class="rr-cyl" id="rrCyl">${Array.from({ length: 6 }, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div><div class="rr-pot">${coinVal(g.status === "done" ? g.pot : pot)}</div><div class="rr-msg" id="rrMsg">${g.status === "open" ? "Waiting for players…" : g.status === "cancelled" ? "Cancelled" : ""}</div></div>
-      <div class="rr-pointer" id="rrPointer"></div></div>`;
+    <div class="panel rr-stage">
+      <div class="rr-banner" id="rrBanner">${g.status === "open" ? "Waiting for players…" : g.status === "cancelled" ? "Table closed" : ""}</div>
+      <div class="rr-strip-wrap" id="rrStripWrap"><div class="rr-marker"></div><div class="rr-strip" id="rrStrip"></div></div>
+      <div class="rr-sub muted" id="rrSub">${g.status === "open" ? "The game starts as soon as all 6 seats are filled." : ""}</div>
+    </div>
+    <div class="rr-seats">${Array.from({ length: g.seats }, (_, s) => seat(s)).join("")}</div>`;
   $("#view").onclick = async e => {
     if (!e.target.closest("[data-rrjoin]")) return;
     if (needLogin()) return;
@@ -1134,43 +1136,54 @@ async function viewRouletteGame(id) {
   $("#rrReplay") && ($("#rrReplay").onclick = () => runRoulette(g));
   if (g.status === "done") { if (!animatedRR.has(g.id) && Date.now() - new Date(g.finished_at).getTime() < 90000) runRoulette(g); else rrFinal(g); }
 }
+const rrName = (g, s) => { const p = g.players.find(x => x.slot === s); return p ? (p.is_bot ? `Bot ${s + 1}` : p.username) : "?"; };   // bots get seat numbers so you can tell them apart
+const rrFace = (g, s) => { const p = g.players.find(x => x.slot === s); return `<div class="rr-face" data-slot="${s}">${p?.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(rrName(g, s))}<span>${esc(rrName(g, s))}</span></div>`; };
 async function runRoulette(g) {
   animatedRR.add(g.id);
+  const banner = t => $("#rrBanner") && ($("#rrBanner").innerHTML = t), sub = t => $("#rrSub") && ($("#rrSub").innerHTML = t);
   $$(".rr-seat").forEach(s => s.classList.remove("out", "winner", "aim"));
-  const msg = t => $("#rrMsg") && ($("#rrMsg").innerHTML = t);
-  const name = s => { const p = g.players.find(x => x.slot === s); return p ? (p.is_bot ? "House Bot" : p.username) : "?"; };
-  msg("Loading the chamber…"); SFX.spinCyl(); await sleep(1200);
-  let angle = 0;
+  $$(".rr-badge").forEach(b => b.textContent = "");
+  banner("Loading the chamber…"); sub("One player is knocked out each round. Last one standing takes the pot."); SFX.spinCyl();
+  await sleep(1400);
+  const out = [];
   for (let r = 0; r < g.eliminated.length; r++) {
-    if (!$("#rrPointer")) return;
-    const target = g.eliminated[r], alive = Array.from({ length: g.seats }, (_, s) => s).filter(s => !g.eliminated.slice(0, r).includes(s));
-    msg(`Round ${r + 1}: spinning…`);
-    $("#rrCyl").animate([{ transform: "rotate(0)" }, { transform: `rotate(${720 + rand(0, 360)}deg)` }], { duration: 1800, easing: "cubic-bezier(.2,.7,.2,1)" });
-    SFX.spinCyl(); setTimeout(() => SFX.spinCyl(), 700);
-    // pointer sweeps across live seats, then settles on the unlucky one
-    const hops = 6 + Math.floor(rand(0, 5));
-    for (let h = 0; h < hops; h++) {
-      const s = h === hops - 1 ? target : pick(alive);
-      $$(".rr-seat").forEach(x => x.classList.toggle("aim", +x.dataset.slot === s));
-      angle = s * 60 - 90; $("#rrPointer").style.transform = `rotate(${angle}deg)`;
-      SFX.tick(); await sleep(140 + h * 45);
-    }
-    msg(`<b>${esc(name(target))}</b>…`); SFX.heartbeat(); await sleep(700); SFX.heartbeat(); await sleep(700);
-    SFX.click2(); await sleep(350);
+    if (!$("#rrStrip")) return;
+    const target = g.eliminated[r], alive = Array.from({ length: g.seats }, (_, s) => s).filter(s => !out.includes(s));
+    banner(`ROUND ${r + 1}<small>${alive.length} players left</small>`); sub("Spinning…");
+    $("#rrBanner").classList.remove("pop"); void $("#rrBanner").offsetWidth; $("#rrBanner").classList.add("pop");
+    // a long strip of the players still in, ending on the one who gets knocked out
+    const W = 132, WIN = 34, strip = $("#rrStrip");
+    const seq = Array.from({ length: WIN + 6 }, (_, i) => i === WIN ? target : alive[(i + r) % alive.length]);
+    strip.innerHTML = seq.map(s => rrFace(g, s)).join("");
+    strip.style.transition = "none"; strip.style.transform = "translateX(0)"; void strip.offsetWidth;
+    const off = WIN * W + W / 2 - $("#rrStripWrap").clientWidth / 2;
+    strip.style.transition = "transform 3.4s cubic-bezier(.12,.7,.15,1)"; strip.style.transform = `translateX(${-off}px)`;
+    SFX.spinCyl(); reelTicks(strip, W, 3400);
+    $$(".rr-seat").forEach(x => x.classList.remove("aim"));
+    await sleep(3500);
+    const landed = strip.children[WIN]; landed.classList.add("hit");
+    $(`.rr-seat[data-slot="${target}"]`)?.classList.add("aim");
+    sub(`<b>${esc(rrName(g, target))}</b>…`); SFX.heartbeat(); await sleep(650); SFX.click2(); await sleep(450);
     SFX.bang(); document.body.classList.add("shake"); setTimeout(() => document.body.classList.remove("shake"), 450);
-    const seat = $(`.rr-seat[data-slot="${target}"]`); seat?.classList.remove("aim"); seat?.classList.add("out");
-    msg(`💥 <b>${esc(name(target))}</b> is out! ${g.seats - r - 1} left`); await sleep(1300);
+    $("#rrStripWrap").classList.add("flash"); setTimeout(() => $("#rrStripWrap")?.classList.remove("flash"), 500);
+    const seat = $(`.rr-seat[data-slot="${target}"]`);
+    if (seat) { seat.classList.remove("aim"); seat.classList.add("out"); seat.querySelector(".rr-badge").textContent = `OUT · R${r + 1}`; }
+    out.push(target);
+    sub(`💥 <b>${esc(rrName(g, target))}</b> is out!`); await sleep(1500);
   }
   rrFinal(g, true);
 }
 function rrFinal(g, animated = false) {
-  if (!$("#rrMsg")) return;
-  $$(".rr-seat").forEach(s => { s.classList.remove("aim"); s.classList.toggle("out", (g.eliminated || []).includes(+s.dataset.slot)); s.classList.toggle("winner", +s.dataset.slot === g.winner_slot); });
-  $("#rrPointer").style.transform = `rotate(${g.winner_slot * 60 - 90}deg)`;
-  $("#rrMsg").innerHTML = `🏆 <b>${esc(g.winner_name)}</b> survived and takes ${coinVal(g.pot)}!`;
+  if (!$("#rrBanner")) return;
+  (g.eliminated || []).forEach((s, i) => { const seat = $(`.rr-seat[data-slot="${s}"]`); if (seat) { seat.classList.add("out"); seat.querySelector(".rr-badge").textContent = `OUT · R${i + 1}`; } });
+  const ws = $(`.rr-seat[data-slot="${g.winner_slot}"]`); if (ws) { ws.classList.add("winner"); ws.querySelector(".rr-badge").textContent = "SURVIVOR"; }
+  $("#rrBanner").innerHTML = `🏆 ${esc(rrName(g, g.winner_slot))} survives!<small>takes ${fmt(g.pot)} coins in items</small>`;
+  $("#rrStrip").innerHTML = rrFace(g, g.winner_slot); $("#rrStrip").style.transition = "none";
+  $("#rrStrip").style.transform = `translateX(${$("#rrStripWrap").clientWidth / 2 - 66}px)`; $("#rrStrip").firstElementChild?.classList.add("win");
+  $("#rrSub").innerHTML = "";
   if (animated) {
     const winP = g.players.find(x => x.slot === g.winner_slot), iWon = ME.user && winP?.user_id === ME.user.id;
-    confetti($(`.rr-seat[data-slot="${g.winner_slot}"]`) || $("#rrMsg"), 90);
+    confetti(ws || $("#rrBanner"), 100);
     if (iWon && +g.pot >= BIG_WIN) bigWin(+g.pot, "Russian Roulette #" + g.id); else { SFX.survive(); if (iWon) SFX.cash(); }
     refreshMe();
   }
