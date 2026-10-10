@@ -4,10 +4,10 @@
 "use strict";
 
 // ---------------------------------------------------------------- data
-const ITEMS = window.TC2_ITEMS, EFFECTS = window.TC2_EFFECTS, CASES = window.TC2_CASES;
+const ITEMS = window.TC2_ITEMS, EFFECTS = window.TC2_EFFECTS, CASES = window.TC2_CASES.sort((a, b) => b.price - a.price);   // everything on the site is listed high -> low
 const ITEM = Object.fromEntries(ITEMS.map(i => [i.name, i]));
 const FX = Object.fromEntries(EFFECTS.map(e => [e.name, e]));
-const UNU_HATS = ITEMS.filter(i => i.unu);
+const UNU_HATS = ITEMS.filter(i => i.unu).sort((a, b) => (b.hf || 0) - (a.hf || 0));
 const QCOLOR = { "Strange": "#e0773a", "Collector's": "#e03a3a", "Vintage": "#6b8fd1", "Genuine": "#5fa36f", "Haunted": "#38f3ab" };
 const STANDARD = new Set(["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10"]);
 
@@ -529,7 +529,7 @@ function drawPicker() {
     const src = h.fx.map(g => ({ UX: "Unusualifier effects (low value)", HAUNT: "Haunted", DEV: "Developer", COMM: "Community Sparkle", CODE: "Code-exclusive" }[g] || null)).filter(Boolean);
     const series = h.fx.filter(g => STANDARD.has(g)).map(g => g.slice(1)).sort((a, b) => a - b);
     body.innerHTML = `<div class="lock-note" style="margin-bottom:12px"><b>${esc(h.name)}</b> can roll ${legal.length} effects: ${series.length ? "crate series " + series.join(", ") : "no crate series"}${src.length ? " + " + src.join(", ") : ""}. ${lockedN} other effects are locked because this hat never came with them.${cheap && s ? ` ${cheap} more are hidden because they're worth less than your stake.` : ""}</div>
-      <div class="fx-grid">${options.filter(e => e.name.toLowerCase().includes(q)).sort((a, b) => value({ n: h.name, fx: a.name }) - value({ n: h.name, fx: b.name })).map(e => { const v = value({ n: h.name, fx: e.name }); return card({ n: h.name, fx: e.name }, { click: 1, sel: U.fx === e.name, sub: s ? `${e.series} · ${(Math.min(.75, s / v * .95) * 100).toFixed(2)}% chance` : e.series, extra: `data-fx="${esc(e.name)}"` }); }).join("") || `<div class="empty">No effects on this hat are worth more than your stake.</div>`}</div>`;
+      <div class="fx-grid">${options.filter(e => e.name.toLowerCase().includes(q)).sort((a, b) => value({ n: h.name, fx: b.name }) - value({ n: h.name, fx: a.name })).map(e => { const v = value({ n: h.name, fx: e.name }); return card({ n: h.name, fx: e.name }, { click: 1, sel: U.fx === e.name, sub: s ? `${e.series} · ${(Math.min(.75, s / v * .95) * 100).toFixed(2)}% chance` : e.series, extra: `data-fx="${esc(e.name)}"` }); }).join("") || `<div class="empty">No effects on this hat are worth more than your stake.</div>`}</div>`;
     body.onclick = e => { const c = e.target.closest(".card"); if (!c) return; U.fx = c.dataset.fx; $$(".card", body).forEach(x => x.classList.toggle("sel", x === c)); drawUpg(); };
   }
 }
@@ -762,15 +762,14 @@ setInterval(async () => {
 let marketUnusuals = Array.from({ length: 80 }, () => randomUnusual()).filter(Boolean);
 function viewMarket() {
   $("#view").innerHTML = `<div class="page-head"><div><h1>Market</h1><p>Buy items with fun-coins. Prices follow TCBET's value guide.</p></div></div>
-    <div class="toolbar"><input id="mkQ" placeholder="Search ${ITEMS.length} items…"><div class="tabs" id="mkTab"><button data-t="unu" class="on">Unusuals</button><button data-t="all">Items</button><button data-t="weap">Weapons</button><button data-t="rare">Rare</button></div>
-      <select id="mkSort"><option value="desc">Price: high → low</option><option value="asc">Price: low → high</option><option value="az">Name</option></select></div>
+    <div class="toolbar"><input id="mkQ" placeholder="Search ${ITEMS.length} items…"><div class="tabs" id="mkTab"><button data-t="unu" class="on">Unusuals</button><button data-t="all">Items</button><button data-t="weap">Weapons</button><button data-t="rare">Rare</button></div></div>
     <div class="grid" id="mkGrid"></div><div style="text-align:center;margin-top:16px"><button class="btn" id="mkMore" hidden>Load more</button></div>`;
   let tab = "unu";
   const draw = () => {
-    const q = $("#mkQ").value.toLowerCase(), s = $("#mkSort").value;
+    const q = $("#mkQ").value.toLowerCase();
     let list = tab === "unu" ? marketUnusuals : ITEMS.filter(i => tab === "all" || (tab === "weap" ? i.weapon : i.v >= 50)).map(i => ({ n: i.name }));
     list = list.filter(it => label(it).toLowerCase().includes(q));
-    list.sort(s === "az" ? (a, b) => label(a).localeCompare(label(b)) : s === "asc" ? (a, b) => value(a) - value(b) : (a, b) => value(b) - value(a));
+    list.sort((a, b) => value(b) - value(a));
     shown = list; page = 0; $("#mkGrid").innerHTML = ""; more();
   };
   let shown = [], page = 0;
@@ -782,7 +781,7 @@ function viewMarket() {
   };
   $("#mkMore").onclick = more;
   $("#mkTab").onclick = e => { const b = e.target.closest("button"); if (!b) return; tab = b.dataset.t; $$("#mkTab button").forEach(x => x.classList.toggle("on", x === b)); draw(); };
-  $("#mkQ").oninput = draw; $("#mkSort").onchange = draw;
+  $("#mkQ").oninput = draw;
   $("#mkGrid").onclick = e => {
     const c = e.target.closest(".card"); if (!c) return; const it = JSON.parse(c.dataset.i), v = value(it);
     const bal = ME.profile ? +ME.profile.balance : 0;
@@ -1308,7 +1307,7 @@ async function viewProfile(name) {
   $("#pfTip") && ($("#pfTip").onclick = () => openTip(p.username));
 }
 function openAvatarPicker() {
-  const items = [...ME.inv].sort((a, b) => (b.fx ? 1 : 0) - (a.fx ? 1 : 0) || value(b) - value(a)).slice(0, 120);
+  const items = [...ME.inv].sort((a, b) => value(b) - value(a)).slice(0, 120);
   const m = modal(`<h2>Profile picture</h2><p class="muted">Pick a class, or show off any item you own.</p>
     <div class="section-title">Classes</div><div class="av-grid">${Object.keys(CLASS_IMG).map(c => `<button class="av-opt" data-k="class" data-v="${c}" title="${c}"><img src="${sized(classImg(c), 96)}" alt="${c}" referrerpolicy="no-referrer"></button>`).join("")}</div>
     <div class="section-title" style="margin-top:14px">Your items</div><div class="grid" id="avItems">${items.map(it => card(it, { click: 1 })).join("") || `<div class="muted">No items yet.</div>`}</div>

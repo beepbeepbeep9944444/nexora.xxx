@@ -58,8 +58,8 @@ def age(yr):
 
 # The site owner's base-hat ranking, most to least valuable. These always beat every unlisted hat.
 # Halloween 2018 Costume Crate hats (Time Capsule, any effect from 2020 and under) are the grails: Burning Knightmare is #1.
-GRAILS = {"Knightmare": 12.6, "Disaster Spellcaster": 12.5, "Omniscient Oculi": 12.45, "Pigeon Mask": 12.4, "Terror-Vision": 12.35,
-          "Ugly Ursidae": 12.3, "Haunted Headgear": 12.2, "Ostracized Elephant": 12.15, "Brim Full of Brains": 12.1, "Open Mind": 12.0}
+GRAILS = {"Knightmare": 18.9, "Disaster Spellcaster": 18.75, "Omniscient Oculi": 18.68, "Pigeon Mask": 18.6, "Terror-Vision": 18.52,
+          "Ugly Ursidae": 18.45, "Haunted Headgear": 18.3, "Ostracized Elephant": 18.22, "Brim Full of Brains": 18.15, "Open Mind": 18.0}
 # Burning Sheik / Dead Eye sit around a Golden Frying Pan; the list then tapers geometrically down to Big Bruncher
 TOP_HATS = ["Sheik", "Dead Eye", "Safety First", "Attack Wrap", "Hard News", "Drama Queen", "Driller",
     "Spiked Raider", "Soldier on Safari", "Vae Victis", "Occult Classic", "Ghast Mask", "Rider",
@@ -70,10 +70,10 @@ TOP_HATS = ["Sheik", "Dead Eye", "Safety First", "Attack Wrap", "Hard News", "Dr
     "Scubanist", "Battle Bronco", "Silly Serpent", "Jumper's Jammies", "Blind Warrior", "Private Sandbox",
     "Life Doctor", "Visor Advisor", "Troopceratops", "Fisher Man", "Shoreline Shot", "Lucky Lid",
     "Brutish Captain", "Arcade Ace", "Sweet Memories", "Subway Sprayer", "Truck Month", "Big Bruncher"]  # Summer 2021
-TOP_HI, TOP_LO = 11.8, 1.5   # Sheik sits right behind the costume grails
+TOP_HI, TOP_LO = 17.7, 1.5   # Sheik sits right behind the costume grails   # Sheik sits right behind the costume grails
 # Fitten Co. shop hats (and the three named costume grails): any real unusual on them is worth at least 5,000
 SHOP_HATS = {"Spiked Raider", "Sheik", "Driller", "Hard News", "Welding Mask", "Rider", "Knightmare", "Disaster Spellcaster", "Omniscient Oculi"}
-BURN_FLOOR, SHOP_FLOOR, CAP = 15000, 7500, 95000
+BURN_FLOOR, SHOP_FLOOR, CAP = 22500, 11000, 95000
 def other_age(yr):  # unlisted hats: small age bonus, never reaching TOP_LO
     return 1.1 if yr <= 2018 else 1.0 if yr <= 2020 else .9 if yr <= 2021 else .8 if yr <= 2022 else .7 if yr <= 2023 else .6
 missing = [n for n in [*TOP_HATS, *GRAILS, *SHOP_HATS] if n not in {i["name"] for i in ITEMS}]
@@ -81,8 +81,8 @@ assert not missing, missing
 # Hat category multipliers vs a normal hat (1x): shop 7x, 2018-and-older 5x, Summer 2023 coolers 2.5x
 SUMMER_2023 = {n for c in CRATES if c["name"].startswith("Summer 2023") for n in c["items"]}
 def category_mult(it):
-    if it["name"] in SHOP_HATS: return 7.0
-    if (it.get("yr") or 2022) <= 2018: return 5.0
+    if it["name"] in SHOP_HATS: return 10.5
+    if (it.get("yr") or 2022) <= 2018: return 7.5
     if it["name"] in SUMMER_2023: return 2.5
     return 0.0
 # Individually priced hats: Summer Blockers trades like a 2018, Nebula on it a bit above a Golden Frying Pan
@@ -186,7 +186,7 @@ cc = build("collectors-cache", "Collector's Cache", ITEM["Collector's Rising Sun
 FOUNDERS = [h for h in TOP_HATS[:16] if ITEM[h].get("unu")]
 fv = build("founders-vault", "Founders' Vault", ITEM["Sheik"]["img"], [unusual_entry([ITEM[h] for h in FOUNDERS], STD, 1)], "Classic", "2017-18 grail unusual")
 cv = build("costume-vault", "Costume Vault", ITEM["Knightmare"]["img"], [unusual_entry([ITEM[h] for h in GRAILS], STD + ["HAUNT"], 1)], "Classic", "Costume hat unusual")
-grail_fill = [unusual_entry([ITEM[h] for h in FOUNDERS], STD, 40)]
+grail_fill = [unusual_entry(all_hats, STD, 40)]   # everyday unusuals fill the rest so the grail odds stay real
 gc = build("grail-crate", "Grail Crate", ITEM["Golden Frying Pan"]["img"], tuned([
     dict(n="Golden Frying Pan", w=6), dict(n="Frying Pan", w=9), dict(n="Golden Knife", w=12), dict(n="Golden Wrench", w=12),
     dict(n="Collector's Rising Sun Katana", w=14),
