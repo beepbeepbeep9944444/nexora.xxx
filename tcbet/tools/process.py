@@ -49,7 +49,7 @@ for name,t in wt.items():
     if "Unusual" in q:
         grp.append("UX")
         for c in item_crates.get(name,[]): grp+=crate_groups(c)
-        if "Unboxing an [[Item Qualities/Unusual" in t: grp+=["S1"]
+        if "Unboxing an [[Item Qualities/Unusual" in t and not item_crates.get(name): grp+=["S1"]   # "unusual from any crate" only matters for hats that never had a crate
         if name in cats["Season Pass Rewards"] or name in cats["Battle Pass Rewards"]: grp=["UX","S5"]
         if name in cats["Haunted item"]: grp.append("HAUNT")
         if name in cats["Developer/Contributor-only"]: grp+=["DEV","COMM"]

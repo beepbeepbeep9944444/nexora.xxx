@@ -34,11 +34,13 @@
     <a href="#/coinflip" data-r="coinflip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/></svg>Coinflip</a>
     <a href="#/jackpot" data-r="jackpot"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z M14 1v9h9a9 9 0 0 0-9-9z"/></svg>Jackpot</a>
     <a href="#/market" data-r="market"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.6 11h10.8L21 8H6.2 M9 20a1 1 0 1 0 0-.1 M18 20a1 1 0 1 0 0-.1"/></svg>Market</a>
+    <a href="#/trade" data-r="trade"><svg viewBox="0 0 24 24"><path d="M4 8h14l-4-4 M20 16H6l4 4"/></svg>Trade<b class="nav-badge" id="tradeBadge" hidden>0</b></a>
   </nav>
   <div class="top-right">
     <button class="btn-daily" id="dailyBtn" title="Claim free fun-coins">Free coins</button>
-    <div class="balance" id="balance"><i class="coin"></i><span>0.00</span></div>
-    <a class="avatar" href="#/inventory" title="Your inventory"><span id="avatarInitial">Y</span><b id="invCount">0</b></a>
+    <div class="balance" id="balance" hidden><i class="coin"></i><span>0.00</span></div>
+    <button class="btn btn-gold" id="loginBtn" style="padding:8px 14px">Sign in</button>
+    <a class="avatar" id="avatarLink" href="#/inventory" title="Your inventory" hidden><span id="avatarInitial">Y</span><b id="invCount">0</b></a>
   </div>
 </header>
 
@@ -47,22 +49,23 @@
 <div class="layout">
   <main id="view" class="view"></main>
   <aside class="chat" id="chat">
-    <div class="chat-head"><span class="dot"></span><span id="onlineCount">1,284</span> online</div>
+    <div class="chat-head"><span class="dot"></span><span id="onlineCount">0</span> online</div>
     <div class="chat-log" id="chatLog"></div>
-    <form class="chat-form" id="chatForm"><input id="chatInput" maxlength="140" placeholder="Say something…" autocomplete="off"><button>Send</button></form>
+    <form class="chat-form" id="chatForm"><input id="chatInput" maxlength="200" placeholder="Say something…" autocomplete="off"><button>Send</button></form>
   </aside>
 </div>
 
 <footer class="footer">
   <div class="footer-brand"><img src="logo-mark.svg" alt=""><b>TCBET</b></div>
   <p>TCBET is a free-to-play fan project. Fun-coins and items on this site have <b>no real-world value</b>, can't be bought, and can't be withdrawn. Not affiliated with Typical Colors 2, ROLVe, or Roblox. Item art and effect names come from the <a href="https://typicalcolors2.fandom.com" target="_blank" rel="noopener">Typical Colors 2 Wiki</a>.</p>
-  <button class="link" id="resetBtn">Reset my save</button>
 </footer>
 
 <div class="modal" id="modal" hidden><div class="modal-card" id="modalCard"></div></div>
 <div class="toasts" id="toasts"></div>
 
-<script src="data.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js?v=16"></script>
+<script src="data.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

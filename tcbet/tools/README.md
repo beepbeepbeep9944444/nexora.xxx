@@ -10,7 +10,9 @@ python scrape.py raw.json
 python crates.py crates.json
 python weapons.py crates.json weapons.json
 # save the wiki's Unusualifier page wikitext as unusualifier.txt, then:
-python process.py raw.json data.js crates.json unusualifier.txt weapons.json
+python process.py raw.json data_base.js crates.json unusualifier.txt weapons.json
+python build_server.py data_base.js ../data.js ../server/seed.sql
 ```
 
-Copy the new `data.js` over `tcbet/data.js` and bump the `?v=` numbers in `tcbet/index.html` so browsers reload it.
+`build_server.py` applies the hat ranking, removes admin-only items/effects and builds the case tables, writing the site's `data.js` and the server's `seed.sql` together so prices always match.
+Run the new `seed.sql` in the Supabase SQL editor, then bump the `?v=` numbers in `tcbet/index.html` so browsers reload.
