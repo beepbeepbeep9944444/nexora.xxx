@@ -975,7 +975,7 @@ function createBattle() {
     <div class="section-title">Mode</div><div class="tabs" id="bcMode" style="display:inline-flex">${MODES.map((x, i) => `<button data-i="${i}" class="${i ? "" : "on"}">${x.k}</button>`).join("")}</div>
     <div class="tabs" id="bcType" style="display:inline-flex;margin-left:8px"><button data-c="0" class="on">Normal</button><button data-c="1">Crazy</button></div>
     <div class="muted" id="bcHint" style="margin:8px 0 12px">Highest total value wins.</div>
-    <div class="section-title">Cases (up to 10, click to add)</div><div class="b-picked" id="bcPicked"></div>
+    <div class="section-title">Cases (up to 30, click to add)</div><div class="b-picked" id="bcPicked"></div>
     <input id="bcQ" placeholder="Search cases…" style="width:100%;margin:8px 0">
     <div class="b-pick" id="bcPick"></div>
     <div class="sel-bar"><span class="grow" id="bcInfo"></span><button class="btn" data-close>Cancel</button><button class="btn btn-gold" id="bcGo" disabled>Create</button></div>`);
@@ -991,7 +991,7 @@ function createBattle() {
     const md = e.target.closest("#bcMode [data-i]"), ty = e.target.closest("#bcType [data-c]"), ad = e.target.closest("[data-add]"), rm = e.target.closest("[data-rm]");
     if (md) { st.mode = MODES[+md.dataset.i]; $$("#bcMode button").forEach(b => b.classList.toggle("on", b === md)); }
     if (ty) { st.crazy = ty.dataset.c === "1"; $$("#bcType button").forEach(b => b.classList.toggle("on", b === ty)); $("#bcHint").textContent = st.crazy ? "Crazy: the LOWEST total value wins." : "Highest total value wins."; }
-    if (ad && st.cases.length < 10) { st.cases.push(ad.dataset.add); SFX.click(); }
+    if (ad && st.cases.length < 30) { st.cases.push(ad.dataset.add); SFX.click(); }
     if (rm) st.cases.splice(+rm.dataset.rm, 1);
     draw();
   };

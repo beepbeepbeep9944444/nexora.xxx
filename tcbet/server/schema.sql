@@ -454,7 +454,7 @@ create or replace function battle_create(p_cases text[], p_teams int, p_size int
 declare uid uuid := _uid(); uname text; c numeric; bid bigint;
 begin
   if (p_teams, p_size) not in ((2,1), (3,1), (2,2), (2,3), (3,3)) then raise exception 'Pick 1v1, 1v1v1, 2v2, 3v3 or 3v3v3'; end if;
-  if cardinality(p_cases) not between 1 and 10 then raise exception 'Battles have 1 to 10 cases'; end if;
+  if cardinality(p_cases) not between 1 and 30 then raise exception 'Battles have 1 to 30 cases'; end if;
   select sum(cs.price) into c from unnest(p_cases) x(id) join cases cs on cs.id = x.id;
   if c is null or (select count(*) from unnest(p_cases) x(id) where x.id not in (select id from cases)) > 0 then raise exception 'Unknown case'; end if;
   if (select count(*) from battles where creator = uid and status = 'open') >= 3 then raise exception 'You already have 3 open battles'; end if;
