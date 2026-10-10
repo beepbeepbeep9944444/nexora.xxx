@@ -20,7 +20,24 @@ create table if not exists profiles (
   created_at timestamptz not null default now());
 create unique index if not exists profiles_username_ci on profiles (lower(username));
 -- player | vip. Only changed by hand in the SQL editor (see vip.sql); no game function touches it.
-alter table profiles add column if not exists rank text not null default 'player';
+alter table profiles add column if not exists rank text not null default 'player';   -- player | vip | owner
+alter table profiles add column if not exists avatar text;                              -- 'class:Agent' or 'item:Knightmare|Burning'
+alter table profiles add column if not exists xp numeric(16,2) not null default 0;      -- 1 xp per coin wagered
+alter table profiles add column if not exists rakeback numeric(14,2) not null default 0;
+alter table profiles add column if not exists crates_claimed int not null default 0;
+alter table profiles add column if not exists best_name text;
+alter table profiles add column if not exists best_fx text;
+alter table profiles add column if not exists best_value numeric(14,2) not null default 0;
+create table if not exists battles (
+  id bigint generated always as identity primary key,
+  creator uuid, creator_name text,
+  teams int not null, team_size int not null, crazy bool not null default false,   -- crazy: lowest total wins
+  cases text[] not null, cost numeric(14,2) not null,                              -- cost per seat
+  status text not null default 'open',                                             -- open | done | cancelled
+  results jsonb, totals jsonb, winner_team int,
+  created_at timestamptz not null default now(), finished_at timestamptz);
+create table if not exists battle_players (battle_id bigint references battles on delete cascade, slot int, user_id uuid, username text, is_bot bool not null default false, primary key (battle_id, slot));
+create table if not exists tips (id bigint generated always as identity primary key, sender uuid, sender_name text, receiver uuid, receiver_name text, amount numeric(14,2), created_at timestamptz not null default now());
 
 create table if not exists inventory (
   id bigint generated always as identity primary key,
@@ -53,13 +70,15 @@ create table if not exists trades (
 
 -- ============================================================ read-only access for clients
 do $$ declare t text; begin
-  foreach t in array array['catalog','effects','cases','case_entries','profiles','inventory','drops','chat','coinflips','jackpot_rounds','jackpot_entries','trades'] loop
+  foreach t in array array['catalog','effects','cases','case_entries','profiles','inventory','drops','chat','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists read_all on %I', t);
-    if t <> 'trades' then execute format('create policy read_all on %I for select using (true)', t); end if;
+    if t not in ('trades', 'tips') then execute format('create policy read_all on %I for select using (true)', t); end if;
   end loop;
 end $$;
 drop policy if exists read_own on trades;
+drop policy if exists read_own on tips;
+create policy read_own on tips for select using (auth.uid() in (sender, receiver));
 create policy read_own on trades for select using (auth.uid() in (sender, receiver));
 
 -- ============================================================ helpers
@@ -90,6 +109,18 @@ end $$;
 create or replace function _jsum(j jsonb) returns numeric language sql immutable as $$ select coalesce(sum((x->>'v')::numeric), 0) from jsonb_array_elements(j) x $$;
 create or replace function _jids(j jsonb) returns bigint[] language sql immutable as $$ select coalesce(array_agg((x->>'id')::bigint), '{}') from jsonb_array_elements(j) x $$;
 
+-- ============================================================ levels / rakeback
+-- level L needs 100*(L-1)^2 xp: L2 = 100, L10 = 8,100, L25 = 57,600, L50 = 240,100
+create or replace function level_of(p_xp numeric) returns int language sql immutable as $$ select floor(sqrt(greatest(p_xp, 0) / 100))::int + 1 $$;
+create or replace function is_vip(p_rank text) returns bool language sql immutable as $$ select p_rank in ('vip', 'owner') $$;
+-- 0.5% + 0.05% per level (max 3%), +1% for VIPs
+create or replace function rake_rate(p_level int, p_rank text) returns numeric language sql immutable as $$
+  select least(0.03, 0.005 + 0.0005 * p_level) + case when is_vip(p_rank) then 0.01 else 0 end $$;
+create or replace function _wager(p_uid uuid, p_amount numeric) returns void language sql set search_path = public as $$
+  update profiles set xp = xp + p_amount, rakeback = rakeback + round(p_amount * rake_rate(level_of(xp), rank), 2) where id = p_uid $$;
+create or replace function _best(p_uid uuid, p_name text, p_fx text, p_v numeric) returns void language sql set search_path = public as $$
+  update profiles set best_name = p_name, best_fx = p_fx, best_value = p_v where id = p_uid and p_v > best_value $$;
+
 -- ============================================================ accounts
 create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
 declare uname text := new.raw_user_meta_data->>'username';
@@ -108,34 +139,46 @@ create or replace function username_available(p_name text) returns bool language
 create or replace function claim_daily() returns numeric language plpgsql security definer set search_path = public as $$
 declare uid uuid := _uid(); b numeric;
 begin
-  update profiles set balance = balance + case when rank = 'vip' then 100 else 25 end, daily_at = now() where id = uid and (daily_at is null or daily_at < now() - interval '4 hours') returning balance into b;
+  update profiles set balance = balance + case when is_vip(rank) then 100 else 25 end, daily_at = now() where id = uid and (daily_at is null or daily_at < now() - interval '4 hours') returning balance into b;
   if not found then raise exception 'Free coins are not ready yet'; end if;
   return b;
 end $$;
 
 -- ============================================================ cases / market / selling
+-- pick a random item from a case (no side effects); returns {n,fx,v}
+create or replace function _pick(p_case text) returns jsonb language plpgsql set search_path = public as $$
+declare k int; r float8 := random(); e case_entries; hat text; fxn text; inter text[];
+begin
+  select x.idx into k from (select idx, sum(p) over (order by idx) cum from case_entries where case_id = p_case) x where x.cum >= r order by x.idx limit 1;
+  if k is null then select max(idx) into k from case_entries where case_id = p_case; end if;
+  select * into e from case_entries where case_id = p_case and idx = k;
+  if e.unusual then
+    hat := e.hats[1 + floor(random() * cardinality(e.hats))::int];
+    select array(select unnest(e.groups) intersect select unnest(fx)) into inter from catalog where name = hat;
+    select name into fxn from effects where g && inter order by random() limit 1;
+  else hat := e.name; fxn := null; end if;
+  return jsonb_build_object('n', hat, 'fx', fxn, 'v', item_value(hat, fxn));
+end $$;
+
+-- roll one item from a case into the player's inventory; returns {id,n,fx,v}
+create or replace function _roll_case(p_case text, p_uid uuid, p_uname text, p_source text) returns jsonb language plpgsql set search_path = public as $$
+declare it jsonb := _pick(p_case); nid bigint;
+begin
+  insert into inventory (owner, name, fx) values (p_uid, it->>'n', it->>'fx') returning id into nid;
+  insert into drops (username, name, fx, value, source) values (p_uname, it->>'n', it->>'fx', (it->>'v')::numeric, p_source);
+  perform _best(p_uid, it->>'n', it->>'fx', (it->>'v')::numeric);
+  return it || jsonb_build_object('id', nid);
+end $$;
+
 create or replace function open_case(p_case text, p_qty int) returns jsonb language plpgsql security definer set search_path = public as $$
-declare uid uuid := _uid(); c cases; uname text; res jsonb := '[]'; k int; r float8; e case_entries; hat text; fxn text; inter text[]; nid bigint; v numeric;
+declare uid uuid := _uid(); c cases; uname text; res jsonb := '[]';
 begin
   if p_qty not between 1 and 5 then raise exception 'Open 1 to 5 at a time'; end if;
   select * into c from cases where id = p_case; if not found then raise exception 'Unknown case'; end if;
   update profiles set balance = balance - c.price * p_qty, opened = opened + p_qty where id = uid and balance >= c.price * p_qty returning username into uname;
   if not found then raise exception 'Not enough coins'; end if;
-  for i in 1..p_qty loop
-    r := random();
-    select x.idx into k from (select idx, sum(p) over (order by idx) cum from case_entries where case_id = p_case) x where x.cum >= r order by x.idx limit 1;
-    if k is null then select max(idx) into k from case_entries where case_id = p_case; end if;
-    select * into e from case_entries where case_id = p_case and idx = k;
-    if e.unusual then
-      hat := e.hats[1 + floor(random() * cardinality(e.hats))::int];
-      select array(select unnest(e.groups) intersect select unnest(fx)) into inter from catalog where name = hat;
-      select name into fxn from effects where g && inter order by random() limit 1;
-    else hat := e.name; fxn := null; end if;
-    insert into inventory (owner, name, fx) values (uid, hat, fxn) returning id into nid;
-    v := item_value(hat, fxn);
-    res := res || jsonb_build_object('id', nid, 'n', hat, 'fx', fxn, 'v', v);
-    insert into drops (username, name, fx, value, source) values (uname, hat, fxn, v, c.name);
-  end loop;
+  perform _wager(uid, c.price * p_qty);
+  for i in 1..p_qty loop res := res || _roll_case(p_case, uid, uname, c.name); end loop;
   return jsonb_build_object('items', res, 'balance', (select balance from profiles where id = uid));
 end $$;
 
@@ -145,7 +188,7 @@ begin
   with d as (delete from inventory where id = any(ids) and owner = uid and state = 'inv' returning name, fx)
     select coalesce(sum(item_value(name, fx)), 0), count(*) into s, n from d;
   if n <> cardinality(ids) or n = 0 then raise exception 'Some of those items are no longer in your inventory'; end if;
-  update profiles set balance = balance + round(s * case when rank = 'vip' then 1 else 0.95 end, 2) where id = uid returning balance into b;
+  update profiles set balance = balance + round(s * case when is_vip(rank) then 1 else 0.95 end, 2) where id = uid returning balance into b;
   return b;
 end $$;
 
@@ -169,10 +212,12 @@ begin
   if n <> cardinality(ids) or n = 0 then raise exception 'Some of those items are no longer in your inventory'; end if;
   if s >= t then raise exception 'Your stake is already worth more than the target'; end if;
   ch := least(0.75, s / t * 0.95);
+  perform _wager(uid, s);
   if roll < ch then
     insert into inventory (owner, name, fx) values (uid, p_hat, p_fx) returning id into nid;
     select username into uname from profiles where id = uid;
     insert into drops (username, name, fx, value, source) values (uname, p_hat, p_fx, t, 'Unusualifier');
+    perform _best(uid, p_hat, p_fx, t);
   end if;
   return jsonb_build_object('win', roll < ch, 'roll', roll, 'chance', ch, 'id', nid);
 end $$;
@@ -199,6 +244,7 @@ begin
   if v < f.creator_value * 0.9 or v > f.creator_value * 1.1 then raise exception 'Your items must be within 10%% of %', f.creator_value; end if;
   ws := case when random() < 0.5 then 'RED' else 'GRN' end;
   w := case when ws = f.side then f.creator else uid end;
+  perform _wager(f.creator, f.creator_value); perform _wager(uid, v);
   update inventory set owner = w, state = 'inv' where id = any(_jids(f.creator_items) || _jids(j));
   update coinflips set joiner = uid, joiner_name = (select username from profiles where id = uid), joiner_items = j, joiner_value = v,
     winner_side = ws, winner = w, status = 'done', finished_at = now() where id = p_id returning * into f;
@@ -206,20 +252,47 @@ begin
 end $$;
 
 -- nobody joined: flip against the house for coins (win = items back + their value in coins)
+-- the House stakes real items worth 90-110% of the target: greedily takes one of the biggest items that still fits
+create or replace function _house_items(p_target numeric) returns jsonb language plpgsql set search_path = public as $$
+declare res jsonb := '[]'; cands jsonb; left_ numeric := p_target; it jsonb;
+begin
+  select jsonb_agg(jsonb_build_object('n', n, 'fx', fx, 'v', v)) into cands from (
+    select x.hn n, x.en fx, item_value(x.hn, x.en) v from (
+      select c.name hn, e.name en from catalog c join effects e on c.fx && e.g where c.unu order by random() limit 1500) x
+    union all
+    select name, null, round(v::numeric, 2) from catalog
+      where name not in ('Golden Frying Pan', 'Frying Pan', 'Golden Knife', 'Golden Wrench') and coalesce(q, '') <> 'Haunted' and v >= 0.05) s
+    where v is not null;
+  while left_ > greatest(p_target * 0.02, 0.05) and jsonb_array_length(res) < 30 loop
+    select x into it from (select x from jsonb_array_elements(cands) x where (x->>'v')::numeric <= left_ * 1.02
+                            order by (x->>'v')::numeric desc limit 4) top order by random() limit 1;
+    exit when it is null;
+    res := res || it; left_ := left_ - (it->>'v')::numeric;
+  end loop;
+  return res;
+end $$;
+
+-- nobody joined: flip against the House. Win = your items back + the House's items; lose = the House keeps yours
 create or replace function coinflip_house(p_id bigint) returns jsonb language plpgsql security definer set search_path = public as $$
-declare uid uuid := _uid(); f coinflips; ws text;
+declare uid uuid := _uid(); f coinflips; ws text; hj jsonb; hv numeric;
 begin
   select * into f from coinflips where id = p_id for update;
   if not found or f.status <> 'open' or f.creator <> uid then raise exception 'That flip is no longer open'; end if;
   if f.created_at > now() - interval '10 seconds' then raise exception 'Give other players a few seconds to join first'; end if;
+  hj := _house_items(f.creator_value); hv := _jsum(hj);
+  if hv < f.creator_value * 0.9 or hv > f.creator_value * 1.1 then        -- couldn't build a close match: top up with one filler item
+    hj := hj || jsonb_build_object('n', 'Bat Blockers', 'fx', null, 'v', 0); hv := _jsum(hj);
+  end if;
+  perform _wager(uid, f.creator_value);
   ws := case when random() < 0.5 then 'RED' else 'GRN' end;
   if ws = f.side then
     update inventory set state = 'inv' where id = any(_jids(f.creator_items));
-    update profiles set balance = balance + f.creator_value where id = uid;
+    insert into inventory (owner, name, fx) select uid, x->>'n', x->>'fx' from jsonb_array_elements(hj) x where (x->>'v')::numeric > 0;
   else
     delete from inventory where id = any(_jids(f.creator_items));
   end if;
-  update coinflips set joiner_name = 'House', joiner_items = '[]', joiner_value = f.creator_value, winner_side = ws,
+  update coinflips set joiner_name = 'House', joiner_items = (select coalesce(jsonb_agg(x), '[]') from jsonb_array_elements(hj) x where (x->>'v')::numeric > 0),
+    joiner_value = (select coalesce(sum((x->>'v')::numeric), 0) from jsonb_array_elements(hj) x), winner_side = ws,
     winner = case when ws = f.side then uid end, status = 'done', finished_at = now() where id = p_id returning * into f;
   return to_jsonb(f);
 end $$;
@@ -249,6 +322,7 @@ begin
   if r.ends_at is not null and r.ends_at <= now() then raise exception 'This round is rolling, wait for the next one'; end if;
   j := _claim_items(p_ids, uid, 'jackpot');
   insert into jackpot_entries (round_id, user_id, username, items, value) values (r.id, uid, (select username from profiles where id = uid), j, _jsum(j));
+  perform _wager(uid, _jsum(j));
   if r.ends_at is null and (select count(distinct user_id) from jackpot_entries where round_id = r.id) >= 2 then
     update jackpot_rounds set ends_at = now() + interval '30 seconds' where id = r.id;
   end if;
@@ -338,6 +412,156 @@ begin
   if not found then raise exception 'That offer is no longer pending'; end if;
 end $$;
 
+-- ============================================================ rewards: rakeback + level crates
+create or replace function claim_rakeback() returns numeric language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); amt numeric;
+begin
+  select rakeback into amt from profiles where id = uid for update;
+  if amt < 0.01 then raise exception 'No rakeback to claim yet'; end if;
+  update profiles set balance = balance + rakeback, rakeback = 0 where id = uid;
+  return amt;
+end $$;
+
+-- one free crate per level gained; the case is random among those priced up to 4 + 3*level coins
+create or replace function open_level_crate() returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); me profiles; lvl int; cid text; cname text; item jsonb;
+begin
+  select * into me from profiles where id = uid for update;
+  if me.crates_claimed >= level_of(me.xp) - 1 then raise exception 'No reward crates right now. Level up to earn more!'; end if;
+  lvl := me.crates_claimed + 2;                       -- the level this crate rewards
+  select id, name into cid, cname from cases where price <= 4 + 3 * lvl and id <> 'unusual-box' order by random() limit 1;
+  if cid is null then select id, name into cid, cname from cases order by price limit 1; end if;
+  update profiles set crates_claimed = crates_claimed + 1 where id = uid;
+  item := _roll_case(cid, uid, me.username, 'Level ' || lvl || ' crate');
+  return jsonb_build_object('item', item, 'case', cid, 'case_name', cname, 'level', lvl);
+end $$;
+
+-- ============================================================ case battles
+-- modes: 1v1, 1v1v1, 2v2, 3v3, 3v3v3 (teams x team_size). Everyone opens the same cases; the winning team takes every item.
+create or replace function battle_create(p_cases text[], p_teams int, p_size int, p_crazy bool) returns bigint language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); uname text; c numeric; bid bigint;
+begin
+  if (p_teams, p_size) not in ((2,1), (3,1), (2,2), (2,3), (3,3)) then raise exception 'Pick 1v1, 1v1v1, 2v2, 3v3 or 3v3v3'; end if;
+  if cardinality(p_cases) not between 1 and 10 then raise exception 'Battles have 1 to 10 cases'; end if;
+  select sum(cs.price) into c from unnest(p_cases) x(id) join cases cs on cs.id = x.id;
+  if c is null or (select count(*) from unnest(p_cases) x(id) where x.id not in (select id from cases)) > 0 then raise exception 'Unknown case'; end if;
+  if (select count(*) from battles where creator = uid and status = 'open') >= 3 then raise exception 'You already have 3 open battles'; end if;
+  update profiles set balance = balance - c where id = uid and balance >= c returning username into uname;
+  if not found then raise exception 'Not enough coins (this battle costs %)', c; end if;
+  perform _wager(uid, c);
+  insert into battles (creator, creator_name, teams, team_size, crazy, cases, cost) values (uid, uname, p_teams, p_size, coalesce(p_crazy, false), p_cases, c) returning id into bid;
+  insert into battle_players (battle_id, slot, user_id, username) values (bid, 0, uid, uname);
+  return bid;
+end $$;
+
+create or replace function battle_join(p_id bigint, p_slot int) returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); b battles; uname text;
+begin
+  select * into b from battles where id = p_id for update;
+  if not found or b.status <> 'open' then raise exception 'That battle is no longer open'; end if;
+  if p_slot < 0 or p_slot >= b.teams * b.team_size then raise exception 'No such seat'; end if;
+  if exists (select 1 from battle_players where battle_id = p_id and user_id = uid) then raise exception 'You are already in this battle'; end if;
+  if exists (select 1 from battle_players where battle_id = p_id and slot = p_slot) then raise exception 'That seat is taken'; end if;
+  update profiles set balance = balance - b.cost where id = uid and balance >= b.cost returning username into uname;
+  if not found then raise exception 'Not enough coins (this battle costs %)', b.cost; end if;
+  perform _wager(uid, b.cost);
+  insert into battle_players (battle_id, slot, user_id, username) values (p_id, p_slot, uid, uname);
+  return _battle_maybe_run(p_id);
+end $$;
+
+-- creator fills every empty seat with House bots and starts the battle
+create or replace function battle_fill_bots(p_id bigint) returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); b battles;
+begin
+  select * into b from battles where id = p_id for update;
+  if not found or b.status <> 'open' or b.creator <> uid then raise exception 'Only the creator of an open battle can call bots'; end if;
+  insert into battle_players (battle_id, slot, username, is_bot)
+    select p_id, s, 'House Bot', true from generate_series(0, b.teams * b.team_size - 1) s
+    where s not in (select slot from battle_players where battle_id = p_id);
+  return _battle_maybe_run(p_id);
+end $$;
+
+create or replace function battle_cancel(p_id bigint) returns void language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); b battles;
+begin
+  select * into b from battles where id = p_id for update;
+  if not found or b.status <> 'open' or b.creator <> uid then raise exception 'That battle is no longer open'; end if;
+  update profiles pr set balance = balance + b.cost from battle_players bp where bp.battle_id = p_id and not bp.is_bot and pr.id = bp.user_id;
+  update battles set status = 'cancelled', finished_at = now() where id = p_id;
+end $$;
+
+-- once every seat is filled: roll every case for every seat, pick the winning team, hand out the items
+create or replace function _battle_maybe_run(p_id bigint) returns jsonb language plpgsql set search_path = public as $$
+declare b battles; seats int; res jsonb := '[]'; it jsonb; pl record; tot numeric[]; best numeric; wt int; winners uuid[]; got numeric[]; k int; i int; ties int[];
+begin
+  select * into b from battles where id = p_id;
+  seats := b.teams * b.team_size;
+  if (select count(*) from battle_players where battle_id = p_id) < seats then return to_jsonb(b); end if;
+  tot := array_fill(0::numeric, array[b.teams]);
+  for r in 1..cardinality(b.cases) loop
+    for pl in select * from battle_players where battle_id = p_id order by slot loop
+      it := _pick(b.cases[r]);
+      res := res || jsonb_build_object('round', r, 'slot', pl.slot, 'n', it->>'n', 'fx', it->>'fx', 'v', (it->>'v')::numeric);
+      tot[pl.slot / b.team_size + 1] := tot[pl.slot / b.team_size + 1] + (it->>'v')::numeric;
+      if not pl.is_bot then
+        insert into drops (username, name, fx, value, source) values (pl.username, it->>'n', it->>'fx', (it->>'v')::numeric, 'Case Battle');
+        perform _best(pl.user_id, it->>'n', it->>'fx', (it->>'v')::numeric);
+      end if;
+    end loop;
+  end loop;
+  best := case when b.crazy then (select min(x) from unnest(tot) x) else (select max(x) from unnest(tot) x) end;
+  ties := array(select i2 from generate_subscripts(tot, 1) i2 where tot[i2] = best);
+  wt := ties[1 + floor(random() * cardinality(ties))::int] - 1;
+  -- every item goes to the winning team's human players, always to whoever has received the least so far
+  winners := array(select user_id from battle_players where battle_id = p_id and slot / b.team_size = wt and not is_bot order by slot);
+  if cardinality(winners) > 0 then
+    got := array_fill(0::numeric, array[cardinality(winners)]);
+    for it in select x from jsonb_array_elements(res) x order by (x->>'v')::numeric desc loop
+      k := 1; for i in 2..cardinality(winners) loop if got[i] < got[k] then k := i; end if; end loop;
+      insert into inventory (owner, name, fx) values (winners[k], it->>'n', it->>'fx');
+      got[k] := got[k] + (it->>'v')::numeric;
+    end loop;
+  end if;
+  update battles set status = 'done', results = res, totals = to_jsonb(tot), winner_team = wt, finished_at = now() where id = p_id returning * into b;
+  if (select sum(x) from unnest(tot) x) >= 1000 then
+    insert into chat (username, body) values ('TCBET', 'Case battle #' || p_id || ' (' || (select string_agg(username, ', ') from battle_players where battle_id = p_id and slot / b.team_size = wt) || ') won ' || round((select sum(x) from unnest(tot) x), 2) || ' in items!');
+  end if;
+  return to_jsonb(b);
+end $$;
+
+-- ============================================================ tipping
+create or replace function tip(p_to text, p_amount numeric) returns numeric language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); me profiles; rc profiles; amt numeric := round(coalesce(p_amount, 0), 2);
+begin
+  select * into rc from profiles where lower(username) = lower(p_to);
+  if not found then raise exception 'No player named %', p_to; end if;
+  if rc.id = uid then raise exception 'You cannot tip yourself'; end if;
+  if amt < 1 then raise exception 'Tips start at 1 coin'; end if;
+  update profiles set balance = balance - amt where id = uid and balance >= amt returning * into me;
+  if not found then raise exception 'You do not have that many coins'; end if;
+  update profiles set balance = balance + amt where id = rc.id;
+  insert into tips (sender, sender_name, receiver, receiver_name, amount) values (uid, me.username, rc.id, rc.username, amt);
+  if amt >= 100 then insert into chat (username, body) values ('TCBET', me.username || ' tipped ' || rc.username || ' ' || amt || ' coins!'); end if;
+  return me.balance;
+end $$;
+
+-- ============================================================ profile pictures
+create or replace function set_avatar(p_kind text, p_value text) returns text language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); it inventory; a text;
+begin
+  if p_kind = 'class' then
+    if p_value not in ('Flanker','Trooper','Arsonist','Annihilator','Brute','Mechanic','Doctor','Marksman','Agent') then raise exception 'Unknown class'; end if;
+    a := 'class:' || p_value;
+  elsif p_kind = 'item' then
+    select * into it from inventory where id = p_value::bigint and owner = uid;
+    if not found then raise exception 'You can only use items you own'; end if;
+    a := 'item:' || it.name || coalesce('|' || it.fx, '');
+  elsif p_kind = 'none' then a := null;
+  else raise exception 'Unknown avatar type'; end if;
+  update profiles set avatar = a where id = uid;
+  return a;
+end $$;
+
 -- ============================================================ chat
 create or replace function chat_send(p_body text) returns void language plpgsql security definer set search_path = public as $$
 declare uid uuid := _uid(); b text := btrim(p_body); me profiles;
@@ -354,10 +578,13 @@ grant execute on function item_value(text, text), username_available(text) to an
 grant execute on function claim_daily(), open_case(text, int), sell_items(bigint[]), buy_item(text, text), upgrade(bigint[], text, text),
   coinflip_create(bigint[], text), coinflip_join(bigint, bigint[]), coinflip_house(bigint), coinflip_cancel(bigint),
   jackpot_deposit(bigint[]), jackpot_withdraw(), jackpot_settle(),
-  trade_send(text, bigint[], bigint[], numeric), trade_respond(bigint, bool), trade_cancel(bigint), chat_send(text) to authenticated;
+  trade_send(text, bigint[], bigint[], numeric), trade_respond(bigint, bool), trade_cancel(bigint), chat_send(text),
+  claim_rakeback(), open_level_crate(), tip(text, numeric), set_avatar(text, text),
+  battle_create(text[], int, int, bool), battle_join(bigint, int), battle_fill_bots(bigint), battle_cancel(bigint) to authenticated;
+grant execute on function level_of(numeric), rake_rate(int, text), is_vip(text) to anon, authenticated;
 
 do $$ declare t text; begin
-  foreach t in array array['chat','drops','coinflips','jackpot_rounds','jackpot_entries','trades'] loop
+  foreach t in array array['chat','drops','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players'] loop
     begin execute format('alter publication supabase_realtime add table %I', t); exception when duplicate_object then null; end;
   end loop;
 end $$;

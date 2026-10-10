@@ -12,14 +12,14 @@
 <meta property="og:url" content="https://nexora.xxx/tcbet/">
 <meta property="og:title" content="TCBET — Typical Colors 2 Cases, Unusuals & Coinflips">
 <meta property="og:description" content="Unbox Unusuals, upgrade hats in the Unusualifier, and flip or jackpot for Golden Frying Pans. Claim free coins and play.">
-<meta property="og:image" content="https://nexora.xxx/tcbet/og.png?v=20">
+<meta property="og:image" content="https://nexora.xxx/tcbet/og.png?v=22">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://nexora.xxx/tcbet/og.png?v=20">
+<meta name="twitter:image" content="https://nexora.xxx/tcbet/og.png?v=22">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rubik:wght@700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20">
+<link rel="stylesheet" href="styles.css?v=22">
 <meta name="referrer" content="no-referrer">
 </head>
 <body>
@@ -33,11 +33,16 @@
     <a href="#/unusualifier" data-r="unusualifier"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.9H22l-6 4.6 2.3 7L12 16l-6.3 4.5 2.3-7-6-4.6h7.6z"/></svg>Unusualifier</a>
     <a href="#/coinflip" data-r="coinflip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/></svg>Coinflip</a>
     <a href="#/jackpot" data-r="jackpot"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z M14 1v9h9a9 9 0 0 0-9-9z"/></svg>Jackpot</a>
+    <a href="#/battles" data-r="battles"><svg viewBox="0 0 24 24"><path d="M4 20l7-7 M14.5 3.5L20 3l-.5 5.5L9 19l-4-4z M20 20l-7-7 M9.5 3.5L4 3l.5 5.5 6 6"/></svg>Battles</a>
     <a href="#/market" data-r="market"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.6 11h10.8L21 8H6.2 M9 20a1 1 0 1 0 0-.1 M18 20a1 1 0 1 0 0-.1"/></svg>Market</a>
     <a href="#/trade" data-r="trade"><svg viewBox="0 0 24 24"><path d="M4 8h14l-4-4 M20 16H6l4 4"/></svg>Trade<b class="nav-badge" id="tradeBadge" hidden>0</b></a>
+    <a href="#/players" data-r="players"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5 M16 4.8a3.4 3.4 0 0 1 0 6.4 M18 14.8c1.8.7 3 2.4 3.5 5.2"/></svg>Players</a>
+    <a href="#/rewards" data-r="rewards"><svg viewBox="0 0 24 24"><path d="M4 11h16v9H4z M3 7h18v4H3z M12 7v13 M12 7c-2-4-6-4-6-1.5S9 7 12 7c3 0 6 .9 6-1.5S14 3 12 7"/></svg>Rewards<b class="nav-badge" id="rewardBadge" hidden>0</b></a>
   </nav>
   <div class="top-right">
+    <button class="mute-btn" id="muteBtn" title="Sound">🔊</button>
     <button class="btn-daily" id="dailyBtn" title="Claim free fun-coins">Free coins</button>
+    <span class="lvl-chip" id="lvlChip" hidden>Lv 1</span>
     <div class="balance" id="balance" hidden><i class="coin"></i><span>0.00</span></div>
     <button class="btn btn-gold" id="loginBtn" style="padding:8px 14px">Sign in</button>
     <a class="avatar" id="avatarLink" href="#/inventory" title="Your inventory" hidden><span id="avatarInitial">Y</span><b id="invCount">0</b></a>
@@ -64,8 +69,8 @@
 <div class="toasts" id="toasts"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=20"></script>
-<script src="data.js?v=20"></script>
-<script src="app.js?v=20"></script>
+<script src="config.js?v=22"></script>
+<script src="data.js?v=22"></script>
+<script src="app.js?v=22"></script>
 </body>
 </html>

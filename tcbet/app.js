@@ -15,7 +15,8 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const r2 = n => Math.round(n * 100) / 100;
-const fmt = n => (+n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// cents only matter under 100 coins: 25,000 rather than 25,000.00
+const fmt = n => Math.abs(+n) >= 100 ? Math.round(+n).toLocaleString("en-US") : (+n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const hash = s => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0) / 4294967295; };
@@ -45,6 +46,95 @@ function rarity(v, fx) {
 const coinVal = v => `<span class="val"><i class="coin"></i>${fmt(v)}</span>`;
 const fromJ = list => (list || []).map(x => ({ id: x.id, n: x.n, fx: x.fx || null })).filter(x => ITEM[x.n]);
 
+// ---------------------------------------------------------------- sound effects (synthesised, no files)
+const SFX = (() => {
+  let ctx = null, muted = false;
+  try { muted = localStorage.getItem("tcbet_mute") === "1"; } catch {}
+  const ac = () => { if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } } if (ctx.state === "suspended") ctx.resume(); return ctx; };
+  function tone(f, dur = .1, type = "sine", vol = .12, at = 0, slide) {
+    if (muted) return; const c = ac(); if (!c) return;
+    const t = c.currentTime + at, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + .02);
+  }
+  function noise(dur = .3, vol = .08, freq = 1200, at = 0) {
+    if (muted) return; const c = ac(); if (!c) return;
+    const t = c.currentTime + at, buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = "bandpass"; f.frequency.setValueAtTime(freq, t); f.frequency.exponentialRampToValueAtTime(freq * 3, t + dur);
+    g.gain.value = vol; s.buffer = buf; s.connect(f).connect(g).connect(c.destination); s.start(t);
+  }
+  const notes = (seq, step, type, vol, base = 0) => seq.forEach((f, i) => tone(f, step * 1.6, type, vol, base + i * step));
+  return {
+    get muted() { return muted; },
+    toggle() { muted = !muted; try { localStorage.setItem("tcbet_mute", muted ? "1" : "0"); } catch {} if (!muted) this.click(); return muted; },
+    unlock() { ac(); },
+    click() { tone(900, .04, "square", .03); },
+    tick() { tone(1500 + Math.random() * 300, .022, "square", .035); },
+    whoosh() { noise(.45, .07, 700); },
+    win() { notes([523, 659, 784], .09, "triangle", .1); },
+    good() { notes([523, 659, 784, 1047], .08, "triangle", .12); tone(2093, .5, "sine", .04, .3); },
+    rare() { notes([392, 523, 659, 784, 1047, 1319], .07, "triangle", .13); for (let i = 0; i < 8; i++) tone(2400 + i * 180, .12, "sine", .03, .45 + i * .05); },
+    lose() { notes([392, 330, 262], .12, "sawtooth", .05); },
+    coin() { tone(2600, .18, "triangle", .08); tone(3900, .12, "sine", .04, .02); },
+    land() { tone(180, .12, "sine", .2, 0, 90); tone(2200, .3, "triangle", .06, .02); },
+    count() { tone(660, .09, "square", .05); },
+    go() { tone(990, .18, "square", .06); },
+    jackpot() {   // casino bells + coin shower for big wins
+      for (let r = 0; r < 4; r++) notes([523, 659, 784, 1047, 784, 1047, 1319], .075, "triangle", .12, r * .62);
+      for (let i = 0; i < 28; i++) tone(2400 + Math.random() * 1600, .14, "triangle", .05, .1 + i * .09);
+      tone(130, 1.6, "sawtooth", .05, 0, 260);
+    },
+  };
+})();
+document.addEventListener("pointerdown", () => SFX.unlock(), { once: true });
+// plays a tick each time a reel moves one card past the marker
+function reelTicks(reel, size, ms, axis = "x") {
+  const end = performance.now() + ms; let last = null;
+  const step = () => {
+    const r = reel.getBoundingClientRect(), pr = reel.parentElement.getBoundingClientRect();
+    const pos = Math.floor(((axis === "x" ? pr.left - r.left : pr.top - r.top)) / size);
+    if (last !== null && pos !== last) SFX.tick();
+    last = pos; if (performance.now() < end) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+const BIG_WIN = 25000;
+function bigWin(v, what = "") {
+  SFX.jackpot();
+  const o = document.createElement("div"); o.className = "bigwin";
+  o.innerHTML = `<div class="bigwin-card"><div class="bigwin-title">MEGA WIN</div><div class="bigwin-val"><i class="coin"></i>${fmt(v)}</div><div class="bigwin-sub">${esc(what)}</div></div>`;
+  document.body.append(o);
+  const colors = ["#f5b83d", "#ffd36b", "#fff3c4", "#ef4444", "#22c55e", "#b07ad8", "#3b82f6"];
+  const W = innerWidth, H = innerHeight;
+  for (let i = 0; i < 160; i++) {          // coin rain
+    const d = document.createElement("i"); d.className = Math.random() < .55 ? "rain-coin" : "confetti";
+    if (d.className === "confetti") d.style.background = pick(colors);
+    d.style.left = rand(0, W) + "px"; d.style.top = "-30px"; o.append(d);
+    d.animate([{ transform: "translateY(0) rotate(0)" }, { transform: `translateY(${H + 80}px) rotate(${rand(-900, 900)}deg)` }],
+      { duration: rand(1800, 3600), delay: rand(0, 2200), easing: "cubic-bezier(.3,.1,.7,1)", fill: "both" });
+  }
+  for (let b = 0; b < 6; b++) setTimeout(() => {   // bursts
+    const x = rand(W * .15, W * .85), y = rand(H * .2, H * .7);
+    for (let i = 0; i < 40; i++) {
+      const d = document.createElement("i"); d.className = "confetti"; d.style.background = pick(colors); d.style.left = x + "px"; d.style.top = y + "px"; o.append(d);
+      const a = rand(0, Math.PI * 2), r = rand(80, 300);
+      d.animate([{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${Math.cos(a) * r}px,${Math.sin(a) * r + 200}px) rotate(${rand(-720, 720)}deg)`, opacity: 0 }], { duration: rand(1000, 1800), easing: "cubic-bezier(.2,.7,.3,1)", fill: "forwards" });
+    }
+    SFX.coin();
+  }, 300 + b * 450);
+  o.onclick = () => o.remove();
+  setTimeout(() => o.classList.add("out"), 4600); setTimeout(() => o.remove(), 5200);
+}
+function celebrate(items, what) {
+  const top = items.reduce((m, it) => value(it) > value(m) ? it : m, items[0]);
+  const tv = total(items);
+  if (value(top) >= BIG_WIN) bigWin(value(top), label(top) + (what ? " · " + what : ""));
+  else if (top.fx || value(top) >= 1000) SFX.rare(); else if (tv >= 5) SFX.good(); else SFX.win();
+}
+
 // ---------------------------------------------------------------- server
 const CFG = window.TCBET_CONFIG || {};
 const sb = window.supabase && CFG.url && CFG.anonKey ? window.supabase.createClient(CFG.url, CFG.anonKey) : null;
@@ -68,17 +158,30 @@ async function refreshMe() {
 }
 function needLogin() { if (ME.user) return false; openAuth("login"); return true; }
 const fail = e => toast(esc(e.message || e), "bad");
-const isVip = () => ME.profile?.rank === "vip";
-const vipTag = r => r === "vip" ? `<span class="vip-tag" title="VIP">VIP</span>` : "";
+const isVip = () => ["vip", "owner"].includes(ME.profile?.rank);
+const vipTag = r => r === "owner" ? `<span class="vip-tag owner-tag" title="Site owner">OWNER</span>` : r === "vip" ? `<span class="vip-tag" title="VIP">VIP</span>` : "";
+// levels: level L needs 100*(L-1)^2 xp (1 xp per coin wagered) — same formula as level_of() on the server
+const levelOf = xp => Math.floor(Math.sqrt(Math.max(0, +xp || 0) / 100)) + 1;
+const xpFor = L => 100 * (L - 1) ** 2;
+const rakeRate = (L, rank) => Math.min(.03, .005 + .0005 * L) + (["vip", "owner"].includes(rank) ? .01 : 0);
+const crateBudget = L => 4 + 3 * L;
+const lvlChip = xp => `<span class="lvl-chip" title="Level">Lv ${levelOf(xp)}</span>`;
 const sellRate = () => isVip() ? 1 : .95;
 
 function syncTop() {
   const p = ME.profile;
-  $("#balance").hidden = !p; $("#avatarLink").hidden = !p; $("#loginBtn").hidden = !!p;
+  $("#balance").hidden = !p; $("#avatarLink").hidden = !p; $("#loginBtn").hidden = !!p; if (!p) $("#lvlChip").hidden = true;
   if (p) {
     $("#balance span").textContent = fmt(p.balance);
-    $("#avatarInitial").textContent = p.username[0].toUpperCase();
-    $("#avatarLink").classList.toggle("is-vip", p.rank === "vip");
+    const inner = avatarInner(p.avatar);
+    $("#avatarInitial").innerHTML = inner || esc(p.username[0].toUpperCase());
+    $("#avatarLink").classList.toggle("has-av", !!inner);
+    $("#avatarLink").classList.toggle("is-vip", isVip());
+    $("#avatarLink").href = "#/u/" + encodeURIComponent(p.username);
+    $("#lvlChip").textContent = "Lv " + levelOf(p.xp); $("#lvlChip").hidden = false;
+    const rewards = Math.max(0, levelOf(p.xp) - 1 - p.crates_claimed) + (+p.rakeback >= 0.01 ? 1 : 0);
+    $("#rewardBadge").textContent = rewards; $("#rewardBadge").hidden = !rewards;
+    rememberProfile(p);
     $("#avatarLink").style.background = pfpColor(p.username);
     $("#invCount").textContent = ME.inv.length;
   }
@@ -129,8 +232,51 @@ document.addEventListener("click", e => { if (e.target.closest("[data-close]")) 
 
 const PFP_COLORS = ["#ef4444","#22c55e","#3b82f6","#f59e0b","#8b5cf6","#ec4899","#14b8a6","#f97316"];
 const pfpColor = n => PFP_COLORS[Math.floor(hash(n || "?") * PFP_COLORS.length)];
-const pfp = (n, cls = "pfp") => `<div class="${cls}" style="background:${pfpColor(n)}">${esc((n || "?")[0].toUpperCase())}</div>`;
-const userLink = n => n && n !== "TCBET" && n !== "House" ? `<a href="#/trade/${encodeURIComponent(n)}" class="ulink">${esc(n)}</a>` : esc(n);
+const CLASS_IMG = { Flanker: "a/aa/Flankertransparent.png", Trooper: "b/be/Troopertransparent.png", Arsonist: "7/7b/Arsonisttransparent.png",
+  Annihilator: "3/3c/Annihilatortransparent.png", Brute: "2/26/Brutetransparent.png", Mechanic: "a/a2/Mechanictransparent.png",
+  Doctor: "d/d1/Doctortransparent.png", Marksman: "4/46/Marksmantransparent.png", Agent: "5/56/Agenttransparent.png" };
+const classImg = c => `https://static.wikia.nocookie.net/tc2/images/${CLASS_IMG[c]}`;
+function parseAvatar(a) {
+  if (!a) return null;
+  if (a.startsWith("class:")) return CLASS_IMG[a.slice(6)] ? { cls: a.slice(6) } : null;
+  if (a.startsWith("item:")) { const [n, fx] = a.slice(5).split("|"); return ITEM[n] ? { it: { n, fx: fx && FX[fx] ? fx : null } } : null; }
+  return null;
+}
+// small avatar: static image only (cheap enough for chat); unusual items get a purple ring
+function avatarInner(a) {
+  const p = parseAvatar(a); if (!p) return null;
+  if (p.cls) return `<img src="${sized(classImg(p.cls), 96)}" alt="" referrerpolicy="no-referrer">`;
+  return `<img src="${sized(ITEM[p.it.n].img, 96)}" alt="" referrerpolicy="no-referrer">`;
+}
+const PROF = new Map();   // lowercase username -> {username, rank, avatar, xp}
+let profWant = new Set(), profTimer = 0;
+function wantProfile(n) {
+  if (!sb || !n || n === "TCBET" || n === "House" || PROF.has(n.toLowerCase())) return;
+  profWant.add(n); clearTimeout(profTimer); profTimer = setTimeout(fetchProfiles, 120);
+}
+async function fetchProfiles() {
+  const names = [...profWant]; profWant = new Set(); if (!names.length) return;
+  const { data } = await sb.from("profiles").select("username,rank,avatar,xp").in("username", names);
+  for (const n of names) if (!PROF.has(n.toLowerCase())) PROF.set(n.toLowerCase(), null);
+  for (const r of data || []) PROF.set(r.username.toLowerCase(), r);
+  hydrate(document);
+}
+function rememberProfile(r) { if (r?.username) { PROF.set(r.username.toLowerCase(), r); hydrate(document); } }
+function hydrate(root) {
+  root.querySelectorAll?.("[data-u]").forEach(el => {
+    const r = PROF.get(el.dataset.u.toLowerCase());
+    if (r === undefined) return wantProfile(el.dataset.u);
+    if (!r || el.dataset.av === (r.avatar || "") + r.rank) return;
+    el.dataset.av = (r.avatar || "") + r.rank;
+    const inner = avatarInner(r.avatar);
+    if (inner) { el.innerHTML = inner; el.classList.add("has-av"); el.classList.toggle("av-unu", r.avatar.includes("|")); }
+    el.classList.toggle("ring-vip", r.rank === "vip"); el.classList.toggle("ring-owner", r.rank === "owner");
+  });
+}
+new MutationObserver(muts => { for (const m of muts) for (const n of m.addedNodes) if (n.nodeType === 1) { if (n.dataset?.u) hydrate(n.parentNode || document); else hydrate(n); } })
+  .observe(document.body, { childList: true, subtree: true });
+const pfp = (n, cls = "pfp") => `<div class="${cls}" ${n && n !== "TCBET" && n !== "House" ? `data-u="${esc(n)}"` : ""} style="background:${pfpColor(n)}">${esc((n || "?")[0].toUpperCase())}</div>`;
+const userLink = n => n && n !== "TCBET" && n !== "House" ? `<a href="#/u/${encodeURIComponent(n)}" class="ulink">${esc(n)}</a>` : esc(n);
 
 function randomUnusual(hats = UNU_HATS) {
   for (let i = 0; i < 50; i++) {
@@ -179,6 +325,8 @@ function openAuth(mode = "login") {
   setTimeout(() => $("#auUser")?.focus(), 50);
 }
 $("#loginBtn").onclick = () => openAuth("login");
+const syncMute = () => { $("#muteBtn").textContent = SFX.muted ? "🔇" : "🔊"; $("#muteBtn").title = SFX.muted ? "Sound off" : "Sound on"; };
+$("#muteBtn").onclick = () => { SFX.toggle(); syncMute(); }; syncMute();
 
 // ---------------------------------------------------------------- cases
 function viewCases() {
@@ -239,11 +387,41 @@ async function spinReel(reel, c, win, ms) {
   reel.style.transition = "none"; reel.style.transform = "translateX(0)"; void reel.offsetWidth;
   reel.style.transition = `transform ${ms}ms cubic-bezier(.08,.72,.12,1)`;
   reel.style.transform = `translateX(${-offset}px)`;
+  SFX.whoosh(); reelTicks(reel, W, ms);
   await sleep(ms + 150);
-  if (win.fx) { reel.children[WIN].outerHTML = card(win); await sleep(ms > 2000 ? 700 : 250); }
+  if (win.fx) await unusualSpin(reel, c, win, ms);
+}
+// landed on the ★: flash, then spin again through possible unusuals from this case and stop on the real one
+async function unusualSpin(reel, c, win, ms) {
+  const wrap = reel.parentElement, N = 46, WIN = 38, W = 158;
+  wrap.classList.add("unu-flash"); SFX.rare(); await sleep(ms > 2000 ? 900 : 300);
+  const e = c?.entries?.find(x => x.unusual);
+  const hats = (e?.hats || [win.n]).map(n => ITEM[n]).filter(Boolean), groups = e?.groups || [...STANDARD];
+  const combo = () => { for (let i = 0; i < 20; i++) { const h = pick(hats), o = allowedFx(h).filter(f => f.g.some(g => groups.includes(g) && h.fx.includes(g))); if (o.length) return { n: h.name, fx: pick(o).name }; } return win; };
+  reel.innerHTML = Array.from({ length: N }, (_, i) => card(i === WIN ? win : combo())).join("");
+  wrap.classList.remove("unu-flash"); wrap.classList.add("unu-mode");
+  const offset = WIN * W + rand(10, 140) - wrap.clientWidth / 2, t = ms > 2000 ? 4200 : 1400;
+  reel.style.transition = "none"; reel.style.transform = "translateX(0)"; void reel.offsetWidth;
+  reel.style.transition = `transform ${t}ms cubic-bezier(.08,.72,.12,1)`; reel.style.transform = `translateX(${-offset}px)`;
+  SFX.whoosh(); reelTicks(reel, W, t);
+  await sleep(t + 200);
+  reel.children[WIN].classList.add("reel-win"); confetti(wrap, 60, ["#b07ad8", "#8650ac", "#f5b83d", "#fff"]);
+  await sleep(ms > 2000 ? 900 : 300);
+}
+function confetti(host, n = 50, colors = ["#f5b83d", "#22c55e", "#ef4444", "#fff"]) {
+  const box = host.getBoundingClientRect();
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement("i"); d.className = "confetti";
+    d.style.left = box.left + box.width / 2 + "px"; d.style.top = box.top + box.height / 2 + "px"; d.style.background = pick(colors);
+    document.body.append(d);
+    const a = rand(0, Math.PI * 2), r = rand(80, 260);
+    d.animate([{ transform: "translate(0,0) rotate(0)", opacity: 1 }, { transform: `translate(${Math.cos(a) * r}px,${Math.sin(a) * r + 160}px) rotate(${rand(-720, 720)}deg)`, opacity: 0 }],
+      { duration: rand(900, 1600), easing: "cubic-bezier(.2,.7,.3,1)" }).onfinish = () => d.remove();
+  }
 }
 function showWins(wins) {
   const tv = total(wins);
+  celebrate(wins, "Unboxed");
   const m = modal(`<div class="win-show"><h2>${wins.some(w => w.fx) ? "UNUSUAL UNBOXED!" : "You unboxed"}</h2><div class="muted">Total ${coinVal(tv)}</div>
     <div class="grid" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(170px,220px));justify-content:center">${wins.map(w => card(w)).join("")}</div>
     <div style="display:flex;gap:10px;justify-content:center;margin-top:18px"><button class="btn" id="sellAll">Sell all for ${fmt(r2(tv * sellRate()))}</button><button class="btn btn-gold" data-close>Keep items</button></div></div>`);
@@ -359,10 +537,12 @@ async function spinUpgrade() {
   const needle = $("#needle");
   needle.style.transition = "none"; needle.style.transform = "rotate(0deg)"; void needle.offsetWidth;
   needle.style.transition = ""; needle.style.transform = `rotate(${360 * 5 + res.roll * 360}deg)`;
+  SFX.whoosh(); { const t0 = performance.now(); let last = 0; const tk = () => { const a = new DOMMatrix(getComputedStyle(needle).transform), deg = (Math.atan2(a.b, a.a) * 180 / Math.PI + 360) % 360, seg = Math.floor(deg / 15); if (seg !== last) SFX.tick(); last = seg; if (performance.now() - t0 < 4200) requestAnimationFrame(tk); }; requestAnimationFrame(tk); }
   await sleep(4400);
   $("#dial").classList.add(res.win ? "win" : "lose");
   $("#chance").textContent = res.win ? "WIN" : "LOSS";
   await refreshMe();
+  if (res.win) celebrate([t], "Unusualifier"); else SFX.lose();
   if (res.win) modal(`<div class="win-show"><h2>Unusualified!</h2>${thumb(t, "", true)}<div class="nm" style="color:var(--unu2)">${esc(label(t))}</div><div style="margin:6px 0 16px">${coinVal(value(t))}</div><button class="btn btn-gold" data-close>Nice</button></div>`);
   else toast(`The effect fizzled. Lost ${fmt(total(st))} in items.`, "bad");
   await sleep(1200); upgBusy = false; if (route()[0] === "unusualifier") { U.fx = res.win ? null : U.fx; drawUpg(); drawPicker(); }
@@ -407,13 +587,15 @@ function drawFlips() {
       <div class="player"><div class="pfp" style="background:${pfpColor(g.creator_name)}">${esc(g.creator_name[0].toUpperCase())}<span class="side ${g.side}"></span></div><div><div class="nm">${userLink(g.creator_name)}</div><div class="muted" style="font-size:12px">${items.length} items · ${g.side}</div></div></div>
       <div class="mini-items">${minis(items, 7)}</div>
       <div>${coinVal(v)}<div class="muted" style="font-size:11px">${fmt(v * .9)} – ${fmt(v * 1.1)}</div></div>
-      <div style="display:flex;gap:6px">${mine ? `<button class="btn" data-house="${g.id}" style="flex:1">vs House</button><button class="btn" data-cancel="${g.id}" title="Cancel">✕</button>` : `<button class="btn btn-${other === "GRN" ? "grn" : "red"}" data-join="${g.id}" style="width:100%">Join as ${other}</button>`}</div></div>`; }).join("") || `<div class="empty">No open games. Create one!</div>`;
+      <div style="display:flex;gap:6px">${mine ? `<button class="btn" data-house="${g.id}" style="flex:1">vs House</button><button class="btn" data-cancel="${g.id}" title="Cancel">✕</button>` : `<button class="btn btn-${other === "GRN" ? "grn" : "red"}" data-join="${g.id}" style="flex:1">Join as ${other}</button>`}<button class="btn" data-watch="${g.id}" title="Watch">👁</button></div></div>`; }).join("") || `<div class="empty">No open games. Create one!</div>`;
   $("#cfDone").innerHTML = done.map(g => `<div class="panel cf-row" style="opacity:.8">
       <div class="player">${pfp(g.creator_name)}<div><div class="nm">${userLink(g.creator_name)}</div><div class="muted" style="font-size:12px">${g.side} ${g.winner_side === g.side ? "· won" : ""}</div></div></div>
       <div class="player">${pfp(g.joiner_name)}<div><div class="nm">${userLink(g.joiner_name)}</div><div class="muted" style="font-size:12px">${g.side === "RED" ? "GRN" : "RED"} ${g.winner_side !== g.side ? "· won" : ""}</div></div></div>
-      <div>${coinVal(+g.creator_value + +g.joiner_value)}</div><div>${sideChip(g.winner_side)} <b>${g.winner_side}</b> won</div></div>`).join("") || `<div class="muted">No flips yet.</div>`;
+      <div>${coinVal(+g.creator_value + +g.joiner_value)}</div><div style="display:flex;gap:8px;align-items:center">${sideChip(g.winner_side)} <b>${g.winner_side}</b> won <button class="btn" data-replay="${g.id}" style="margin-left:auto;padding:6px 10px">Replay</button></div></div>`).join("") || `<div class="muted">No flips yet.</div>`;
+  $("#cfDone").onclick = e => { const r = e.target.closest("[data-replay]"); if (r) showFlip(FLIPS.find(g => g.id === +r.dataset.replay), true); };
   el.onclick = async e => {
-    const j = e.target.closest("[data-join]"), h = e.target.closest("[data-house]"), c = e.target.closest("[data-cancel]");
+    const j = e.target.closest("[data-join]"), h = e.target.closest("[data-house]"), c = e.target.closest("[data-cancel]"), w = e.target.closest("[data-watch]");
+    if (w) watchFlip(FLIPS.find(g => g.id === +w.dataset.watch));
     if (j) joinFlip(FLIPS.find(g => g.id === +j.dataset.join));
     if (h) { try { const r = await rpc("coinflip_house", { p_id: +h.dataset.house }); showFlip(r); } catch (x) { fail(x); } }
     if (c) { try { await rpc("coinflip_cancel", { p_id: +c.dataset.cancel }); toast("Flip cancelled, items returned."); await refreshMe(); loadFlips(); } catch (x) { fail(x); } }
@@ -434,18 +616,51 @@ async function createFlip() {
   try { await rpc("coinflip_create", { p_ids: items.map(i => i.id), p_side: side }); toast("Game created. Waiting for an opponent…"); await refreshMe(); loadFlips(); } catch (e) { fail(e); }
 }
 const shownFlips = new Set();
-async function showFlip(g) {
-  if (shownFlips.has(g.id)) return; shownFlips.add(g.id);
+let watchingFlip = null;
+const FLIP_WAIT = 5000, FLIP_TOSS = 5200;
+const flipCol = p => `<div><div class="player" style="justify-content:center;flex-direction:column">${pfp(p.name)}<b>${userLink(p.name)}</b><span class="chip">${sideChip(p.side)}${p.side}</span></div><div style="margin-top:8px">${coinVal(p.v)}</div><div class="mini-items" style="justify-content:center;margin-top:8px;flex-wrap:wrap">${p.items.length ? minis(p.items, 6) : `<span class="muted">${p.name === "House" ? "coins" : "…"}</span>`}</div></div>`;
+const coinStage = () => `<div class="cf-stage"><div class="cf-count" id="cfCount"></div><div class="cf-toss" id="cfToss"><div class="coin3d" id="coin3d"><div class="face RED">RED</div><div class="coin-edge"></div><div class="face GRN">GRN</div></div></div><div class="cf-shadow" id="cfShadow"></div></div>`;
+// watch an open flip: shows the creator and waits for someone to join
+function watchFlip(g) {
+  watchingFlip = g.id;
+  const a = { name: g.creator_name, side: g.side, items: fromJ(g.creator_items), v: +g.creator_value };
+  modal(`<h2 style="text-align:center">Coinflip #${g.id}</h2><div class="vs cf-vs" style="margin-top:12px"><div class="cf-side">${flipCol(a)}</div>${coinStage()}
+    <div class="cf-side cf-empty"><div class="pfp" style="background:var(--panel2)">?</div><b class="muted">Waiting for a player…</b></div></div><div id="cfRes" style="text-align:center;margin-top:12px" class="muted">You're spectating. The flip plays here when someone joins.</div>`);
+}
+// result is decided on the server the moment someone joins; everyone sees it 5 seconds later
+async function showFlip(g, replay = false) {
+  if (!replay && shownFlips.has(g.id)) return; shownFlips.add(g.id);
+  watchingFlip = g.id;
   const a = { name: g.creator_name, side: g.side, items: fromJ(g.creator_items), v: +g.creator_value };
   const b = { name: g.joiner_name, side: g.side === "RED" ? "GRN" : "RED", items: fromJ(g.joiner_items), v: +g.joiner_value };
-  const col = p => `<div><div class="player" style="justify-content:center;flex-direction:column">${pfp(p.name)}<b>${esc(p.name)}</b><span class="chip">${sideChip(p.side)}${p.side}</span></div><div style="margin-top:8px">${coinVal(p.v)}</div><div class="mini-items" style="justify-content:center;margin-top:8px">${p.items.length ? minis(p.items, 4) : `<span class="muted">coins</span>`}</div></div>`;
   $("#modal").dataset.lock = 1;
-  modal(`<h2 style="text-align:center">Coinflip</h2><div class="vs" style="margin-top:12px">${col(a)}<div class="coin3d" id="coin3d"><div class="face RED">RED</div><div class="face GRN">GRN</div></div>${col(b)}</div><div id="cfRes" style="text-align:center;margin-top:12px" class="muted">Flipping for ${fmt(a.v + b.v)}…</div>`);
-  $("#coin3d").animate([{ transform: "rotateY(0)" }, { transform: `rotateY(${(8 + (g.winner_side === "GRN" ? .5 : 0)) * 360}deg)` }], { duration: 3200, easing: "cubic-bezier(.2,.7,.2,1)", fill: "forwards" });
-  await sleep(3400);
+  modal(`<h2 style="text-align:center">Coinflip #${g.id}</h2><div class="vs cf-vs" style="margin-top:12px"><div class="cf-side" data-side="${a.side}">${flipCol(a)}</div>${coinStage()}
+    <div class="cf-side" data-side="${b.side}">${flipCol(b)}</div></div><div id="cfRes" style="text-align:center;margin-top:12px" class="muted">${esc(b.name)} joined! Flipping for ${fmt(a.v + b.v)}…</div>`);
+  const flipAt = replay ? Date.now() + 3000 : new Date(g.finished_at).getTime() + FLIP_WAIT;
+  let lastN = null;
+  while (Date.now() < flipAt && $("#cfCount")) {
+    const n = Math.ceil((flipAt - Date.now()) / 1000);
+    if (n !== lastN) { lastN = n; $("#cfCount").textContent = n; $("#cfCount").classList.remove("pop"); void $("#cfCount").offsetWidth; $("#cfCount").classList.add("pop"); SFX.count(); }
+    await sleep(100);
+  }
+  if (!$("#cfCount")) return;
+  $("#cfCount").textContent = ""; SFX.go(); SFX.whoosh();
+  const spins = 18 + (g.winner_side === "GRN" ? .5 : 0), T = FLIP_TOSS;
+  $("#cfToss").animate([{ transform: "translateY(0) scale(1)" }, { transform: "translateY(-170px) scale(1.3)", offset: .42 }, { transform: "translateY(0) scale(1)", offset: .82 },
+    { transform: "translateY(-22px) scale(1.05)", offset: .9 }, { transform: "translateY(0) scale(1)", offset: .96 }, { transform: "translateY(0) scale(1)" }], { duration: T, easing: "ease-in-out", fill: "forwards" });
+  $("#cfShadow").animate([{ transform: "scale(1)", opacity: .5 }, { transform: "scale(.4)", opacity: .12, offset: .42 }, { transform: "scale(1)", opacity: .5, offset: .82 }, { transform: "scale(1)", opacity: .5 }], { duration: T, fill: "forwards" });
+  $("#coin3d").animate([{ transform: "rotateX(10deg) rotateY(0)" }, { transform: `rotateX(10deg) rotateY(${spins * 360}deg)` }], { duration: T * .86, easing: "cubic-bezier(.12,.55,.2,1)", fill: "forwards" });
+  { let k = 0; const iv = setInterval(() => { if (++k > 22) return clearInterval(iv); SFX.tick(); }, T * .8 / 26); }
+  await sleep(T * .82); SFX.land(); await sleep(T * .18 + 150);
+  if (!$("#coin3d")) return;
   delete $("#modal").dataset.lock;
-  const won = ME.user && g.winner === ME.user.id, winner = g.winner_side === a.side ? a : b;
-  $("#cfRes").innerHTML = `<h2 style="color:${g.winner_side === "RED" ? "var(--red)" : "var(--grn)"}">${g.winner_side} wins!</h2>${won ? `You won ${coinVal(a.v + b.v)}!` : `${esc(winner.name)} took the pot.`}<div style="margin-top:14px"><button class="btn" data-close>Close</button></div>`;
+  const won = ME.user && g.winner === ME.user.id, winner = g.winner_side === a.side ? a : b, pot = a.v + b.v;
+  $$(".cf-side").forEach(s => s.classList.add(s.dataset.side === g.winner_side ? "cf-win" : "cf-lose"));
+  $("#coin3d").classList.add("glow-" + g.winner_side);
+  confetti($("#coin3d"), won ? 100 : 50, g.winner_side === "RED" ? ["#ef4444", "#ff8a80", "#f5b83d", "#fff"] : ["#22c55e", "#86efac", "#f5b83d", "#fff"]);
+  if (won && pot >= BIG_WIN) bigWin(pot, "Coinflip #" + g.id); else if (won) SFX.good(); else if (ME.user && [g.creator, g.joiner].includes(ME.user.id)) SFX.lose(); else SFX.win();
+  $("#cfRes").innerHTML = `<h2 style="color:${g.winner_side === "RED" ? "var(--red)" : "var(--grn)"}">${g.winner_side} wins!</h2>${won ? `You won ${coinVal(pot)}!` : `${userLink(winner.name)} took the pot of ${coinVal(pot)}.`}<div style="margin-top:14px"><button class="btn" data-close>Close</button></div>`;
+  watchingFlip = null;
   await refreshMe(); bumpBalance(); loadFlips();
 }
 
@@ -510,9 +725,10 @@ async function animateJackpot(round) {
     const off = 60 * 78 + 36 - reel.parentElement.clientWidth / 2 + rand(-24, 24);
     reel.style.transition = "none"; reel.style.transform = "translateX(0)"; void reel.offsetWidth;
     reel.style.transition = "transform 6s cubic-bezier(.08,.72,.12,1)"; reel.style.transform = `translateX(${-off}px)`;
+    SFX.whoosh(); reelTicks(reel, 78, 6000);
     await sleep(6300);
   }
-  if (ME.profile && round.winner_name === ME.profile.username) toast(`You won the jackpot: ${fmt(round.total)}!`, "good");
+  if (ME.profile && round.winner_name === ME.profile.username) { toast(`You won the jackpot: ${fmt(round.total)}!`, "good"); if (+round.total >= BIG_WIN) bigWin(+round.total, "Jackpot #" + round.id); else SFX.good(); }
   await sleep(1500);
   JP.spinning = false;
   const r = $("#jpReel"); if (r) { r.style.transition = "none"; r.style.transform = "translateX(0)"; }
@@ -685,6 +901,279 @@ function drawOffers() {
   };
 }
 
+// ---------------------------------------------------------------- case battles
+const MODES = [{ k: "1v1", t: 2, s: 1 }, { k: "1v1v1", t: 3, s: 1 }, { k: "2v2", t: 2, s: 2 }, { k: "3v3", t: 2, s: 3 }, { k: "3v3v3", t: 3, s: 3 }];
+const modeName = b => MODES.find(m => m.t === b.teams && m.s === b.team_size)?.k || `${b.teams}x${b.team_size}`;
+const caseById = id => CASES.find(c => c.id === id);
+let BATTLES = [];
+async function loadBattles() {
+  if (!sb) return;
+  const [{ data: open }, { data: done }] = await Promise.all([
+    sb.from("battles").select("*").eq("status", "open").order("cost", { ascending: false }).limit(40),
+    sb.from("battles").select("*").eq("status", "done").order("finished_at", { ascending: false }).limit(10)]);
+  const list = [...(open || []), ...(done || [])];
+  const { data: pl } = list.length ? await sb.from("battle_players").select("*").in("battle_id", list.map(b => b.id)) : { data: [] };
+  for (const b of list) b.players = (pl || []).filter(x => x.battle_id === b.id);
+  BATTLES = list; drawBattles();
+}
+const seatHtml = (b, slot, joinable) => {
+  const pl = b.players.find(x => x.slot === slot);
+  if (pl) return `<div class="seat" title="${esc(pl.username)}">${pl.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(pl.username)}</div>`;
+  return joinable ? `<button class="seat seat-open" data-bjoin="${b.id}" data-slot="${slot}" title="Join this seat">+</button>` : `<div class="seat seat-empty"></div>`;
+};
+const teamsHtml = (b, joinable) => Array.from({ length: b.teams }, (_, t) => `<div class="seat-team">${Array.from({ length: b.team_size }, (_, i) => seatHtml(b, t * b.team_size + i, joinable)).join("")}</div>`).join(`<span class="vs-tag">VS</span>`);
+const caseStrip = (ids, n = 8) => ids.slice(0, n).map(id => { const c = caseById(id); return c ? `<img class="bcase" src="${c.img.startsWith("http") ? sized(c.img, 96) : c.img}" title="${esc(c.name)}" referrerpolicy="no-referrer">` : ""; }).join("") + (ids.length > n ? `<span class="muted">+${ids.length - n}</span>` : "");
+function viewBattles() {
+  $("#view").innerHTML = `<div class="page-head"><div><h1>Case Battles</h1><p>Everyone opens the same cases. <b>Normal</b>: highest total wins. <b>Crazy</b>: lowest total wins. The winning team takes every item.</p></div><button class="btn btn-gold" id="bCreate">Create battle</button></div>
+    <div class="cf-list" id="bList"><div class="empty">Loading…</div></div><div class="section-title" style="margin-top:22px">Recent battles</div><div class="cf-list" id="bDone"></div>`;
+  $("#bCreate").onclick = createBattle; loadBattles();
+}
+function drawBattles() {
+  const el = $("#bList"); if (!el) return;
+  const row = (b, open) => `<div class="panel b-row" data-bopen="${b.id}">
+      <div class="b-mode"><b>${modeName(b)}</b>${b.crazy ? `<span class="chip crazy">CRAZY</span>` : `<span class="chip">Normal</span>`}<div class="muted" style="font-size:12px">${b.cases.length} case${b.cases.length === 1 ? "" : "s"}</div></div>
+      <div class="b-cases">${caseStrip(b.cases)}</div>
+      <div class="b-seats">${teamsHtml(b, open && ME.user && !b.players.some(x => x.user_id === ME.user.id))}</div>
+      <div class="b-cost">${coinVal(b.cost)}<div class="muted" style="font-size:11px">${open ? "per seat" : "pot " + fmt((b.results || []).reduce((s, r) => s + +r.v, 0))}</div></div></div>`;
+  el.innerHTML = BATTLES.filter(b => b.status === "open").map(b => row(b, true)).join("") || `<div class="empty">No open battles. Create one!</div>`;
+  $("#bDone").innerHTML = BATTLES.filter(b => b.status === "done").map(b => row(b, false)).join("") || `<div class="muted">No battles yet.</div>`;
+  const click = async e => {
+    const j = e.target.closest("[data-bjoin]");
+    if (j) { e.stopPropagation(); return joinBattle(+j.dataset.bjoin, +j.dataset.slot); }
+    const r = e.target.closest("[data-bopen]"); if (r) go("battle/" + r.dataset.bopen);
+  };
+  el.onclick = click; $("#bDone").onclick = click;
+}
+async function joinBattle(id, slot) {
+  if (needLogin()) return;
+  const b = BATTLES.find(x => x.id === id) || CUR_BATTLE;
+  if (b && !confirm(`Join this ${modeName(b)} battle for ${fmt(b.cost)} coins?`)) return;
+  try { const r = await rpc("battle_join", { p_id: id, p_slot: slot }); await refreshMe(); bumpBalance(); SFX.click(); if (route()[0] !== "battle") go("battle/" + id); else viewBattle(id); } catch (e) { fail(e); }
+}
+function createBattle() {
+  if (needLogin()) return;
+  const st = { mode: MODES[0], crazy: false, cases: [] };
+  const m = modal(`<h2>Create a case battle</h2>
+    <div class="section-title">Mode</div><div class="tabs" id="bcMode" style="display:inline-flex">${MODES.map((x, i) => `<button data-i="${i}" class="${i ? "" : "on"}">${x.k}</button>`).join("")}</div>
+    <div class="tabs" id="bcType" style="display:inline-flex;margin-left:8px"><button data-c="0" class="on">Normal</button><button data-c="1">Crazy</button></div>
+    <div class="muted" id="bcHint" style="margin:8px 0 12px">Highest total value wins.</div>
+    <div class="section-title">Cases (up to 10, click to add)</div><div class="b-picked" id="bcPicked"></div>
+    <input id="bcQ" placeholder="Search cases…" style="width:100%;margin:8px 0">
+    <div class="b-pick" id="bcPick"></div>
+    <div class="sel-bar"><span class="grow" id="bcInfo"></span><button class="btn" data-close>Cancel</button><button class="btn btn-gold" id="bcGo" disabled>Create</button></div>`);
+  const draw = () => {
+    const cost = r2(st.cases.reduce((s, id) => s + caseById(id).price, 0));
+    $("#bcPicked").innerHTML = st.cases.map((id, i) => { const c = caseById(id); return `<button class="b-chip" data-rm="${i}" title="Remove">${caseStrip([id])}<span>${esc(c.name)}</span>✕</button>`; }).join("") || `<span class="muted">No cases yet</span>`;
+    $("#bcInfo").innerHTML = `${st.mode.k}${st.crazy ? " Crazy" : ""} · ${st.cases.length} case${st.cases.length === 1 ? "" : "s"} · ${coinVal(cost)} per seat`;
+    $("#bcGo").disabled = !st.cases.length;
+  };
+  const drawPick = () => { const q = $("#bcQ").value.toLowerCase();
+    $("#bcPick").innerHTML = CASES.filter(c => c.name.toLowerCase().includes(q)).map(c => `<button class="b-opt" data-add="${c.id}">${caseStrip([c.id])}<span>${esc(c.name)}</span>${coinVal(c.price)}</button>`).join(""); };
+  m.onclick = e => {
+    const md = e.target.closest("#bcMode [data-i]"), ty = e.target.closest("#bcType [data-c]"), ad = e.target.closest("[data-add]"), rm = e.target.closest("[data-rm]");
+    if (md) { st.mode = MODES[+md.dataset.i]; $$("#bcMode button").forEach(b => b.classList.toggle("on", b === md)); }
+    if (ty) { st.crazy = ty.dataset.c === "1"; $$("#bcType button").forEach(b => b.classList.toggle("on", b === ty)); $("#bcHint").textContent = st.crazy ? "Crazy: the LOWEST total value wins." : "Highest total value wins."; }
+    if (ad && st.cases.length < 10) { st.cases.push(ad.dataset.add); SFX.click(); }
+    if (rm) st.cases.splice(+rm.dataset.rm, 1);
+    draw();
+  };
+  $("#bcQ").oninput = drawPick;
+  $("#bcGo").onclick = async () => {
+    try { const id = await rpc("battle_create", { p_cases: st.cases, p_teams: st.mode.t, p_size: st.mode.s, p_crazy: st.crazy }); closeModal(); await refreshMe(); bumpBalance(); go("battle/" + id); } catch (e) { fail(e); }
+  };
+  draw(); drawPick();
+}
+let CUR_BATTLE = null; const animatedBattles = new Set();
+async function viewBattle(id) {
+  id = +id;
+  const [{ data: b }, { data: pl }] = await Promise.all([sb.from("battles").select("*").eq("id", id).maybeSingle(), sb.from("battle_players").select("*").eq("battle_id", id)]);
+  if (!b) { $("#view").innerHTML = `<div class="empty">Battle not found. <a href="#/battles">Back to battles</a></div>`; return; }
+  b.players = pl || []; CUR_BATTLE = b;
+  const seats = b.teams * b.team_size, me = ME.user && b.players.find(x => x.user_id === ME.user.id), creator = ME.user && b.creator === ME.user.id;
+  const col = slot => { const p = b.players.find(x => x.slot === slot);
+    return `<div class="b-col" data-slot="${slot}"><div class="b-head">${p ? (p.is_bot ? `<div class="pfp bot">🤖</div><b>House Bot</b>` : `${pfp(p.username)}<b>${userLink(p.username)}</b>`) : (b.status === "open" && ME.user && !me ? `<button class="btn btn-gold" data-bjoin="${b.id}" data-slot="${slot}">Join ${coinVal(b.cost)}</button>` : `<span class="muted">Empty seat</span>`)}</div>
+      <div class="vreel-wrap"><div class="vreel"></div></div><div class="b-total">${coinVal(0)}</div><div class="b-items"></div></div>`; };
+  $("#view").innerHTML = `<div class="page-head"><div><a href="#/battles" class="muted">← All battles</a><h1>${modeName(b)} ${b.crazy ? `<span class="chip crazy">CRAZY</span>` : ""} battle #${b.id}</h1>
+      <p>${b.crazy ? "Lowest" : "Highest"} total wins · ${coinVal(b.cost)} per seat · ${b.cases.length} cases</p></div>
+      <div style="display:flex;gap:8px">${b.status === "open" && creator ? `<button class="btn btn-gold" id="bBots">Fill with bots & start</button><button class="btn" id="bCancel">Cancel</button>` : ""}${b.status === "done" ? `<button class="btn" id="bReplay">Replay</button>` : ""}</div></div>
+    <div class="b-rounds" id="bRounds">${b.cases.map((cid, i) => `<div class="b-round" data-r="${i + 1}">${caseStrip([cid])}</div>`).join("")}</div>
+    <div class="b-board">${Array.from({ length: b.teams }, (_, t) => `<div class="b-team" data-team="${t}">${Array.from({ length: b.team_size }, (_, i) => col(t * b.team_size + i)).join("")}</div>`).join(`<div class="vs-tag big">VS</div>`)}</div>
+    <div id="bStatus" class="muted" style="text-align:center;margin-top:14px">${b.status === "open" ? `Waiting for players (${b.players.length}/${seats})…` : b.status === "cancelled" ? "This battle was cancelled." : ""}</div>`;
+  $("#view").onclick = e => { const j = e.target.closest("[data-bjoin]"); if (j) joinBattle(+j.dataset.bjoin, +j.dataset.slot); };
+  $("#bBots") && ($("#bBots").onclick = async () => { try { await rpc("battle_fill_bots", { p_id: b.id }); viewBattle(b.id); } catch (e) { fail(e); } });
+  $("#bCancel") && ($("#bCancel").onclick = async () => { try { await rpc("battle_cancel", { p_id: b.id }); await refreshMe(); toast("Battle cancelled, coins refunded."); go("battles"); } catch (e) { fail(e); } });
+  $("#bReplay") && ($("#bReplay").onclick = () => runBattle(b, true));
+  if (b.status === "done") {
+    const fresh = Date.now() - new Date(b.finished_at).getTime() < 90000;
+    if (!animatedBattles.has(b.id) && fresh) runBattle(b); else showBattleFinal(b);
+  }
+}
+const vcard = it => { const v = value(it); return `<div class="vcard ${it.fx ? "unusual" : ""}" style="--rc:${rarity(v, it.fx)}">${thumb(it)}<div class="vc-v">${coinVal(v)}</div></div>`; };
+async function runBattle(b, replay = false) {
+  animatedBattles.add(b.id);
+  const res = (b.results || []).map(r => ({ ...r, it: { n: r.n, fx: r.fx || null } })).filter(r => ITEM[r.n]);
+  const tots = {}; $$(".b-items").forEach(x => x.innerHTML = ""); $$(".b-total").forEach(x => x.innerHTML = coinVal(0));
+  $$(".b-team").forEach(t => t.classList.remove("b-win", "b-lose"));
+  for (let r = 1; r <= b.cases.length; r++) {
+    if (!$("#bRounds")) return;
+    $$(".b-round").forEach(x => x.classList.toggle("on", +x.dataset.r === r));
+    $("#bStatus").textContent = `Round ${r} of ${b.cases.length}`;
+    const c = caseById(b.cases[r - 1]), rows = res.filter(x => x.round === r);
+    SFX.whoosh();
+    await Promise.all(rows.map(async row => {
+      const colEl = $(`.b-col[data-slot="${row.slot}"]`); if (!colEl) return;
+      const reel = colEl.querySelector(".vreel"), H = 128, N = 30, WIN = 25;
+      reel.innerHTML = Array.from({ length: N }, (_, i) => i === WIN ? (row.it.fx ? `<div class="vcard mystery">★</div>` : vcard(row.it)) : (e => e.unusual ? `<div class="vcard mystery">★</div>` : vcard({ n: e.n }))(rollEntry(c))).join("");
+      reel.style.transition = "none"; reel.style.transform = "translateY(0)"; void reel.offsetWidth;
+      reel.style.transition = "transform 2600ms cubic-bezier(.1,.75,.15,1)";
+      reel.style.transform = `translateY(${-(WIN * H) + rand(-30, 30)}px)`;
+      if (row.slot === 0) reelTicks(reel, H, 2600, "y");
+      await sleep(2700);
+      if (row.it.fx) { reel.children[WIN].outerHTML = vcard(row.it); colEl.classList.add("unu-hit"); SFX.rare(); await sleep(500); colEl.classList.remove("unu-hit"); }
+      tots[row.slot] = (tots[row.slot] || 0) + value(row.it);
+      colEl.querySelector(".b-total").innerHTML = coinVal(tots[row.slot]);
+      colEl.querySelector(".b-items").insertAdjacentHTML("afterbegin", mini(row.it));
+    }));
+    SFX.win(); await sleep(450);
+  }
+  showBattleFinal(b, true);
+}
+function showBattleFinal(b, animated = false) {
+  if (!$("#bRounds")) return;
+  const res = (b.results || []).filter(r => ITEM[r.n]), tots = {};
+  if (!animated) {
+    $$(".b-items").forEach(x => x.innerHTML = "");
+    for (const r of res) { tots[r.slot] = (tots[r.slot] || 0) + +r.v; const colEl = $(`.b-col[data-slot="${r.slot}"]`); colEl?.querySelector(".b-items").insertAdjacentHTML("afterbegin", mini({ n: r.n, fx: r.fx })); }
+    $$(".b-col").forEach(c => c.querySelector(".b-total").innerHTML = coinVal(tots[c.dataset.slot] || 0));
+    $$(".vreel").forEach(v => v.innerHTML = "");
+  }
+  $$(".b-round").forEach(x => x.classList.remove("on"));
+  const teamTot = (b.totals || []).map(Number), pot = res.reduce((s, r) => s + +r.v, 0);
+  $$(".b-team").forEach(t => t.classList.add(+t.dataset.team === b.winner_team ? "b-win" : "b-lose"));
+  $$(".b-team").forEach(t => t.insertAdjacentHTML("beforeend", `<div class="b-teamtot">${coinVal(teamTot[+t.dataset.team] || 0)}</div>`));
+  const winners = b.players.filter(p => Math.floor(p.slot / b.team_size) === b.winner_team).map(p => p.is_bot ? "House Bot" : p.username);
+  $("#bStatus").innerHTML = `<h2 style="margin:6px 0">${winners.map(esc).join(" & ")} win${winners.length === 1 ? "s" : ""} ${coinVal(pot)}!</h2>${b.crazy ? "Crazy mode: the lowest total took it." : ""}`;
+  if (animated) {
+    const iWon = ME.user && b.players.some(p => p.user_id === ME.user.id && Math.floor(p.slot / b.team_size) === b.winner_team);
+    const share = iWon ? pot / Math.max(1, b.players.filter(p => !p.is_bot && Math.floor(p.slot / b.team_size) === b.winner_team).length) : 0;
+    confetti($(".b-team.b-win") || $("#bStatus"), 80);
+    if (iWon && share >= BIG_WIN) bigWin(share, "Case battle #" + b.id); else if (iWon) SFX.good(); else SFX.win();
+    refreshMe();
+  }
+}
+
+// ---------------------------------------------------------------- profiles
+async function viewProfile(name) {
+  if (!name) return go("players");
+  $("#view").innerHTML = `<div class="empty">Loading ${esc(name)}…</div>`;
+  const { data: p } = await sb.from("profiles").select("id,username,rank,avatar,xp,opened,best_name,best_fx,best_value,created_at,balance").ilike("username", name.replace(/[%_\\]/g, "\\$&")).maybeSingle();
+  if (!p) { $("#view").innerHTML = `<div class="empty"><h2>No player named ${esc(name)}</h2><a class="btn" href="#/players">Find players</a></div>`; return; }
+  rememberProfile(p);
+  const { data: inv } = await sb.from("inventory").select("id,name,fx").eq("owner", p.id).eq("state", "inv").limit(2000);
+  const items = (inv || []).filter(r => ITEM[r.name]).map(r => ({ id: r.id, n: r.name, fx: r.fx })).sort((a, b) => value(b) - value(a));
+  const me = ME.user && ME.user.id === p.id, L = levelOf(p.xp), next = xpFor(L + 1), prev = xpFor(L);
+  const av = parseAvatar(p.avatar), best = p.best_name && ITEM[p.best_name] ? { n: p.best_name, fx: p.best_fx } : null;
+  $("#view").innerHTML = `<div class="panel profile-hero ${p.rank !== "player" ? "rank-" + p.rank : ""}">
+      <div class="profile-av">${av?.it ? thumb(av.it, "", true) : av?.cls ? `<img src="${sized(classImg(av.cls), 240)}" alt="" referrerpolicy="no-referrer">` : `<div class="pfp-big" style="background:${pfpColor(p.username)}">${esc(p.username[0].toUpperCase())}</div>`}</div>
+      <div class="profile-main"><h1>${esc(p.username)} ${vipTag(p.rank)}</h1>
+        <div class="muted">Level ${L} · joined ${new Date(p.created_at).toLocaleDateString()}</div>
+        <div class="xpbar" title="${fmt(p.xp)} / ${fmt(next)} xp"><div style="width:${Math.min(100, (p.xp - prev) / (next - prev) * 100)}%"></div></div>
+        <div class="muted" style="font-size:12px">${fmt(p.xp - prev)} / ${fmt(next - prev)} xp to level ${L + 1}</div>
+        <div class="profile-actions">${me ? `<button class="btn" id="pfAvatar">Change picture</button><a class="btn" href="#/rewards">Rewards</a>` : ME.user ? `<a class="btn btn-gold" href="#/trade/${encodeURIComponent(p.username)}">Trade</a><button class="btn" id="pfTip">Tip coins</button>` : ""}</div></div>
+      <div class="profile-stats">
+        <div class="stat"><small>Inventory value</small><b>${coinVal(total(items))}</b></div>
+        <div class="stat"><small>Wagered</small><b>${coinVal(p.xp)}</b></div>
+        <div class="stat"><small>Cases opened</small><b>${p.opened.toLocaleString()}</b></div>
+        <div class="stat"><small>Items</small><b>${items.length.toLocaleString()}</b></div></div></div>
+    ${best ? `<div class="section-title" style="margin-top:18px">Best drop</div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,220px))">${card(best, { sub: "Best drop ever" })}</div>` : ""}
+    <div class="section-title" style="margin-top:18px">Inventory</div>
+    <div class="grid">${items.slice(0, 96).map(it => card(it)).join("") || `<div class="empty">No items.</div>`}</div>
+    ${items.length > 96 ? `<div class="muted" style="text-align:center;margin-top:10px">+${items.length - 96} more items</div>` : ""}`;
+  $("#pfAvatar") && ($("#pfAvatar").onclick = openAvatarPicker);
+  $("#pfTip") && ($("#pfTip").onclick = () => openTip(p.username));
+}
+function openAvatarPicker() {
+  const items = [...ME.inv].sort((a, b) => (b.fx ? 1 : 0) - (a.fx ? 1 : 0) || value(b) - value(a)).slice(0, 120);
+  const m = modal(`<h2>Profile picture</h2><p class="muted">Pick a class, or show off any item you own.</p>
+    <div class="section-title">Classes</div><div class="av-grid">${Object.keys(CLASS_IMG).map(c => `<button class="av-opt" data-k="class" data-v="${c}" title="${c}"><img src="${sized(classImg(c), 96)}" alt="${c}" referrerpolicy="no-referrer"></button>`).join("")}</div>
+    <div class="section-title" style="margin-top:14px">Your items</div><div class="grid" id="avItems">${items.map(it => card(it, { click: 1 })).join("") || `<div class="muted">No items yet.</div>`}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px"><button class="btn" id="avNone">Use my initial</button><button class="btn" data-close>Done</button></div>`);
+  const set = async (k, v) => { try { await rpc("set_avatar", { p_kind: k, p_value: v }); closeModal(); await refreshMe(); toast("Profile picture updated", "good"); if (route()[0] === "u") render(); } catch (e) { fail(e); } };
+  m.onclick = e => {
+    const o = e.target.closest(".av-opt"); if (o) return set(o.dataset.k, o.dataset.v);
+    const c = e.target.closest("#avItems .card"); if (c) return set("item", c.dataset.id);
+    if (e.target.id === "avNone") set("none", "");
+  };
+}
+function openTip(to) {
+  if (needLogin()) return;
+  const m = modal(`<h2>Tip ${esc(to)}</h2><p class="muted">Send fun-coins straight to their balance. Your balance: ${coinVal(ME.profile.balance)}</p>
+    <div class="tip-presets">${[10, 50, 100, 500, 1000].map(v => `<button class="btn" data-a="${v}">${v}</button>`).join("")}</div>
+    <form id="tipForm" style="display:flex;gap:10px;margin-top:12px"><span class="val" style="flex:1"><i class="coin"></i><input id="tipAmt" type="number" min="1" step="0.01" placeholder="Amount" required style="width:100%"></span><button class="btn btn-gold">Send tip</button></form>`);
+  m.onclick = e => { const b = e.target.closest("[data-a]"); if (b) $("#tipAmt").value = b.dataset.a; };
+  $("#tipForm", m).onsubmit = async e => {
+    e.preventDefault(); const amt = +$("#tipAmt").value;
+    try { await rpc("tip", { p_to: to, p_amount: amt }); closeModal(); await refreshMe(); bumpBalance(); toast(`Tipped ${esc(to)} ${fmt(amt)} coins`, "good"); } catch (x) { fail(x); }
+  };
+  setTimeout(() => $("#tipAmt")?.focus(), 50);
+}
+
+// ---------------------------------------------------------------- players
+async function viewPlayers() {
+  $("#view").innerHTML = `<div class="page-head"><div><h1>Players</h1><p>Look up anyone to see their profile and inventory, trade or tip them.</p></div></div>
+    <form class="toolbar" id="plFind"><input id="plQ" placeholder="Search username…" maxlength="20" autocomplete="off"><button class="btn btn-gold">View profile</button></form>
+    <div id="plResults" class="pl-results"></div>
+    <div class="lb-cols"><div class="panel" style="padding:16px"><div class="section-title">Top levels</div><div id="lbLevel" class="lb"></div></div>
+      <div class="panel" style="padding:16px"><div class="section-title">Richest</div><div id="lbRich" class="lb"></div></div></div>`;
+  $("#plFind").onsubmit = e => { e.preventDefault(); const u = $("#plQ").value.trim(); if (u) go("u/" + encodeURIComponent(u)); };
+  let t = 0;
+  $("#plQ").oninput = () => { clearTimeout(t); t = setTimeout(async () => {
+    const q = $("#plQ").value.trim(); if (q.length < 2) return $("#plResults").innerHTML = "";
+    const { data } = await sb.from("profiles").select("username,rank,avatar,xp").ilike("username", "%" + q.replace(/[%_\\]/g, "\\$&") + "%").limit(12);
+    (data || []).forEach(rememberProfile);
+    $("#plResults").innerHTML = (data || []).map(r => `<a class="pl-chip" href="#/u/${encodeURIComponent(r.username)}">${pfp(r.username)}<b>${esc(r.username)}</b>${vipTag(r.rank)}${lvlChip(r.xp)}</a>`).join("") || `<span class="muted">No players found.</span>`;
+  }, 200); };
+  const row = (r, i, v) => `<a class="lb-row" href="#/u/${encodeURIComponent(r.username)}"><span class="lb-n">${i + 1}</span>${pfp(r.username)}<b>${esc(r.username)}</b>${vipTag(r.rank)}<span class="grow"></span>${v}</a>`;
+  const [{ data: lv }, { data: rich }] = await Promise.all([
+    sb.from("profiles").select("username,rank,avatar,xp").order("xp", { ascending: false }).limit(20),
+    sb.from("profiles").select("username,rank,avatar,xp,balance").order("balance", { ascending: false }).limit(20)]);
+  [...(lv || []), ...(rich || [])].forEach(rememberProfile);
+  if (!$("#lbLevel")) return;
+  $("#lbLevel").innerHTML = (lv || []).map((r, i) => row(r, i, lvlChip(r.xp))).join("") || `<div class="muted">No players yet.</div>`;
+  $("#lbRich").innerHTML = (rich || []).map((r, i) => row(r, i, coinVal(r.balance))).join("");
+}
+
+// ---------------------------------------------------------------- rewards: levels, rakeback, crates
+function viewRewards() {
+  if (!ME.user) { $("#view").innerHTML = `<div class="empty"><h2>Rewards</h2><p>Sign in to level up, earn rakeback and open reward crates.</p><button class="btn btn-gold" id="rwLogin">Sign in</button></div>`; $("#rwLogin").onclick = () => openAuth(); return; }
+  const p = ME.profile, L = levelOf(p.xp), next = xpFor(L + 1), prev = xpFor(L), crates = Math.max(0, L - 1 - p.crates_claimed);
+  const rate = rakeRate(L, p.rank), nextCrateLvl = p.crates_claimed + 2;
+  $("#view").innerHTML = `<div class="page-head"><div><h1>Rewards</h1><p>Every coin you wager (cases, Unusualifier, flips, jackpot) is 1 XP. Levels raise your rakeback and give you free reward crates.</p></div></div>
+    <div class="rw-grid">
+      <div class="panel rw-card"><div class="section-title">Level</div><div class="rw-big">${L}</div>
+        <div class="xpbar"><div style="width:${Math.min(100, (p.xp - prev) / (next - prev) * 100)}%"></div></div>
+        <div class="muted">${fmt(p.xp - prev)} / ${fmt(next - prev)} xp to level ${L + 1}</div>
+        <div class="muted" style="margin-top:8px">Total wagered ${coinVal(p.xp)}</div></div>
+      <div class="panel rw-card"><div class="section-title">Rakeback</div><div class="rw-big">${coinVal(p.rakeback)}</div>
+        <div class="muted">You earn <b>${(rate * 100).toFixed(2)}%</b> of everything you wager${isVip() ? " (includes +1% VIP)" : ""}. Goes up 0.05% per level, max ${isVip() ? "4" : "3"}%.</div>
+        <button class="btn btn-gold" id="rwRake" ${+p.rakeback < 0.01 ? "disabled" : ""} style="margin-top:12px;width:100%">Claim ${fmt(p.rakeback)}</button></div>
+      <div class="panel rw-card"><div class="section-title">Reward crates</div><div class="rw-big">${crates}</div>
+        <div class="muted">One free crate for every level you reach. ${crates ? `Your next one is from level ${nextCrateLvl}: a random case worth up to ${fmt(crateBudget(nextCrateLvl))}.` : `Reach level ${L + 1} for the next one.`}</div>
+        <button class="btn btn-unu" id="rwCrate" ${crates ? "" : "disabled"} style="margin-top:12px;width:100%">Open reward crate</button></div>
+    </div>
+    <div id="rwReel"></div>`;
+  $("#rwRake").onclick = async () => { try { const a = await rpc("claim_rakeback"); await refreshMe(); bumpBalance(); toast(`Claimed ${fmt(a)} rakeback`, "good"); viewRewards(); } catch (e) { fail(e); } };
+  $("#rwCrate").onclick = async () => {
+    $("#rwCrate").disabled = true;
+    try {
+      const r = await rpc("open_level_crate"), c = CASES.find(x => x.id === r.case), win = fromJ([r.item])[0];
+      $("#rwReel").innerHTML = `<div class="section-title" style="margin-top:18px">Level ${r.level} crate: ${esc(r.case_name)}</div><div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div>`;
+      if (c && win) await spinReel($("#rwReel .reel"), c, win, 4500);
+      await refreshMe(); if (win) showWins([win]); if (route()[0] === "rewards") setTimeout(() => !$("#modal").hidden || viewRewards(), 50);
+    } catch (e) { fail(e); $("#rwCrate").disabled = false; }
+  };
+}
+
 // ---------------------------------------------------------------- live drops + chat
 function pushDrop(d) {
   const t = $("#tickerTrack"), it = { n: d.name, fx: d.fx }; if (!t || !ITEM[it.n]) return;
@@ -728,13 +1217,26 @@ function connectRealtime() {
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "drops" }, p => pushDrop(p.new))
     .on("postgres_changes", { event: "*", schema: "public", table: "coinflips" }, p => {
       const g = p.new;
-      if (g && g.status === "done" && ME.user && g.creator === ME.user.id && g.joiner) showFlip(g);   // someone joined my flip
+      if (g && g.status === "done" && (watchingFlip === g.id || (ME.user && g.creator === ME.user.id))) showFlip(g);   // someone joined a flip I made or am watching
       if (route()[0] === "coinflip") loadFlips();
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "jackpot_rounds" }, p => {
       if (p.new && p.new.status === "done" && route()[0] === "jackpot") animateJackpot(p.new); else loadJackpot();
     })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "jackpot_entries" }, () => loadJackpot())
+    .on("postgres_changes", { event: "*", schema: "public", table: "battles" }, p => {
+      const r = route();
+      if (r[0] === "battles") loadBattles();
+      if (r[0] === "battle" && +r[1] === p.new?.id && p.new.status !== CUR_BATTLE?.status) viewBattle(p.new.id);
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "battle_players" }, p => {
+      const r = route();
+      if (r[0] === "battles") loadBattles();
+      if (r[0] === "battle" && +r[1] === p.new.battle_id && CUR_BATTLE?.status === "open") viewBattle(p.new.battle_id);
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "tips" }, p => {
+      if (ME.user && p.new.receiver === ME.user.id) { toast(`${esc(p.new.sender_name)} tipped you ${fmt(p.new.amount)} coins!`, "good"); refreshMe().then(bumpBalance); }
+    })
     .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, p => {
       if (p.eventType === "INSERT" && ME.user && p.new.receiver === ME.user.id) toast(`New trade offer from ${esc(p.new.sender_name)}. <a href="#/trade">View</a>`, "good");
       if (p.new?.status === "accepted" && ME.user && p.new.sender === ME.user.id) toast(`${esc(p.new.receiver_name)} accepted your trade!`, "good");
@@ -760,8 +1262,8 @@ const go = r => location.hash = "#/" + r;
 function render() {
   closeModal();
   const [r, arg] = route();
-  $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r)));
-  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg) }[r] || viewCases)();
+  $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r)));
+  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg) }[r] || viewCases)();
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", render);
