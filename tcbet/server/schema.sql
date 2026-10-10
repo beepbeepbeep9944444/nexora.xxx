@@ -43,6 +43,7 @@ create table if not exists roulette_games (
   seats int not null default 6, status text not null default 'open', -- open | done | cancelled
   eliminated int[], winner_slot int, winner_name text, pot numeric(14,2),
   created_at timestamptz not null default now(), finished_at timestamptz);
+alter table roulette_games add column if not exists rounds jsonb;   -- [{start, bullet, pulls:[slot...], out}] one per elimination
 create table if not exists roulette_players (game_id bigint references roulette_games on delete cascade, slot int, user_id uuid, username text,
   is_bot bool not null default false, items jsonb, value numeric(14,2), primary key (game_id, slot));
 create table if not exists tips (id bigint generated always as identity primary key, sender uuid, sender_name text, receiver uuid, receiver_name text, amount numeric(14,2), created_at timestamptz not null default now());
@@ -591,7 +592,27 @@ declare g roulette_games; order_ int[]; w roulette_players; total_ numeric; pl r
 begin
   select * into g from roulette_games where id = p_id;
   if (select count(*) from roulette_players where game_id = p_id) < g.seats then return to_jsonb(g); end if;
-  order_ := array(select slot from roulette_players where game_id = p_id order by random());   -- elimination order; the last slot survives
+  -- real Russian Roulette: each round one bullet goes in a random chamber of a 6-shot revolver, the gun passes around
+  -- the table (starting after the last player knocked out) and whoever pulls the trigger on the loaded chamber is out
+  declare alive int[] := array(select slot from roulette_players where game_id = p_id order by slot); turn int := floor(random() * g.seats)::int + 1;
+          bullet int; pulls int[]; rounds_ jsonb := '[]'; victim int;
+  begin
+    order_ := '{}';
+    while cardinality(alive) > 1 loop
+      bullet := floor(random() * 6)::int + 1; pulls := '{}';
+      for k in 1..bullet loop
+        if k > 1 then turn := turn % cardinality(alive) + 1; end if;
+        pulls := pulls || alive[turn];
+      end loop;
+      victim := alive[turn];
+      rounds_ := rounds_ || jsonb_build_object('bullet', bullet, 'pulls', to_jsonb(pulls), 'out', victim);
+      order_ := order_ || victim;
+      alive := array_remove(alive, victim);
+      if turn > cardinality(alive) then turn := 1; end if;     -- the next player after the victim starts the next round
+    end loop;
+    order_ := order_ || alive[1];
+    update roulette_games set rounds = rounds_ where id = p_id;
+  end;
   select * into w from roulette_players where game_id = p_id and slot = order_[g.seats];
   select sum(value) into total_ from roulette_players where game_id = p_id;
   for pl in select * from roulette_players where game_id = p_id and not is_bot loop perform _wager(pl.user_id, pl.value); end loop;

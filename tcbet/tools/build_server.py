@@ -110,11 +110,17 @@ def unusual_entry(hats, groups, w):
     evs = [sum(value(h["name"], e["name"]) for e in fx_for(h, groups)) / len(fx_for(h, groups)) for h in hats]
     return dict(unusual=True, hats=[h["name"] for h in hats], groups=groups, w=w, ev=sum(evs) / len(evs))
 
-def build(cid, name, img, entries, season, tag, price=None, markup=1.1):
+def tier_markup(ev):
+    # higher-tier crates are a bigger risk: house edge grows with value (EV 10 -> 1.15x, 100 -> 1.40x, 1000+ -> 1.65x)
+    return 1.15 + 0.25 * min(2, max(0, math.log10(max(ev, 1) / 10)))
+
+def build(cid, name, img, entries, season, tag, price=None, markup=None):
     tw = sum(e["w"] for e in entries)
     for e in entries: e["p"] = e["w"] / tw
     ev = sum(e["p"] * (e["ev"] if e.get("unusual") else value(e["n"])) for e in entries)
-    return dict(id=cid, name=name, img=img, season=season, tag=tag, entries=entries, ev=r2(ev), price=price or max(0.25, r2(ev * markup)))
+    # house keeps ~15%; cheap crates get a floor so 1%-unusual lottery tickets can't be spammed with free coins
+    floor = 2.5 if season == "Weapons" else 5
+    return dict(id=cid, name=name, img=img, season=season, tag=tag, entries=entries, ev=r2(ev), price=price or max(floor, r2(ev * (markup or tier_markup(ev)))))
 
 def season_of(c):
     if c.get("weapons"): return "Weapons"
@@ -134,7 +140,7 @@ for c in CRATES:
     cases.append(build(cid, c["name"], c["img"], entries, season_of(c), "In game" if c["avail"] else "Retired"))
 
 all_hats = [h for h in ITEMS if h.get("unu") and fx_for(h, STD)]
-ub = build("unusual-box", "Unusual Box", "logo-mark.svg", [unusual_entry(all_hats, STD, 1)], "Classic", "100% Unusual", markup=1.08)
+ub = build("unusual-box", "Unusual Box", "logo-mark.svg", [unusual_entry(all_hats, STD, 1)], "Classic", "100% Unusual")
 top = [i for i in ITEMS if not i.get("weapon") and i["v"] > 150][:14]
 mid = [i for i in ITEMS if 3 < i["v"] < 30][:18]
 gg = build("golden-gamble", "Golden Gamble", ITEM["Golden Frying Pan"]["img"], [

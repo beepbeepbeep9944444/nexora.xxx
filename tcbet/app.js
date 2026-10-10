@@ -1106,6 +1106,12 @@ function drawRoulette() {
   $("#rrDone").innerHTML = RR.filter(g => g.status === "done").map(g => row(g, false)).join("") || `<div class="muted">No games yet.</div>`;
   el.onclick = $("#rrDone").onclick = e => { const r = e.target.closest("[data-rr]"); if (r) go("roulette/" + r.dataset.rr); };
 }
+const REVOLVER_SVG = `<svg viewBox="0 0 120 60" class="revolver-svg"><defs><linearGradient id="gm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfd5df"/><stop offset="1" stop-color="#6b7280"/></linearGradient></defs>
+  <rect x="44" y="12" width="72" height="9" rx="3" fill="url(#gm)"/><rect x="110" y="9" width="5" height="5" rx="1" fill="#9ca3af"/>
+  <rect x="40" y="10" width="26" height="22" rx="6" fill="#4b5563"/><circle cx="53" cy="21" r="10" fill="url(#gm)"/><circle cx="53" cy="21" r="3" fill="#374151"/>
+  <path d="M40 18 L28 16 L18 22 L10 52 Q9 58 16 58 L30 58 Q35 58 35 53 L38 34 L46 32 Z" fill="#7c4a24"/><path d="M14 50 L30 50" stroke="#5a3418" stroke-width="2"/>
+  <path d="M44 32 Q46 42 56 41 L56 37 Q49 38 49 32 Z" fill="none" stroke="#9ca3af" stroke-width="2.5"/><path d="M50 32 L52 38" stroke="#d1d5db" stroke-width="2"/></svg>`;
+const seatAngle = s => -90 + s * 60;     // seat 0 at the top, clockwise
 async function viewRouletteGame(id) {
   id = +id;
   const [{ data: g }, { data: pl }] = await Promise.all([sb.from("roulette_games").select("*").eq("id", id).maybeSingle(), sb.from("roulette_players").select("*").eq("game_id", id)]);
@@ -1113,18 +1119,21 @@ async function viewRouletteGame(id) {
   g.players = pl || []; CUR_RR = g;
   const me = ME.user && g.players.find(x => x.user_id === ME.user.id), creator = ME.user && g.creator === ME.user.id;
   const pot = g.players.reduce((s, x) => s + +x.value, 0);
-  const seat = s => { const p = g.players.find(x => x.slot === s), items = p ? fromJ(p.items) : [];
-    return `<div class="rr-seat" data-slot="${s}"><div class="rr-badge"></div>
-      ${p ? `${p.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(p.username)}<b>${p.is_bot ? `Bot ${s + 1}` : userLink(p.username)}</b><div class="rr-val">${coinVal(p.value)}</div><div class="mini-items">${minis(items, 3)}</div>`
-        : g.status === "open" && ME.user && !me ? `<div class="pfp wait-pfp">+</div><button class="btn btn-red" data-rrjoin="1">Sit down</button><div class="muted" style="font-size:11px">${fmt(g.stake * .9)} – ${fmt(g.stake * 1.1)}</div>` : `<div class="pfp wait-pfp">?</div><span class="muted">Empty seat</span>`}</div>`; };
-  $("#view").innerHTML = `<div class="page-head"><div><a href="#/roulette" class="muted">← All tables</a><h1>Russian Roulette #${g.id}</h1><p>Buy-in ${coinVal(g.stake)} · ${g.players.length}/${g.seats} seated · pot ${coinVal(g.status === "done" ? g.pot : pot)}</p></div>
-      <div style="display:flex;gap:8px">${g.status === "open" && creator ? `<button class="btn btn-red" id="rrBots">Fill with bots & start</button><button class="btn" id="rrCancel">Cancel</button>` : ""}${g.status === "done" ? `<button class="btn" id="rrReplay">Replay</button>` : ""}</div></div>
-    <div class="panel rr-stage">
-      <div class="rr-banner" id="rrBanner">${g.status === "open" ? "Waiting for players…" : g.status === "cancelled" ? "Table closed" : ""}</div>
-      <div class="rr-strip-wrap" id="rrStripWrap"><div class="rr-marker"></div><div class="rr-strip" id="rrStrip"></div></div>
-      <div class="rr-sub muted" id="rrSub">${g.status === "open" ? "The game starts as soon as all 6 seats are filled." : ""}</div>
+  const seat = s => { const p = g.players.find(x => x.slot === s), a = seatAngle(s) * Math.PI / 180;
+    return `<div class="rv-seat" data-slot="${s}" style="left:${50 + 41 * Math.cos(a)}%;top:${50 + 41 * Math.sin(a)}%"><div class="rr-badge"></div><div class="rv-bubble"></div>
+      ${p ? `${p.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(p.username)}<b>${esc(rrName(g, s))}</b><div class="rr-val">${coinVal(p.value)}</div>`
+        : g.status === "open" && ME.user && !me ? `<div class="pfp wait-pfp">+</div><button class="btn btn-red" data-rrjoin="1" style="padding:6px 10px">Sit down</button>` : `<div class="pfp wait-pfp">?</div><span class="muted">Empty</span>`}</div>`; };
+  $("#view").innerHTML = `<div class="page-head"><div><a href="#/roulette" class="muted">← All tables</a><h1>Russian Roulette #${g.id}</h1><p>Buy-in ${coinVal(g.stake)} (±10%) · ${g.players.length}/${g.seats} seated · pot ${coinVal(g.status === "done" ? g.pot : pot)}</p></div>
+      <div style="display:flex;gap:8px">${g.status === "open" && creator ? `<button class="btn btn-red" id="rrBots">Fill with bots & start</button><button class="btn" id="rrCancel">Cancel</button>` : ""}${g.status === "done" ? `<button class="btn" id="rrReplay">Replay</button><button class="btn" id="rrSkip" hidden>Skip to result</button>` : ""}</div></div>
+    <div class="rv-table" id="rvTable">
+      <div class="rv-felt"></div>
+      ${Array.from({ length: g.seats }, (_, s) => seat(s)).join("")}
+      <div class="rv-center"><div class="rv-cyl" id="rvCyl">${Array.from({ length: 6 }, (_, i) => `<i data-c="${i}" style="--i:${i}"></i>`).join("")}</div>
+        <div class="rr-banner" id="rrBanner">${g.status === "open" ? "Waiting for players…" : g.status === "cancelled" ? "Table closed" : ""}</div><div class="rr-sub muted" id="rrSub">${g.status === "open" ? `${g.seats - g.players.length} seat${g.seats - g.players.length === 1 ? "" : "s"} left` : ""}</div></div>
+      <div class="rv-gun" id="rvGun">${REVOLVER_SVG}</div>
+      <div class="rv-hand" id="rvHand">🧤</div>
     </div>
-    <div class="rr-seats">${Array.from({ length: g.seats }, (_, s) => seat(s)).join("")}</div>`;
+    <div class="muted" style="text-align:center;margin-top:8px">One bullet, six chambers. The gun goes around the table until it fires. Then it's reloaded, spun, and goes around again until one player is left.</div>`;
   $("#view").onclick = async e => {
     if (!e.target.closest("[data-rrjoin]")) return;
     if (needLogin()) return;
@@ -1134,52 +1143,68 @@ async function viewRouletteGame(id) {
   $("#rrBots") && ($("#rrBots").onclick = async () => { try { await rpc("rr_fill_bots", { p_id: g.id }); viewRouletteGame(g.id); } catch (e) { fail(e); } });
   $("#rrCancel") && ($("#rrCancel").onclick = async () => { try { await rpc("rr_cancel", { p_id: g.id }); await refreshMe(); toast("Table closed, items returned."); go("roulette"); } catch (e) { fail(e); } });
   $("#rrReplay") && ($("#rrReplay").onclick = () => runRoulette(g));
-  if (g.status === "done") { if (!animatedRR.has(g.id) && Date.now() - new Date(g.finished_at).getTime() < 90000) runRoulette(g); else rrFinal(g); }
+  gunTo(null, 0);
+  if (g.status === "done") { if (!animatedRR.has(g.id) && Date.now() - new Date(g.finished_at).getTime() < 120000) runRoulette(g); else rrFinal(g); }
 }
 const rrName = (g, s) => { const p = g.players.find(x => x.slot === s); return p ? (p.is_bot ? `Bot ${s + 1}` : p.username) : "?"; };   // bots get seat numbers so you can tell them apart
-const rrFace = (g, s) => { const p = g.players.find(x => x.slot === s); return `<div class="rr-face" data-slot="${s}">${p?.is_bot ? `<div class="pfp bot">🤖</div>` : pfp(rrName(g, s))}<span>${esc(rrName(g, s))}</span></div>`; };
+// slide the revolver to a seat (barrel pointing at that player), or back to the middle of the table
+function gunTo(slot, ms = 650) {
+  const gun = $("#rvGun"); if (!gun) return;
+  gun.style.transition = ms ? `transform ${ms}ms cubic-bezier(.3,.8,.3,1)` : "none";
+  if (slot === null) { gun.style.transform = "translate(-50%,-50%) translate(0,110px) rotate(-20deg) scale(.9)"; return; }
+  const a = seatAngle(slot), r = $("#rvTable").clientWidth * .2, rad = a * Math.PI / 180;
+  gun.style.transform = `translate(-50%,-50%) translate(${Math.cos(rad) * r}px,${Math.sin(rad) * r}px) rotate(${a}deg) ${a > 90 && a < 270 ? "scaleY(-1)" : ""}`;
+}
+const bubble = (slot, text, cls = "") => { const b = $(`.rv-seat[data-slot="${slot}"] .rv-bubble`); if (!b) return; b.className = "rv-bubble show " + cls; b.textContent = text; setTimeout(() => b.classList.remove("show"), 900); };
+let rrSkip = false;
 async function runRoulette(g) {
-  animatedRR.add(g.id);
-  const banner = t => $("#rrBanner") && ($("#rrBanner").innerHTML = t), sub = t => $("#rrSub") && ($("#rrSub").innerHTML = t);
-  $$(".rr-seat").forEach(s => s.classList.remove("out", "winner", "aim"));
-  $$(".rr-badge").forEach(b => b.textContent = "");
-  banner("Loading the chamber…"); sub("One player is knocked out each round. Last one standing takes the pot."); SFX.spinCyl();
-  await sleep(1400);
+  animatedRR.add(g.id); rrSkip = false;
+  if ($("#rrSkip")) { $("#rrSkip").hidden = false; $("#rrSkip").onclick = () => { rrSkip = true; }; }
+  const rounds = g.rounds?.length ? g.rounds : (g.eliminated || []).map(o => ({ bullet: 1, pulls: [o], out: o }));   // older games had no trigger log
+  const banner = (t, pop) => { const b = $("#rrBanner"); if (!b) return; b.innerHTML = t; if (pop) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); } };
+  const sub = t => $("#rrSub") && ($("#rrSub").innerHTML = t);
+  const wait = ms => rrSkip ? Promise.resolve() : sleep(ms);
+  $$(".rv-seat").forEach(s => { s.classList.remove("out", "winner", "aim"); s.querySelector(".rr-badge").textContent = ""; });
   const out = [];
-  for (let r = 0; r < g.eliminated.length; r++) {
-    if (!$("#rrStrip")) return;
-    const target = g.eliminated[r], alive = Array.from({ length: g.seats }, (_, s) => s).filter(s => !out.includes(s));
-    banner(`ROUND ${r + 1}<small>${alive.length} players left</small>`); sub("Spinning…");
-    $("#rrBanner").classList.remove("pop"); void $("#rrBanner").offsetWidth; $("#rrBanner").classList.add("pop");
-    // a long strip of the players still in, ending on the one who gets knocked out
-    const W = 132, WIN = 34, strip = $("#rrStrip");
-    const seq = Array.from({ length: WIN + 6 }, (_, i) => i === WIN ? target : alive[(i + r) % alive.length]);
-    strip.innerHTML = seq.map(s => rrFace(g, s)).join("");
-    strip.style.transition = "none"; strip.style.transform = "translateX(0)"; void strip.offsetWidth;
-    const off = WIN * W + W / 2 - $("#rrStripWrap").clientWidth / 2;
-    strip.style.transition = "transform 3.4s cubic-bezier(.12,.7,.15,1)"; strip.style.transform = `translateX(${-off}px)`;
-    SFX.spinCyl(); reelTicks(strip, W, 3400);
-    $$(".rr-seat").forEach(x => x.classList.remove("aim"));
-    await sleep(3500);
-    const landed = strip.children[WIN]; landed.classList.add("hit");
-    $(`.rr-seat[data-slot="${target}"]`)?.classList.add("aim");
-    sub(`<b>${esc(rrName(g, target))}</b>…`); SFX.heartbeat(); await sleep(650); SFX.click2(); await sleep(450);
-    SFX.bang(); document.body.classList.add("shake"); setTimeout(() => document.body.classList.remove("shake"), 450);
-    $("#rrStripWrap").classList.add("flash"); setTimeout(() => $("#rrStripWrap")?.classList.remove("flash"), 500);
-    const seat = $(`.rr-seat[data-slot="${target}"]`);
-    if (seat) { seat.classList.remove("aim"); seat.classList.add("out"); seat.querySelector(".rr-badge").textContent = `OUT · R${r + 1}`; }
-    out.push(target);
-    sub(`💥 <b>${esc(rrName(g, target))}</b> is out!`); await sleep(1500);
+  for (let r = 0; r < rounds.length; r++) {
+    if (!$("#rvTable") || rrSkip) break;
+    const rd = rounds[r], alive = g.seats - out.length;
+    banner(`ROUND ${r + 1}<small>${alive} players left</small>`, true);
+    // a mystery hand loads one bullet, then the cylinder is spun
+    gunTo(null); sub("A mystery hand loads one bullet…");
+    const cyl = $("#rvCyl"); cyl.querySelectorAll("i").forEach(c => c.classList.remove("loaded", "fired"));
+    $("#rvHand").classList.remove("load"); void $("#rvHand").offsetWidth; $("#rvHand").classList.add("load");
+    await wait(700); cyl.querySelector("i").classList.add("loaded"); SFX.click2(); await wait(600);
+    sub("Spinning the cylinder…"); SFX.spinCyl(); setTimeout(() => !rrSkip && SFX.spinCyl(), 450);
+    cyl.querySelectorAll("i").forEach(c => c.classList.remove("loaded"));
+    const spinTo = 1080 + rand(0, 360);
+    cyl.animate([{ transform: "rotate(0)" }, { transform: `rotate(${spinTo}deg)` }], { duration: rrSkip ? 1 : 1500, easing: "cubic-bezier(.15,.7,.2,1)", fill: "forwards" });
+    await wait(1600);
+    // the gun goes around the table, one trigger pull per player, until the loaded chamber comes up
+    for (let k = 0; k < rd.pulls.length; k++) {
+      if (!$("#rvTable") || rrSkip) break;
+      const s = rd.pulls[k], last = k === rd.pulls.length - 1;
+      $$(".rv-seat").forEach(x => x.classList.toggle("aim", +x.dataset.slot === s));
+      gunTo(s); SFX.whoosh(); sub(`<b>${esc(rrName(g, s))}</b> picks up the gun…`); await wait(750);
+      SFX.heartbeat(); await wait(550); SFX.heartbeat(); await wait(450);
+      cyl.querySelectorAll("i")[k % 6]?.classList.add("fired");
+      if (!last) { SFX.click2(); bubble(s, "click", "safe"); sub(`<b>${esc(rrName(g, s))}</b>: *click*… safe.`); await wait(800); continue; }
+      SFX.bang(); bubble(s, "BANG!", "bang"); document.body.classList.add("shake"); setTimeout(() => document.body.classList.remove("shake"), 450);
+      $("#rvTable").classList.add("flash"); setTimeout(() => $("#rvTable")?.classList.remove("flash"), 450);
+      const seat = $(`.rv-seat[data-slot="${s}"]`); if (seat) { seat.classList.remove("aim"); seat.classList.add("out"); seat.querySelector(".rr-badge").textContent = `OUT · R${r + 1}`; }
+      out.push(s); sub(`💥 <b>${esc(rrName(g, s))}</b> is out!`); await wait(1500);
+    }
   }
+  if ($("#rrSkip")) $("#rrSkip").hidden = true;
   rrFinal(g, true);
 }
 function rrFinal(g, animated = false) {
   if (!$("#rrBanner")) return;
-  (g.eliminated || []).forEach((s, i) => { const seat = $(`.rr-seat[data-slot="${s}"]`); if (seat) { seat.classList.add("out"); seat.querySelector(".rr-badge").textContent = `OUT · R${i + 1}`; } });
-  const ws = $(`.rr-seat[data-slot="${g.winner_slot}"]`); if (ws) { ws.classList.add("winner"); ws.querySelector(".rr-badge").textContent = "SURVIVOR"; }
+  $$(".rv-seat").forEach(s => s.classList.remove("aim"));
+  (g.eliminated || []).forEach((s, i) => { const seat = $(`.rv-seat[data-slot="${s}"]`); if (seat) { seat.classList.add("out"); seat.querySelector(".rr-badge").textContent = `OUT · R${i + 1}`; } });
+  const ws = $(`.rv-seat[data-slot="${g.winner_slot}"]`); if (ws) { ws.classList.remove("out"); ws.classList.add("winner"); ws.querySelector(".rr-badge").textContent = "SURVIVOR"; }
+  gunTo(null, animated ? 600 : 0);
   $("#rrBanner").innerHTML = `🏆 ${esc(rrName(g, g.winner_slot))} survives!<small>takes ${fmt(g.pot)} coins in items</small>`;
-  $("#rrStrip").innerHTML = rrFace(g, g.winner_slot); $("#rrStrip").style.transition = "none";
-  $("#rrStrip").style.transform = `translateX(${$("#rrStripWrap").clientWidth / 2 - 66}px)`; $("#rrStrip").firstElementChild?.classList.add("win");
   $("#rrSub").innerHTML = "";
   if (animated) {
     const winP = g.players.find(x => x.slot === g.winner_slot), iWon = ME.user && winP?.user_id === ME.user.id;
