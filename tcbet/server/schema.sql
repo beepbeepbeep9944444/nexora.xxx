@@ -3,6 +3,9 @@
 
 -- ============================================================ catalog (filled by seed.sql)
 create table if not exists catalog (name text primary key, v float8 not null, hf float8 not null default 0, unu bool not null default false, fx text[] not null default '{}', q text, weapon bool not null default false);
+-- price floors: fbs = min value with Burning/Scorching Energy (2018 hats), fany = min value with any non-Unusualifier effect (shop hats)
+alter table catalog add column if not exists fbs float8 not null default 0;
+alter table catalog add column if not exists fany float8 not null default 0;
 create table if not exists effects (name text primary key, m float8 not null, g text[] not null);
 create table if not exists cases (id text primary key, name text not null, price numeric(14,2) not null, sort int not null default 0);
 create table if not exists case_entries (case_id text references cases on delete cascade, idx int, name text, p float8 not null, unusual bool not null default false, groups text[], hats text[], primary key (case_id, idx));
@@ -62,7 +65,9 @@ create policy read_own on trades for select using (auth.uid() in (sender, receiv
 -- ============================================================ helpers
 create or replace function item_value(p_name text, p_fx text) returns numeric language sql stable set search_path = public as $$
   select case when p_fx is null then (select round(v::numeric, 2) from catalog where name = p_name)
-    else (select round(least(18000, e.m * case when 'UX' = any(e.g) then least(1, c.hf) else c.hf end)::numeric, 2)
+    else (select round(greatest(least(100000, e.m * case when 'UX' = any(e.g) then least(1, c.hf) else c.hf end),
+                                case when e.name in ('Burning', 'Scorching Energy') then c.fbs else 0 end,
+                                case when 'UX' = any(e.g) then 0 else c.fany end)::numeric, 2)
           from catalog c join effects e on e.name = p_fx where c.name = p_name and c.unu and c.fx && e.g) end $$;
 
 create or replace function _uid() returns uuid language plpgsql stable as $$

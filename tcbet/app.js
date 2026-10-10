@@ -30,7 +30,11 @@ function value(it) {
   if (!it.fx) return base.v;
   const fx = FX[it.fx];
   // Unusualifier effects are cheap to apply in-game, so an old hat doesn't make them worth more
-  return r2(Math.min(18000, fx.m * (fx.g.includes("UX") ? Math.min(1, base.hf) : base.hf)));
+  const ux = fx.g.includes("UX");
+  let v = Math.min(100000, fx.m * (ux ? Math.min(1, base.hf) : base.hf));
+  if (it.fx === "Burning" || it.fx === "Scorching Energy") v = Math.max(v, base.fbs || 0);   // 2018 hats: never under 10k
+  if (!ux) v = Math.max(v, base.fany || 0);                                                // shop hats: at least 5k
+  return r2(v);
 }
 const label = it => it.fx ? `${it.fx} ${it.n}` : it.n;
 const total = list => r2(list.reduce((s, it) => s + value(it), 0));
