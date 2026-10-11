@@ -609,3 +609,102 @@ body.shake{animation:shake .45s}
 @media (max-width:900px){.kx{grid-template-columns:1fr}.kx-side{border-right:0;border-bottom:1px solid var(--line)}.kx-main{padding:18px 12px}.kx-cell{font-size:18px}.kx-board{gap:5px}.kx-m b{font-size:10px}}
 
 
+
+/* ---------- blackjack (card layout) ---------- */
+.kx-pickbtn{width:100%;padding:12px;border-radius:10px;background:#232936;font-weight:700}
+.bjx-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.bjx-acts button{display:flex;justify-content:space-between;align-items:center;padding:17px 14px;border-radius:9px;background:#232936;font-weight:600;color:#e5e7eb}
+.bjx-acts button svg{width:20px;height:20px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bjx-acts .a-hit svg{stroke:#22c55e}.bjx-acts .a-stand svg{stroke:#ef4444}.bjx-acts .a-split svg{stroke:#3b82f6}.bjx-acts .a-double svg{stroke:#f5b83d}
+.bjx-acts button:hover:not(:disabled){background:#2c3343}
+.bjx-acts button:disabled{opacity:.45;cursor:not-allowed}
+.bjx-bet{background:linear-gradient(180deg,#9b5cff,#7c3aed);color:#fff;box-shadow:0 8px 24px -10px #7c3aed}
+.bjx-main{justify-content:space-between;min-height:560px;padding:28px 20px}
+.bjx-shoe{position:absolute;right:46px;top:-14px;width:90px;height:64px}
+.bjx-shoe i{position:absolute;left:0;right:0;height:56px;border-radius:7px;background:#7c3aed;border:2px solid #c4b5fd;box-shadow:0 2px 0 #4c1d95}
+.bjx-shoe i:nth-child(1){top:0}.bjx-shoe i:nth-child(2){top:5px}.bjx-shoe i:nth-child(3){top:10px}.bjx-shoe i:nth-child(4){top:15px}
+.bjx-hand{display:flex;flex-direction:column;align-items:center;gap:10px;min-height:150px;padding:8px 14px;border-radius:14px;transition:.25s}
+.bjx-hand.dealer{flex-direction:column-reverse;margin-top:40px}
+.bjx-cards{display:flex;justify-content:center;min-height:126px}
+.bjx-tot{min-width:40px;padding:3px 10px;border-radius:999px;background:#2c3343;text-align:center;font:800 14px Rubik}
+.bjx-tot:empty{display:none}
+.bjx-hands{display:flex;justify-content:center;gap:30px;width:100%}
+.bjx-hand.player.active{background:rgba(124,58,237,.15);outline:2px solid #7c3aed}
+.bjx-hres{font:800 14px Inter;min-height:18px}
+.bjx-hres.win{color:#22c55e}.bjx-hres.lose{color:#f87171}.bjx-hres.push{color:#e5e7eb}
+.bjx-hand.r-win .pcard{box-shadow:0 0 0 2px #22c55e,0 8px 16px rgba(0,0,0,.45)}
+.bjx-hand.r-lose .pcard{opacity:.75}
+.bjx-ribbons{display:flex;flex-direction:column;align-items:center;gap:8px}
+.bjx-ribbons span{position:relative;padding:8px 34px;background:#232936;font:700 13px Oswald,Inter,sans-serif;letter-spacing:.5px;color:#9aa3b2;clip-path:polygon(0 0,100% 0,94% 50%,100% 100%,0 100%,6% 50%)}
+.kx-pop.lose{border-color:#ef4444}.kx-pop.lose b{color:#f87171}
+.kx-pop.push{border-color:#9aa3b2}.kx-pop.push b{color:#e5e7eb}
+
+/* ---------- roulette wheel ---------- */
+.whx-main{gap:14px;padding:22px 24px}
+.wh-top{display:flex;align-items:center;justify-content:center;gap:26px;width:100%}
+.wh-last{width:70px;height:70px;border-radius:10px;background:#232936;display:grid;place-items:center;font:800 28px Rubik}
+.wh-last.red{background:#ef4444}.wh-last.black{background:#2b3245}.wh-last.green{background:#16a34a}
+.wh-hist{display:flex;flex-direction:column;gap:4px;width:36px}
+.wh-hist span{height:26px;border-radius:6px;display:grid;place-items:center;font:800 12px Inter}
+.wh-hist .red{background:#ef4444}.wh-hist .black{background:#2b3245}.wh-hist .green{background:#16a34a}
+.wh-wheel{position:relative;width:280px;height:280px}
+.wh-svg{width:100%;height:100%;filter:drop-shadow(0 12px 30px rgba(0,0,0,.6))}
+.wh-svg #whRot,.wh-svg #whBall{transform-origin:150px 150px}
+.wh-rim{fill:#1a1f2a;stroke:#2c3343;stroke-width:3}
+.wp{stroke:#0b0d12;stroke-width:1}.wp.red{fill:#e53935}.wp.black{fill:#20242e}.wp.green{fill:#16a34a}
+.wn{fill:#fff;font:700 11px Inter;text-anchor:middle;dominant-baseline:middle}
+.wh-inner{fill:#14181f;stroke:#b8862b;stroke-width:5}
+.wh-hub circle{fill:#f5b83d}.wh-hub path{stroke:#f5b83d;stroke-width:4;stroke-linecap:round}
+.wh-ball{fill:#fff;filter:drop-shadow(0 1px 2px #000)}
+.wh-marker{position:absolute;left:50%;top:-6px;margin-left:-7px;border:7px solid transparent;border-top:12px solid #f5b83d}
+.wh-tools{display:flex;justify-content:space-between;width:100%;max-width:720px}
+.wh-tools button{color:var(--muted);font-weight:700}.wh-tools button:hover{color:#fff}
+.wh-table{display:grid;grid-template-columns:48px 1fr 48px;grid-template-rows:auto auto auto;gap:5px;width:100%;max-width:720px}
+.wh-table .zero{grid-row:1;grid-column:1}
+.wh-nums{grid-row:1;grid-column:2;display:grid;grid-template-columns:repeat(12,1fr);gap:5px}
+.wh-cols{grid-row:1;grid-column:3;display:grid;grid-template-rows:repeat(3,1fr);gap:5px}
+.wh-dozens{grid-row:2;grid-column:2;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.wh-evens{grid-row:3;grid-column:2;display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.wt{position:relative;min-height:44px;border-radius:7px;font:800 14px Inter;color:#fff;transition:.12s}
+.wt.red{background:#ef4444}.wt.black{background:#2b3245}.wt.green{background:#16a34a}
+.wt.out{background:transparent;border:1px solid #2c3343}
+.wt:hover,.wt.hl{filter:brightness(1.25);box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+.wt.win{box-shadow:0 0 0 3px #f5b83d,0 0 18px rgba(245,184,61,.7);z-index:1}
+.tchip{position:absolute;right:-4px;top:-6px;min-width:24px;height:24px;padding:0 4px;border-radius:12px;display:grid;place-items:center;font:800 10px Inter;color:#fff;background:#7c3aed;border:2px dashed #c4b5fd;box-shadow:0 2px 6px #000;z-index:2}
+.wh-chips{display:flex;gap:6px;overflow-x:auto;padding:6px 4px;border-radius:10px;background:#232936}
+.wchip{flex:none;width:44px;height:44px;border-radius:50%;font:800 11px Inter;color:#fff;border:3px dashed rgba(255,255,255,.55);transition:.12s}
+.wchip.c1{background:#4f46e5}.wchip.c10{background:#7c3aed}.wchip.c100{background:#c026d3}.wchip.c1000{background:#db2777}.wchip.c10000{background:#ea580c}.wchip.c100000{background:#ca8a04}
+.wchip.on{box-shadow:0 0 0 3px #22c55e;transform:scale(1.08)}
+.whx .kx-amt input[readonly]{color:#e5e7eb}
+.red-t{color:#f87171!important}.black-t{color:#e5e7eb!important}.green-t{color:#4ade80!important}
+@media (max-width:900px){.wh-top{flex-wrap:wrap}.wh-wheel{width:220px;height:220px}.wt{min-height:34px;font-size:11px}.wh-table{grid-template-columns:34px 1fr 34px}}
+
+/* ---------- roulette castle theme ---------- */
+.whx-main{overflow:hidden;background:#8d9cf2}
+.rs-bg{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.whx-main>*:not(.rs-bg){position:relative;z-index:1}
+.whx-main .kx-pop{position:absolute;z-index:5}
+.wh-top{align-items:center}
+.wh-left{display:flex;flex-direction:column;align-items:center;gap:10px}
+.rs-logo{width:180px;filter:drop-shadow(0 6px 10px rgba(30,20,80,.45))}
+.wh-recent{display:flex;gap:8px;align-items:flex-start}
+.wh-last{box-shadow:0 0 0 3px #e9e7ff,0 8px 16px rgba(30,20,80,.4)}
+.wh-hist span{box-shadow:0 0 0 2px #e9e7ff}
+.wh-wheel{padding:10px;border-radius:50%;background:#e9e7ff;box-shadow:0 0 0 6px #c7c3f7,0 18px 40px rgba(30,20,80,.45)}
+.wh-marker{top:2px}
+.rs-window{display:flex;flex-direction:column;align-items:center}
+.rs-arch{width:190px;height:220px;border-radius:95px 95px 0 0;background:#2a2357;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;box-shadow:0 0 0 12px #e9e7ff,0 0 0 15px #b9b4f2,inset 0 10px 30px rgba(0,0,0,.4)}
+.rs-char{width:200px;margin-bottom:-6px}
+.rs-sill{width:230px;height:22px;margin-top:-4px;border-radius:5px;background:#e9e7ff;box-shadow:0 3px 0 #b9b4f2,0 10px 18px rgba(30,20,80,.4)}
+.wh-tools button{color:#3b2f7a;text-shadow:0 1px 0 #fff}.wh-tools button:hover{color:#1e1250}
+.wh-table{padding:12px;border-radius:12px;background:#1b1838;box-shadow:0 0 0 8px #e9e7ff,0 0 0 11px #b9b4f2,0 18px 40px rgba(30,20,80,.45)}
+.wt.out{border-color:#3a3566}
+@media (max-width:1200px){.rs-window{display:none}}
+.wh-wheel{flex:none;width:300px;height:300px;box-sizing:border-box}
+.wh-chips{scrollbar-width:none}.wh-chips::-webkit-scrollbar{display:none}
+@media (max-width:900px){.wh-wheel{width:240px;height:240px}}
+.whx-main{container-type:inline-size}
+.wh-top{display:grid;grid-template-columns:auto auto auto;justify-content:space-evenly;align-items:center;gap:16px}
+.wh-wheel{width:clamp(220px,32cqw,300px);height:clamp(220px,32cqw,300px)}
+@container (max-width:880px){.rs-window{display:none}.wh-top{grid-template-columns:auto auto}}
+@container (max-width:560px){.wh-left .rs-logo{display:none}.wh-top{grid-template-columns:1fr}.wh-left{order:2}}

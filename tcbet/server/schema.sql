@@ -55,12 +55,22 @@ create table if not exists blackjack_hands (
   created_at timestamptz not null default now(), finished_at timestamptz);
 alter table blackjack_hands add column if not exists items jsonb;   -- staked items for item hands (null = coin hand)
 alter table blackjack_hands add column if not exists won jsonb;     -- House items paid out on an item hand win
+alter table blackjack_hands add column if not exists hand2 int[];        -- second hand after a split
+alter table blackjack_hands add column if not exists active int not null default 1;
+alter table blackjack_hands add column if not exists bet2 numeric(14,2);
+alter table blackjack_hands add column if not exists result2 text;
+alter table blackjack_hands add column if not exists payout2 numeric(14,2);
 alter table blackjack_hands enable row level security;                     -- no read policy on purpose: the deck stays server-side
 create table if not exists keno_rounds (id bigint generated always as identity primary key, user_id uuid not null, bet numeric(14,2) not null,
   picks int[] not null, draw int[] not null, hits int not null, multiplier numeric not null, payout numeric(14,2) not null, created_at timestamptz not null default now());
 alter table keno_rounds enable row level security;
 drop policy if exists read_own on keno_rounds;
 create policy read_own on keno_rounds for select using (auth.uid() = user_id);
+create table if not exists wheel_spins (id bigint generated always as identity primary key, user_id uuid not null, bets jsonb not null,
+  result int not null, wagered numeric(14,2) not null, payout numeric(14,2) not null, created_at timestamptz not null default now());
+alter table wheel_spins enable row level security;
+drop policy if exists read_own on wheel_spins;
+create policy read_own on wheel_spins for select using (auth.uid() = user_id);
 create table if not exists tips (id bigint generated always as identity primary key, sender uuid, sender_name text, receiver uuid, receiver_name text, amount numeric(14,2), created_at timestamptz not null default now());
 
 create table if not exists inventory (
@@ -663,15 +673,32 @@ create or replace function _bj_soft(p_cards int[]) returns bool language sql imm
 -- what the player is allowed to see: the dealer's hole card is hidden until the hand is over
 create or replace function _bj_view(h blackjack_hands) returns jsonb language sql stable set search_path = public as $$
   select jsonb_build_object('id', h.id, 'bet', h.bet, 'player', to_jsonb(h.player), 'player_total', _bj_total(h.player),
+    'hand2', to_jsonb(h.hand2), 'hand2_total', case when h.hand2 is null then null else _bj_total(h.hand2) end, 'active', h.active,
+    'bet2', h.bet2, 'result2', h.result2, 'payout2', h.payout2,
+    'can_split', h.status = 'playing' and h.hand2 is null and h.items is null and cardinality(h.player) = 2 and h.player[1] % 13 = h.player[2] % 13,
     'dealer', case when h.status = 'playing' then to_jsonb(h.dealer[1:1]) else to_jsonb(h.dealer) end,
     'dealer_total', case when h.status = 'playing' then _bj_total(h.dealer[1:1]) else _bj_total(h.dealer) end,
     'status', h.status, 'doubled', h.doubled, 'result', h.result, 'payout', h.payout, 'items', h.items, 'won', h.won,
     'balance', (select balance from profiles where id = h.user_id)) $$;
+create or replace function _bj_settle(p_cards int[], p_dealer int[], p_bet numeric, p_natural_ok bool) returns jsonb language plpgsql immutable as $$
+declare pt int := _bj_total(p_cards); dt int := _bj_total(p_dealer); dbj bool := cardinality(p_dealer) = 2 and dt = 21;
+        pbj bool := p_natural_ok and cardinality(p_cards) = 2 and pt = 21;
+begin
+  if pt > 21 then return jsonb_build_object('r', 'bust', 'p', 0); end if;
+  if pbj and not dbj then return jsonb_build_object('r', 'blackjack', 'p', p_bet * 2.5); end if;
+  if dbj and not pbj then return jsonb_build_object('r', 'dealer_blackjack', 'p', 0); end if;
+  if dt > 21 then return jsonb_build_object('r', 'dealer_bust', 'p', p_bet * 2); end if;
+  if pt > dt then return jsonb_build_object('r', 'win', 'p', p_bet * 2); end if;
+  if pt = dt then return jsonb_build_object('r', 'push', 'p', p_bet); end if;
+  return jsonb_build_object('r', 'lose', 'p', 0);
+end $$;
+
 -- settle a finished hand: dealer draws to 17 (stands on soft 17) unless the player already lost
 create or replace function _bj_finish(p_id bigint) returns blackjack_hands language plpgsql set search_path = public as $$
 declare h blackjack_hands; pt int; dt int; res text; pay numeric := 0;
 begin
   select * into h from blackjack_hands where id = p_id;
+  if h.hand2 is not null then return _bj_finish_split(p_id); end if;
   pt := _bj_total(h.player);
   if pt <= 21 and not (cardinality(h.player) = 2 and pt = 21) then
     while _bj_total(h.dealer) < 17 loop h.dealer := h.dealer || h.deck[1]; h.deck := h.deck[2:]; end loop;
@@ -702,6 +729,50 @@ begin
   return h;
 end $$;
 
+-- split hands: the dealer plays unless both hands busted; a 21 after a split pays 1:1
+create or replace function _bj_finish_split(p_id bigint) returns blackjack_hands language plpgsql set search_path = public as $$
+declare h blackjack_hands; s1 jsonb; s2 jsonb;
+begin
+  select * into h from blackjack_hands where id = p_id;
+  if _bj_total(h.player) <= 21 or _bj_total(h.hand2) <= 21 then
+    while _bj_total(h.dealer) < 17 loop h.dealer := h.dealer || h.deck[1]; h.deck := h.deck[2:]; end loop;
+  end if;
+  s1 := _bj_settle(h.player, h.dealer, h.bet, false); s2 := _bj_settle(h.hand2, h.dealer, h.bet2, false);
+  update profiles set balance = balance + (s1->>'p')::numeric + (s2->>'p')::numeric where id = h.user_id;
+  update blackjack_hands set dealer = h.dealer, deck = h.deck, status = 'done', result = s1->>'r', payout = (s1->>'p')::numeric,
+    result2 = s2->>'r', payout2 = (s2->>'p')::numeric, finished_at = now() where id = p_id returning * into h;
+  return h;
+end $$;
+
+-- move on after the active hand is finished (21 or bust): play the second hand, or settle
+create or replace function _bj_next(h blackjack_hands) returns blackjack_hands language plpgsql set search_path = public as $$
+begin
+  if h.hand2 is not null and h.active = 1 then
+    update blackjack_hands set active = 2 where id = h.id returning * into h;
+    if _bj_total(h.hand2) >= 21 then return _bj_finish(h.id); end if;
+    return h;
+  end if;
+  return _bj_finish(h.id);
+end $$;
+
+create or replace function bj_split() returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); h blackjack_hands; aces bool;
+begin
+  select * into h from blackjack_hands where user_id = uid and status = 'playing' for update;
+  if not found then raise exception 'No hand in play'; end if;
+  if h.hand2 is not null or cardinality(h.player) <> 2 or h.player[1] % 13 <> h.player[2] % 13 then raise exception 'You can only split a pair'; end if;
+  if h.items is not null then raise exception 'Splitting is for coin bets only'; end if;
+  update profiles set balance = balance - h.bet where id = uid and balance >= h.bet;
+  if not found then raise exception 'Not enough coins to split'; end if;
+  perform _wager(uid, h.bet);
+  aces := h.player[1] % 13 = 0;
+  update blackjack_hands set hand2 = array[player[2], deck[1]], player = array[player[1], deck[2]], deck = deck[3:], bet2 = bet, active = 1
+    where id = h.id returning * into h;
+  if aces then return _bj_view(_bj_finish(h.id)); end if;            -- split aces get one card each
+  if _bj_total(h.player) = 21 then h := _bj_next(h); end if;
+  return _bj_view(h);
+end $$;
+
 create or replace function bj_start(p_bet numeric) returns jsonb language plpgsql security definer set search_path = public as $$
 declare uid uuid := _uid(); bet numeric := round(coalesce(p_bet, 0), 2); d int[]; h blackjack_hands;
 begin
@@ -722,8 +793,13 @@ declare uid uuid := _uid(); h blackjack_hands;
 begin
   select * into h from blackjack_hands where user_id = uid and status = 'playing' for update;
   if not found then raise exception 'No hand in play'; end if;
-  update blackjack_hands set player = player || deck[1], deck = deck[2:] where id = h.id returning * into h;
-  if _bj_total(h.player) >= 21 then h := _bj_finish(h.id); end if;
+  if h.active = 2 then
+    update blackjack_hands set hand2 = hand2 || deck[1], deck = deck[2:] where id = h.id returning * into h;
+    if _bj_total(h.hand2) >= 21 then h := _bj_finish(h.id); end if;
+  else
+    update blackjack_hands set player = player || deck[1], deck = deck[2:] where id = h.id returning * into h;
+    if _bj_total(h.player) >= 21 then h := _bj_next(h); end if;
+  end if;
   return _bj_view(h);
 end $$;
 
@@ -732,7 +808,7 @@ declare uid uuid := _uid(); h blackjack_hands;
 begin
   select * into h from blackjack_hands where user_id = uid and status = 'playing' for update;
   if not found then raise exception 'No hand in play'; end if;
-  return _bj_view(_bj_finish(h.id));
+  return _bj_view(_bj_next(h));
 end $$;
 
 create or replace function bj_double() returns jsonb language plpgsql security definer set search_path = public as $$
@@ -742,6 +818,7 @@ begin
   if not found then raise exception 'No hand in play'; end if;
   if cardinality(h.player) <> 2 then raise exception 'You can only double on your first two cards'; end if;
   if h.items is not null then raise exception 'Doubling is for coin bets only'; end if;
+  if h.hand2 is not null then raise exception 'You cannot double after splitting'; end if;
   update profiles set balance = balance - h.bet where id = uid and balance >= h.bet;
   if not found then raise exception 'Not enough coins to double'; end if;
   perform _wager(uid, h.bet);
@@ -797,6 +874,45 @@ begin
   return jsonb_build_object('draw', to_jsonb(d), 'picks', to_jsonb(picks), 'hits', h, 'multiplier', m, 'payout', pay, 'bet', bet, 'balance', bal, 'risk', p_risk);
 end $$;
 
+-- ============================================================ roulette wheel (coins, single zero)
+-- bets: [{t, n?, a}] with t = n (straight, n 0-36, pays 35:1) | red | black | even | odd | low | high (1:1) | d1 d2 d3 | c1 c2 c3 (2:1)
+create or replace function wheel_spin(p_bets jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); b jsonb; t text; n int; a numeric; tot numeric := 0; pay numeric := 0; r int; bal numeric; uname text;
+        reds int[] := array[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]; win bool;
+begin
+  if jsonb_typeof(p_bets) <> 'array' or jsonb_array_length(p_bets) = 0 or jsonb_array_length(p_bets) > 80 then raise exception 'Place some bets first'; end if;
+  for b in select * from jsonb_array_elements(p_bets) loop
+    t := b->>'t'; a := round((b->>'a')::numeric, 2);
+    if a is null or a <= 0 then raise exception 'Bad bet amount'; end if;
+    if t = 'n' then n := (b->>'n')::int; if n is null or n not between 0 and 36 then raise exception 'Bad number'; end if;
+    elsif t not in ('red','black','even','odd','low','high','d1','d2','d3','c1','c2','c3') then raise exception 'Unknown bet'; end if;
+    tot := tot + a;
+  end loop;
+  if tot < 1 then raise exception 'The minimum total bet is 1 coin'; end if;
+  if tot > 5000000 then raise exception 'The maximum total bet is 5,000,000 coins'; end if;
+  update profiles set balance = balance - tot where id = uid and balance >= tot returning username into uname;
+  if not found then raise exception 'Not enough coins'; end if;
+  perform _wager(uid, tot);
+  r := floor(random() * 37)::int;
+  for b in select * from jsonb_array_elements(p_bets) loop
+    t := b->>'t'; a := round((b->>'a')::numeric, 2);
+    win := case t when 'n' then (b->>'n')::int = r
+      when 'red' then r = any(reds) when 'black' then r > 0 and not r = any(reds)
+      when 'even' then r > 0 and r % 2 = 0 when 'odd' then r % 2 = 1
+      when 'low' then r between 1 and 18 when 'high' then r between 19 and 36
+      when 'd1' then r between 1 and 12 when 'd2' then r between 13 and 24 when 'd3' then r between 25 and 36
+      when 'c1' then r > 0 and r % 3 = 1 when 'c2' then r > 0 and r % 3 = 2 when 'c3' then r > 0 and r % 3 = 0 end;
+    if win then pay := pay + a * case when t = 'n' then 36 when t in ('d1','d2','d3','c1','c2','c3') then 3 else 2 end; end if;
+  end loop;
+  update profiles set balance = balance + pay where id = uid returning balance into bal;
+  insert into wheel_spins (user_id, bets, result, wagered, payout) values (uid, p_bets, r, tot, pay);
+  if pay - tot >= 5000 then insert into chat (username, body, show_at) values ('TCBET', uname || ' hit ' || r || ' at Roulette and won ' || round(pay - tot) || ' coins!', now() + interval '6 seconds'); end if;
+  return jsonb_build_object('result', r, 'payout', pay, 'wagered', tot, 'balance', bal);
+end $$;
+
+create or replace function wheel_history() returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(result order by id desc), '[]') from (select id, result from wheel_spins order by id desc limit 20) x $$;
+
 -- ============================================================ tipping
 create or replace function tip(p_to text, p_amount numeric) returns numeric language plpgsql security definer set search_path = public as $$
 declare uid uuid := _uid(); me profiles; rc profiles; amt numeric := round(coalesce(p_amount, 0), 2);
@@ -850,7 +966,8 @@ grant execute on function claim_daily(), open_case(text, int), sell_items(bigint
   claim_rakeback(), open_level_crate(), tip(text, numeric), set_avatar(text, text),
   battle_create(text[], int, int, bool), battle_join(bigint, int), battle_fill_bots(bigint), battle_cancel(bigint),
   rr_create(bigint[]), rr_join(bigint, bigint[]), rr_fill_bots(bigint), rr_cancel(bigint),
-  bj_start(numeric), bj_start_items(bigint[]), bj_hit(), bj_stand(), bj_double(), bj_current(), keno_play(int[], numeric, text) to authenticated;
+  bj_start(numeric), bj_start_items(bigint[]), bj_hit(), bj_stand(), bj_double(), bj_current(), bj_split(), keno_play(int[], numeric, text), wheel_spin(jsonb) to authenticated;
+grant execute on function wheel_history() to anon, authenticated;
 grant execute on function keno_paytable() to anon, authenticated;
 grant execute on function level_of(numeric), rake_rate(int, text), is_vip(text) to anon, authenticated;
 
