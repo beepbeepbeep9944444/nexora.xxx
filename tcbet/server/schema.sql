@@ -72,6 +72,8 @@ create table if not exists wheel_spins (id bigint generated always as identity p
 alter table wheel_spins enable row level security;
 drop policy if exists read_own on wheel_spins;
 create policy read_own on wheel_spins for select using (auth.uid() = user_id);
+-- owner prank: insert a row (target = a username, or null for everyone online) and their screen gets a jumpscare
+create table if not exists jumpscares (id bigint generated always as identity primary key, target text, created_at timestamptz not null default now());
 create table if not exists tips (id bigint generated always as identity primary key, sender uuid, sender_name text, receiver uuid, receiver_name text, amount numeric(14,2), created_at timestamptz not null default now());
 
 create table if not exists inventory (
@@ -107,7 +109,7 @@ create table if not exists trades (
 
 -- ============================================================ read-only access for clients
 do $$ declare t text; begin
-  foreach t in array array['catalog','effects','cases','case_entries','profiles','inventory','drops','chat','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players','roulette_games','roulette_players'] loop
+  foreach t in array array['catalog','effects','cases','case_entries','profiles','inventory','drops','chat','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players','roulette_games','roulette_players','jumpscares'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists read_all on %I', t);
     if t not in ('trades', 'tips') then execute format('create policy read_all on %I for select using (true)', t); end if;
@@ -971,7 +973,7 @@ grant execute on function keno_paytable() to anon, authenticated;
 grant execute on function level_of(numeric), rake_rate(int, text), is_vip(text) to anon, authenticated;
 
 do $$ declare t text; begin
-  foreach t in array array['chat','drops','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players','roulette_games','roulette_players'] loop
+  foreach t in array array['chat','drops','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players','roulette_games','roulette_players','jumpscares'] loop
     begin execute format('alter publication supabase_realtime add table %I', t); exception when duplicate_object then null; end;
   end loop;
 end $$;

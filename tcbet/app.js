@@ -92,6 +92,18 @@ const SFX = (() => {
     bang() { noise(.6, .55, 180); tone(90, .35, "sawtooth", .25, 0, 40); },
     survive() { notes([523, 659, 784, 1047, 1319], .1, "triangle", .14); },
     go() { tone(990, .18, "square", .06); },
+    scream() {    // jumpscare: distorted screech that sweeps down, plus a noise blast. Loud, but run through a limiter so it never clips.
+      if (muted) return; const c = ac(); if (!c) return;
+      const t = c.currentTime, out = c.createDynamicsCompressor(), g = c.createGain(), shape = c.createWaveShaper();
+      const curve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(x * 6); } shape.curve = curve;
+      out.threshold.value = -6; out.ratio.value = 12; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.9, t + .03); g.gain.setValueAtTime(.9, t + 1.4); g.gain.exponentialRampToValueAtTime(.0001, t + 1.9);
+      shape.connect(g).connect(out).connect(c.destination);
+      for (const [f, d] of [[1300, 0], [1340, 7], [1260, -9], [660, 3]]) { const o = c.createOscillator(); o.type = "sawtooth"; o.detune.value = d * 10;
+        o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * .28, t + 1.8); o.connect(shape); o.start(t); o.stop(t + 1.95); }
+      const buf = c.createBuffer(1, c.sampleRate * 1.9, c.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const n = c.createBufferSource(), bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.setValueAtTime(2500, t); bp.frequency.exponentialRampToValueAtTime(500, t + 1.8);
+      n.buffer = buf; n.connect(bp).connect(shape); n.start(t);
+    },
     jackpot() {   // casino bells + coin shower for big wins
       for (let r = 0; r < 4; r++) notes([523, 659, 784, 1047, 784, 1047, 1319], .075, "triangle", .12, r * .62);
       for (let i = 0; i < 28; i++) tone(2400 + Math.random() * 1600, .14, "triangle", .05, .1 + i * .09);
@@ -137,6 +149,23 @@ function bigWin(v, what = "") {
   }, 300 + b * 450);
   o.onclick = () => o.remove();
   setTimeout(() => o.classList.add("out"), 4600); setTimeout(() => o.remove(), 5200);
+}
+// ---- owner prank: full-screen jumpscare (no strobing, ~2 seconds, click to dismiss)
+const SCARE_FACE = `<svg viewBox="0 0 400 400" class="scare-face"><defs><radialGradient id="scg" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#e8e2d6"/><stop offset=".7" stop-color="#9c9486"/><stop offset="1" stop-color="#2a2622"/></radialGradient></defs>
+  <rect width="400" height="400" fill="#050000"/>
+  <path d="M70 120q-6-80 130-96q136 16 130 96l-6 150q-10 90-124 104q-114-14-124-104z" fill="url(#scg)"/>
+  <path d="M60 110q20-90 140-96q120 6 140 96q-30-40-60-30q-20-40-80-36q-60-4-80 36q-30-10-60 30z" fill="#0b0a09"/>
+  <ellipse cx="140" cy="178" rx="40" ry="46" fill="#000"/><ellipse cx="260" cy="178" rx="40" ry="46" fill="#000"/>
+  <circle cx="146" cy="186" r="6" fill="#ff2a2a"/><circle cx="254" cy="186" r="6" fill="#ff2a2a"/>
+  <path d="M120 270q80 70 160 0q-10 70-80 76q-70-6-80-76z" fill="#000"/>
+  <path d="M128 276l12 22 10-20 12 24 12-24 12 26 12-26 12 24 12-24 12 22 12-20 10 20" fill="none" stroke="#e8e2d6" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M120 150l-26-30M280 150l26-30M190 230l10 22 10-22" stroke="#3a2f26" stroke-width="5" fill="none"/></svg>`;
+function jumpscare() {
+  if ($(".scare")) return;
+  const o = document.createElement("div"); o.className = "scare"; o.innerHTML = SCARE_FACE; document.body.append(o);
+  SFX.scream(); document.body.classList.add("shake"); setTimeout(() => document.body.classList.remove("shake"), 500);
+  const end = () => { o.classList.add("out"); setTimeout(() => o.remove(), 300); };
+  o.onclick = end; setTimeout(end, 2100);
 }
 function celebrate(items, what) {
   const top = items.reduce((m, it) => value(it) > value(m) ? it : m, items[0]);
@@ -1867,6 +1896,10 @@ function connectRealtime() {
       const r = route();
       if (r[0] === "roulette" && !r[1]) loadRoulette();
       if (r[0] === "roulette" && +r[1] === p.new.game_id && CUR_RR?.status === "open") { SFX.join(); viewRouletteGame(p.new.game_id); }
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "jumpscares" }, p => {
+      const t = p.new.target, me = ME.profile?.username;
+      if (Date.now() - new Date(p.new.created_at) < 15000 && (!t || (me && t.toLowerCase() === me.toLowerCase()))) jumpscare();
     })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "tips" }, p => {
       if (ME.user && p.new.receiver === ME.user.id) { toast(`${esc(p.new.sender_name)} tipped you ${fmt(p.new.amount)} coins!`, "good"); refreshMe().then(bumpBalance); }

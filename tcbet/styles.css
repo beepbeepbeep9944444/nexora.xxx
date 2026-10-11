@@ -711,3 +711,10 @@ body.shake{animation:shake .45s}
 
 .rs-dealer{width:230px;height:auto;display:block;filter:drop-shadow(0 14px 22px rgba(30,20,80,.45))}
 .rs-window .rs-arch,.rs-window .rs-sill{display:none}
+
+/* ---------- owner prank jumpscare (no flashing) ---------- */
+.scare{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#000;cursor:pointer}
+.scare-face{width:min(110vh,110vw);height:min(110vh,110vw);animation:scare .25s cubic-bezier(.2,1.8,.4,1) both, scarejit .12s linear .25s infinite}
+@keyframes scare{from{transform:scale(.15)}to{transform:scale(1)}}
+@keyframes scarejit{25%{transform:translate(4px,-3px) scale(1.01)}50%{transform:translate(-3px,4px)}75%{transform:translate(3px,3px) scale(1.01)}}
+.scare.out{opacity:0;transition:opacity .3s}
