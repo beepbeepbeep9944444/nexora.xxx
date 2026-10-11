@@ -496,3 +496,51 @@ body.shake{animation:shake .45s}
 @media (max-width:900px){.b-board{flex-direction:column}.vs-tag.big{align-self:center}.b-col{min-width:130px}}
 .b-share{margin-top:4px;font-size:12px;font-weight:700;color:var(--grn)}
 .b-share.house{color:var(--muted)}
+
+/* ---------- blackjack ---------- */
+.bj-table{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:14px;min-height:430px;padding:22px;border-radius:200px 200px 24px 24px / 120px 120px 24px 24px;
+  background:radial-gradient(120% 90% at 50% 0%,#1f5c3a,#123622 70%);border:10px solid #4a2c17;box-shadow:inset 0 0 0 2px #7a4a26,0 20px 50px -20px #000}
+.bj-side{display:flex;flex-direction:column;align-items:center;gap:10px}
+.bj-label{font:800 15px Inter;color:#d9f2e2;display:flex;align-items:center;gap:8px}
+.bj-total{min-width:34px;padding:2px 9px;border-radius:999px;background:rgba(0,0,0,.35);text-align:center;font:900 15px Rubik;color:#fff}
+.bj-total:empty{display:none}
+.bj-bet{color:#cfe8d8;font-weight:600}
+.bj-cards{display:flex;justify-content:center;min-height:128px}
+.pcard{position:relative;width:88px;height:126px;margin-left:-26px;border-radius:10px;background:#fbfbf7;color:#111;box-shadow:0 8px 16px rgba(0,0,0,.45);border:1px solid #ddd}
+.pcard:first-child{margin-left:0}
+.pcard b{position:absolute;left:8px;top:6px;font:900 22px/1 Rubik}
+.pcard i{position:absolute;left:9px;top:30px;font-style:normal;font-size:18px}
+.pcard span{position:absolute;inset:0;display:grid;place-items:center;font-size:46px;opacity:.9}
+.pcard.red{color:#d42a2a}
+.pcard.back{background:repeating-linear-gradient(45deg,#7f1d1d 0 8px,#991b1b 8px 16px);border:3px solid #fbfbf7;display:grid;place-items:center}
+.pcard.back img{width:42px;opacity:.9}
+.pcard.deal{animation:dealin .33s cubic-bezier(.2,.8,.3,1)}
+@keyframes dealin{from{transform:translate(160px,-160px) rotate(25deg);opacity:0}}
+.pcard.flip{animation:flipin .45s}
+@keyframes flipin{0%{transform:rotateY(90deg)}100%{transform:rotateY(0)}}
+.bj-mid{display:flex;flex-direction:column;align-items:center;gap:6px}
+.bj-rule{font:800 11px Inter;letter-spacing:2px;color:rgba(255,255,255,.35)}
+.bj-result{min-height:52px;font:900 32px/1.1 Rubik;text-align:center;opacity:0;transform:scale(.8);transition:.3s}
+.bj-result small{display:block;font:700 15px Inter;margin-top:2px}
+.bj-result.show{opacity:1;transform:scale(1)}
+.bj-result.win{color:#ffd36b;text-shadow:0 0 24px rgba(245,184,61,.6)}
+.bj-result.lose{color:#fca5a5}
+.bj-result.push{color:#e5e7eb}
+.bj-controls{display:flex;justify-content:center;padding:16px;margin-top:14px}
+#bjBetBox{display:flex;flex-direction:column;align-items:center;gap:8px;width:min(520px,100%)}
+#bjBetBox[hidden]{display:none}
+#bjCoins{display:flex;flex-direction:column;align-items:center;gap:8px}
+#bjAmt{width:160px;font-size:18px;font-weight:800;text-align:center}
+.bj-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.chipbtn{width:52px;height:52px;border-radius:50%;font:800 12px Inter;color:#fff;background:radial-gradient(circle,#2b3245 55%,#3b82f6 56% 64%,#2b3245 65%);border:2px dashed rgba(255,255,255,.4)}
+.chipbtn:nth-child(2){background:radial-gradient(circle,#2b3245 55%,#22c55e 56% 64%,#2b3245 65%)}
+.chipbtn:nth-child(3){background:radial-gradient(circle,#2b3245 55%,#ef4444 56% 64%,#2b3245 65%)}
+.chipbtn:nth-child(4){background:radial-gradient(circle,#2b3245 55%,#f5b83d 56% 64%,#2b3245 65%)}
+.chipbtn:hover{transform:translateY(-2px)}
+.bj-deal{width:220px;padding:14px;font-size:17px}
+.bj-actions{display:flex;gap:10px}
+.bj-actions .btn{min-width:120px;padding:14px;font-size:16px}
+.bj-hist{display:flex;flex-direction:column;gap:4px}
+.bj-hrow{display:grid;grid-template-columns:180px 90px 1fr auto;gap:10px;padding:8px 12px;border-radius:9px;background:var(--panel);border-left:3px solid var(--line2)}
+.bj-hrow.win{border-left-color:var(--gold)} .bj-hrow.lose{border-left-color:var(--red)}
+@media (max-width:640px){.pcard{width:64px;height:92px;margin-left:-20px}.pcard b{font-size:16px}.pcard span{font-size:32px}.bj-table{border-radius:24px;min-height:360px}.bj-hrow{grid-template-columns:1fr 1fr}}

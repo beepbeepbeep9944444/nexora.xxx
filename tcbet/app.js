@@ -81,6 +81,8 @@ const SFX = (() => {
     coin() { tone(2600, .18, "triangle", .08); tone(3900, .12, "sine", .04, .02); },
     land() { tone(180, .12, "sine", .2, 0, 90); tone(2200, .3, "triangle", .06, .02); },
     count() { tone(660, .09, "square", .05); },
+    card() { noise(.07, .14, 2600); tone(1800, .03, "triangle", .03); },
+    chip() { tone(1400, .05, "triangle", .06); tone(2100, .05, "triangle", .04, .03); },
     heartbeat() { tone(70, .12, "sine", .35, 0, 50); tone(65, .12, "sine", .25, .18, 45); },
     join() { notes([784, 1175], .08, "triangle", .1); tone(1568, .25, "sine", .05, .16); },
     drumroll(ms) { const n = Math.floor(ms / 55); for (let i = 0; i < n; i++) noise(.05, .05 + .05 * i / n, 260, i * .055); },
@@ -1248,6 +1250,109 @@ function rrFinal(g, animated = false) {
   }
 }
 
+// ---------------------------------------------------------------- blackjack (coins or items)
+const BJ = { hand: null, mode: "coins", items: [], busy: false, shown: { p: 0, d: 0 }, history: [] };
+const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"], SUITS = ["♠", "♥", "♦", "♣"];
+const cardHtml = (c, back = false) => back ? `<div class="pcard back"><img src="logo-mark.svg" alt=""></div>`
+  : `<div class="pcard ${[1, 2].includes(Math.floor(c / 13)) ? "red" : ""}"><b>${RANKS[c % 13]}</b><i>${SUITS[Math.floor(c / 13)]}</i><span>${SUITS[Math.floor(c / 13)]}</span></div>`;
+const BJ_TEXT = { blackjack: ["BLACKJACK!", "win"], win: ["YOU WIN", "win"], dealer_bust: ["DEALER BUSTS", "win"], push: ["PUSH", "push"],
+  lose: ["DEALER WINS", "lose"], bust: ["BUST", "lose"], dealer_blackjack: ["DEALER BLACKJACK", "lose"] };
+async function viewBlackjack() {
+  $("#view").innerHTML = `<div class="page-head"><div><h1>Blackjack</h1><p>Beat the dealer to 21. Blackjack pays 3:2, wins pay 1:1, dealer stands on soft 17. Bet coins, or bet items and win House items worth the same.</p></div></div>
+    <div class="bj-table panel">
+      <div class="bj-side"><div class="bj-label">Dealer <span class="bj-total" id="bjDT"></span></div><div class="bj-cards" id="bjDealer"></div></div>
+      <div class="bj-mid"><div class="bj-result" id="bjResult"></div><div class="bj-rule">BLACKJACK PAYS 3 TO 2 · DEALER STANDS ON SOFT 17</div></div>
+      <div class="bj-side"><div class="bj-cards" id="bjPlayer"></div><div class="bj-label">You <span class="bj-total" id="bjPT"></span><span class="bj-bet" id="bjBetShow"></span></div></div>
+    </div>
+    <div class="panel bj-controls">
+      <div id="bjBetBox">
+        <div class="tabs" id="bjMode" style="display:inline-flex;margin-bottom:10px"><button data-m="coins" class="on">Bet coins</button><button data-m="items">Bet items</button></div>
+        <div id="bjCoins"><span class="val"><i class="coin"></i><input id="bjAmt" type="number" min="1" step="1" value="10"></span>
+          <div class="bj-chips">${[["+10", 10], ["+100", 100], ["+1K", 1000], ["+10K", 10000]].map(([t, v]) => `<button class="chipbtn" data-add="${v}">${t}</button>`).join("")}<button class="chipbtn" data-x="half">½</button><button class="chipbtn" data-x="dbl">2×</button><button class="chipbtn" data-x="max">Max</button><button class="chipbtn" data-x="clr">Clear</button></div></div>
+        <div id="bjItems" hidden><button class="btn" id="bjPick">Choose items to bet</button><div class="mini-items" id="bjItemList" style="flex-wrap:wrap;margin-top:8px"></div><div id="bjItemVal" class="muted" style="margin-top:6px"></div></div>
+        <button class="btn btn-gold bj-deal" id="bjDeal">Deal</button></div>
+      <div id="bjActions" hidden class="bj-actions"><button class="btn btn-grn" id="bjHit">Hit</button><button class="btn btn-red" id="bjStand">Stand</button><button class="btn btn-unu" id="bjDouble">Double</button></div>
+    </div>
+    <div class="section-title" style="margin-top:16px">Your recent hands</div><div id="bjHist" class="bj-hist"></div>`;
+  $("#bjMode").onclick = e => { const b = e.target.closest("button"); if (!b) return; BJ.mode = b.dataset.m; $$("#bjMode button").forEach(x => x.classList.toggle("on", x === b)); $("#bjCoins").hidden = BJ.mode !== "coins"; $("#bjItems").hidden = BJ.mode !== "items"; };
+  $(".bj-chips").onclick = e => { const b = e.target.closest(".chipbtn"); if (!b) return; SFX.chip();
+    const bal = ME.profile ? +ME.profile.balance : 0; let v = +$("#bjAmt").value || 0;
+    if (b.dataset.add) v += +b.dataset.add; else if (b.dataset.x === "half") v = Math.floor(v / 2); else if (b.dataset.x === "dbl") v *= 2; else if (b.dataset.x === "max") v = Math.min(250000, Math.floor(bal)); else v = 0;
+    $("#bjAmt").value = v; };
+  $("#bjPick").onclick = async () => { if (needLogin()) return; const it = await pickItems({ title: "Bet items at Blackjack", min: 1, confirm: "Use these items", hint: "Win and you get House items worth the same (1.5x on blackjack)." }); if (it) { BJ.items = it; drawBjItems(); } };
+  $("#bjDeal").onclick = bjDeal;
+  $("#bjHit").onclick = () => bjAct("bj_hit"); $("#bjStand").onclick = () => bjAct("bj_stand"); $("#bjDouble").onclick = () => bjAct("bj_double");
+  drawBjItems(); drawBjHist();
+  BJ.hand = null; BJ.shown = { p: 0, d: 0 }; drawBjTable(false);
+  if (ME.user) { try { const h = await rpc("bj_current"); if (h && $("#bjPlayer")) { BJ.hand = h; await drawBjTable(true); } } catch {} }
+}
+function drawBjItems() {
+  if (!$("#bjItemList")) return;
+  BJ.items = BJ.items.filter(i => ME.inv.some(x => x.id === i.id));
+  $("#bjItemList").innerHTML = BJ.items.map(mini).join("");
+  $("#bjItemVal").innerHTML = BJ.items.length ? `Betting ${coinVal(total(BJ.items))}` : "No items chosen";
+}
+function drawBjHist() {
+  if (!$("#bjHist")) return;
+  $("#bjHist").innerHTML = BJ.history.map(h => { const [t, k] = BJ_TEXT[h.result] || [h.result, ""]; return `<div class="bj-hrow ${k}"><b>${t}</b><span>${h.player_total} vs ${h.dealer_total}</span><span>bet ${coinVal(h.bet)}</span><span>${+h.payout >= +h.bet ? "+" : ""}${coinVal(+h.payout - +h.bet)}</span></div>`; }).join("") || `<div class="muted">No hands yet.</div>`;
+}
+// deals any new cards one at a time; when the hand ends the hole card flips over and the dealer draws
+async function drawBjTable(animate) {
+  const h = BJ.hand, P = $("#bjPlayer"), D = $("#bjDealer"); if (!P) return;
+  const playing = h?.status === "playing";
+  $("#bjActions").hidden = !playing; $("#bjBetBox").hidden = playing;
+  $("#bjDouble").hidden = !(playing && h.player.length === 2 && !h.items);
+  $("#bjResult").className = "bj-result"; $("#bjResult").innerHTML = "";
+  if (!h) { P.innerHTML = D.innerHTML = ""; $("#bjPT").textContent = $("#bjDT").textContent = ""; $("#bjBetShow").innerHTML = ""; return; }
+  $("#bjBetShow").innerHTML = ` · bet ${coinVal(h.bet)}${h.items ? " in items" : ""}`;
+  const deal = async (el, c, back) => { el.insertAdjacentHTML("beforeend", cardHtml(c, back)); if (animate) { el.lastElementChild.classList.add("deal"); SFX.card(); await sleep(330); } };
+  for (let i = BJ.shown.p; i < h.player.length; i++) { await deal(P, h.player[i]); BJ.shown.p = i + 1; }
+  $("#bjPT").textContent = h.player_total;
+  if (playing) {
+    if (BJ.shown.d === 0) { await deal(D, h.dealer[0]); await deal(D, 0, true); BJ.shown.d = 2; }
+    $("#bjDT").textContent = h.dealer_total;
+    return;
+  }
+  if (BJ.shown.d === 0) { await deal(D, h.dealer[0]); BJ.shown.d = 1; }
+  const hole = D.querySelector(".pcard.back");
+  if (hole) { hole.outerHTML = cardHtml(h.dealer[1]); if (animate) { D.children[1].classList.add("flip"); SFX.card(); await sleep(450); } }
+  else if (BJ.shown.d === 1) { await deal(D, h.dealer[1]); }
+  BJ.shown.d = Math.max(BJ.shown.d, 2);
+  for (let i = BJ.shown.d; i < h.dealer.length; i++) { await deal(D, h.dealer[i]); BJ.shown.d = i + 1; if (animate) await sleep(150); }
+  $("#bjDT").textContent = h.dealer_total;
+  const [txt, kind] = BJ_TEXT[h.result] || [h.result, ""], net = +h.payout - +h.bet;
+  $("#bjResult").className = "bj-result show " + kind;
+  $("#bjResult").innerHTML = `${txt}<small>${net > 0 ? "+" : ""}${coinVal(net)}${h.won?.length ? ` · won ${h.won.length} item${h.won.length === 1 ? "" : "s"}` : ""}</small>`;
+  if (animate) {
+    if (kind === "win") { confetti($("#bjResult"), h.result === "blackjack" ? 90 : 50); if (net >= BIG_WIN) bigWin(+h.payout, h.result === "blackjack" ? "Blackjack!" : "Blackjack win"); else if (h.result === "blackjack") SFX.rare(); else { SFX.good(); SFX.cash(); } }
+    else if (kind === "push") SFX.win(); else SFX.lose();
+    BJ.history.unshift(h); BJ.history = BJ.history.slice(0, 10); drawBjHist();
+    if (h.won?.length) toast(`You won ${h.won.map(x => esc(label({ n: x.n, fx: x.fx }))).join(", ")}`, "good");
+  }
+}
+async function bjDeal() {
+  if (needLogin() || BJ.busy) return;
+  BJ.busy = true; $("#bjDeal").disabled = true;
+  try {
+    if (BJ.mode === "items" && !BJ.items.length) throw new Error("Choose some items to bet first");
+    const h = BJ.mode === "items" ? await rpc("bj_start_items", { p_ids: BJ.items.map(i => i.id) }) : await rpc("bj_start", { p_bet: +$("#bjAmt").value });
+    if (BJ.mode === "items") BJ.items = [];
+    BJ.hand = h; BJ.shown = { p: 0, d: 0 };
+    $("#bjPlayer").innerHTML = $("#bjDealer").innerHTML = "";
+    ME.profile.balance = h.balance; syncTop();
+    await drawBjTable(true);
+    await refreshMe(); drawBjItems();
+  } catch (e) { fail(e); }
+  BJ.busy = false; if ($("#bjDeal")) $("#bjDeal").disabled = false;
+}
+async function bjAct(fn) {
+  if (BJ.busy) return; BJ.busy = true;
+  $$("#bjActions button").forEach(b => b.disabled = true);
+  try { BJ.hand = await rpc(fn); ME.profile.balance = BJ.hand.balance; syncTop(); await drawBjTable(true); if (BJ.hand.status !== "playing") { await refreshMe(); bumpBalance(); } }
+  catch (e) { fail(e); }
+  $$("#bjActions button").forEach(b => b.disabled = false); BJ.busy = false;
+}
+
 // ---------------------------------------------------------------- value list: every item and every possible unusual
 let ALL_VALUES = null;
 function allValues() {
@@ -1494,7 +1599,7 @@ function render() {
   closeModal();
   const [r, arg] = route();
   $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r)));
-  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues }[r] || viewCases)();
+  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack }[r] || viewCases)();
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", render);
