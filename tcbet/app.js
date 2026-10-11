@@ -972,29 +972,43 @@ async function joinBattle(id, slot) {
 }
 function createBattle() {
   if (needLogin()) return;
-  const st = { mode: MODES[0], crazy: false, cases: [] };
+  const MAX = 30, st = { mode: MODES[0], crazy: false, cases: [], last: null };
   const m = modal(`<h2>Create a case battle</h2>
     <div class="section-title">Mode</div><div class="tabs" id="bcMode" style="display:inline-flex">${MODES.map((x, i) => `<button data-i="${i}" class="${i ? "" : "on"}">${x.k}</button>`).join("")}</div>
     <div class="tabs" id="bcType" style="display:inline-flex;margin-left:8px"><button data-c="0" class="on">Normal</button><button data-c="1">Crazy</button></div>
     <div class="muted" id="bcHint" style="margin:8px 0 12px">Highest total value wins.</div>
-    <div class="section-title">Cases (up to 30, click to add)</div><div class="b-picked" id="bcPicked"></div>
+    <div class="bc-head"><div class="section-title" style="margin:0">Your cases <span id="bcCount"></span></div>
+      <div style="display:flex;gap:6px"><button class="btn bc-small" id="bcFill">Fill to ${MAX}</button><button class="btn bc-small" id="bcClear">Clear all</button></div></div>
+    <div class="b-picked" id="bcPicked"></div>
     <input id="bcQ" placeholder="Search cases…" style="width:100%;margin:8px 0">
     <div class="b-pick" id="bcPick"></div>
     <div class="sel-bar"><span class="grow" id="bcInfo"></span><button class="btn" data-close>Cancel</button><button class="btn btn-gold" id="bcGo" disabled>Create</button></div>`);
+  const add = (id, n) => { const k = Math.max(0, Math.min(n, MAX - st.cases.length)); for (let i = 0; i < k; i++) st.cases.push(id); if (k) { st.last = id; SFX.click(); } else toast(`Battles hold up to ${MAX} cases`, "bad"); };
+  const removeOne = id => { const i = st.cases.lastIndexOf(id); if (i >= 0) st.cases.splice(i, 1); };
   const draw = () => {
     const cost = r2(st.cases.reduce((s, id) => s + caseById(id).price, 0));
-    $("#bcPicked").innerHTML = st.cases.map((id, i) => { const c = caseById(id); return `<button class="b-chip" data-rm="${i}" title="Remove">${caseStrip([id])}<span>${esc(c.name)}</span>✕</button>`; }).join("") || `<span class="muted">No cases yet</span>`;
+    // group the picked cases as "Case ×N" in the order they were first added
+    const groups = []; for (const id of st.cases) { const g = groups.find(x => x.id === id); g ? g.n++ : groups.push({ id, n: 1 }); }
+    $("#bcPicked").innerHTML = groups.map(g => { const c = caseById(g.id); return `<div class="bc-group">${caseStrip([g.id])}<span class="bc-name">${esc(c.name)}</span>
+      <button class="bc-step" data-dec="${g.id}">−</button><b class="bc-n">×${g.n}</b><button class="bc-step" data-inc="${g.id}">+</button><button class="bc-x" data-rmall="${g.id}" title="Remove all">✕</button></div>`; }).join("") || `<span class="muted">No cases yet. Add some below.</span>`;
+    $("#bcCount").textContent = `(${st.cases.length}/${MAX})`;
     $("#bcInfo").innerHTML = `${st.mode.k}${st.crazy ? " Crazy" : ""} · ${st.cases.length} case${st.cases.length === 1 ? "" : "s"} · ${coinVal(cost)} per seat`;
     $("#bcGo").disabled = !st.cases.length;
+    $("#bcFill").disabled = !st.last || st.cases.length >= MAX;
   };
   const drawPick = () => { const q = $("#bcQ").value.toLowerCase();
-    $("#bcPick").innerHTML = CASES.filter(c => c.name.toLowerCase().includes(q)).map(c => `<button class="b-opt" data-add="${c.id}">${caseStrip([c.id])}<span>${esc(c.name)}</span>${coinVal(c.price)}</button>`).join(""); };
+    $("#bcPick").innerHTML = CASES.filter(c => c.name.toLowerCase().includes(q)).map(c => `<div class="b-opt">${caseStrip([c.id])}<span>${esc(c.name)}<br>${coinVal(c.price)}</span>
+      <div class="bc-adds">${[1, 5, 10].map(n => `<button class="bc-add" data-add="${c.id}" data-n="${n}">+${n}</button>`).join("")}</div></div>`).join(""); };
   m.onclick = e => {
-    const md = e.target.closest("#bcMode [data-i]"), ty = e.target.closest("#bcType [data-c]"), ad = e.target.closest("[data-add]"), rm = e.target.closest("[data-rm]");
-    if (md) { st.mode = MODES[+md.dataset.i]; $$("#bcMode button").forEach(b => b.classList.toggle("on", b === md)); }
-    if (ty) { st.crazy = ty.dataset.c === "1"; $$("#bcType button").forEach(b => b.classList.toggle("on", b === ty)); $("#bcHint").textContent = st.crazy ? "Crazy: the LOWEST total value wins." : "Highest total value wins."; }
-    if (ad && st.cases.length < 30) { st.cases.push(ad.dataset.add); SFX.click(); }
-    if (rm) st.cases.splice(+rm.dataset.rm, 1);
+    const t = e.target.closest("button"); if (!t) return;
+    if (t.closest("#bcMode")) { st.mode = MODES[+t.dataset.i]; $$("#bcMode button").forEach(b => b.classList.toggle("on", b === t)); }
+    if (t.closest("#bcType")) { st.crazy = t.dataset.c === "1"; $$("#bcType button").forEach(b => b.classList.toggle("on", b === t)); $("#bcHint").textContent = st.crazy ? "Crazy: the LOWEST total value wins." : "Highest total value wins."; }
+    if (t.dataset.add) add(t.dataset.add, +t.dataset.n);
+    if (t.dataset.inc) add(t.dataset.inc, 1);
+    if (t.dataset.dec) removeOne(t.dataset.dec);
+    if (t.dataset.rmall) st.cases = st.cases.filter(id => id !== t.dataset.rmall);
+    if (t.id === "bcFill" && st.last) add(st.last, MAX);
+    if (t.id === "bcClear") st.cases = [];
     draw();
   };
   $("#bcQ").oninput = drawPick;
