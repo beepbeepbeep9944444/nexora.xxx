@@ -112,13 +112,16 @@ def value(n, fx=None):  # keep in sync with item_value() in schema.sql and value
     if not ux: v = max(v, b.get("fany", 0))
     return r2(v)
 
-def fx_for(hat, groups):
-    return [e for e in EFFECTS if legal(hat, e) and any(g in groups and g in hat["fx"] for g in e["g"])]
+def fx_for(hat, groups, only=None):
+    return [e for e in EFFECTS if legal(hat, e) and any(g in groups and g in hat["fx"] for g in e["g"]) and (not only or e["name"] in only)]
 
-def unusual_entry(hats, groups, w):
-    # server rolls: random hat, then random legal effect within the case's groups
-    evs = [sum(value(h["name"], e["name"]) for e in fx_for(h, groups)) / len(fx_for(h, groups)) for h in hats]
-    return dict(unusual=True, hats=[h["name"] for h in hats], groups=groups, w=w, ev=sum(evs) / len(evs))
+def unusual_entry(hats, groups, w, only=None):
+    # server rolls: random hat, then random legal effect within the case's groups (optionally limited to `only` effects)
+    hats = [h for h in hats if fx_for(h, groups, only)]
+    evs = [sum(value(h["name"], e["name"]) for e in fx_for(h, groups, only)) / len(fx_for(h, groups, only)) for h in hats]
+    d = dict(unusual=True, hats=[h["name"] for h in hats], groups=groups, w=w, ev=sum(evs) / len(evs))
+    if only: d["effects"] = list(only)
+    return d
 
 def tier_markup(ev):
     # higher-tier crates are a bigger risk: house edge grows with value (EV 10 -> 1.15x, 100 -> 1.40x, 1000+ -> 1.65x)
@@ -225,7 +228,40 @@ low = [
               [i for i in ITEMS if i.get("unu") and "S1" in i["fx"] and i["name"] not in ranked and (i.get("yr") or 0) >= 2019], ["S1"], .006, "Classic", "Year-round items"),
 ]
 for c in low: print(f"  low tier {c['name']}: price {c['price']}  avg payout {c['ev']}  unusual {sum(e['p'] for e in c['entries'] if e.get('unusual')) * 100:.2f}%")
-cases = [gc, cv, fv, gg, ub, cc] + low + cases
+# ---- highroller + themed crates
+GOLD = ["Golden Frying Pan", "Frying Pan", "Golden Knife", "Golden Wrench"]
+s1_hats = [i for i in ITEMS if i.get("unu") and "S1" in i["fx"]]
+summer_hats = [i for i in ITEMS if i.get("unu") and set(i["fx"]) & {"S2", "S5", "S6", "S8"}]
+top2018 = [ITEM[h] for h in list(GRAILS) + TOP_HATS[:16]]
+def themed(cid, name, img, entries, season, tag, target_ratio=None, filler=None, price=None):
+    if filler is not None: entries = tuned(entries, filler, (price or 0) / target_ratio)
+    return build(cid, name, img, entries, season, tag, price=price)
+hr_fill = [unusual_entry(top2018, STD, 40, ["Burning", "Scorching Energy", "Singularity", "Black Hole"])]
+extra = [
+    themed("highroller-vault", "Highroller Vault", ITEM["Golden Frying Pan"]["img"], [
+        dict(n="Golden Frying Pan", w=20), dict(n="Frying Pan", w=14), dict(n="Golden Knife", w=10), dict(n="Golden Wrench", w=10),
+        unusual_entry([ITEM[h] for h in GRAILS], STD, 25, ["Burning", "Scorching Energy"])], "Classic", "Highroller", price=100000),
+    build("burning-crate", "Burning Crate", ITEM["Hard News"]["img"], [unusual_entry(s1_hats, ["S1"], 1, ["Burning"])], "Classic", "Guaranteed Burning"),
+    build("scorching-crate", "Scorching Crate", ITEM["Shady Character"]["img"], [unusual_entry(s1_hats, ["S1"], 1, ["Scorching Energy"])], "Classic", "Guaranteed Scorching Energy"),
+    build("nebula-crate", "Nebula Crate", ITEM["Summer Blockers"]["img"], [unusual_entry(summer_hats, ["S2"], 1, ["Nebula", "Sunrise", "Dawn"])], "Summer", "Nebula / Sunrise / Dawn"),
+    build("golden-trio", "Golden Trio", ITEM["Golden Knife"]["img"], tuned([dict(n="Golden Frying Pan", w=2), dict(n="Frying Pan", w=4), dict(n="Golden Knife", w=10), dict(n="Golden Wrench", w=10),
+        *(gt_fill := [dict(n=i["name"], w=1) for i in ITEMS if i.get("q") == "Collector's"])], gt_fill, 40000 / 1.45), "Weapons", "Golden weapons", price=40000),
+    build("haunted-crypt", "Haunted Crypt", ITEM["Knightmare"]["img"], [*[dict(n=i["name"], w=1) for i in ITEMS if i.get("q") == "Haunted"],
+        unusual_entry([i for i in ITEMS if "HAUNT" in i.get("fx", [])], ["HAUNT"], 4)], "Halloween", "Haunted"),
+    build("collectors-vault", "Collector's Vault", ITEM["Collector's Rising Sun Katana"]["img"], [*[dict(n=i["name"], w=1 / max(i["v"], 1) ** .3) for i in ITEMS if i.get("q") == "Collector's"]], "Weapons", "Guaranteed Collector's"),
+    low_crate("classics-2018", "2018 Classics", CRATE_IMG.get("Cosmetic Crate Classic"), sorted({i["name"] for i in ITEMS if (i.get("yr") or 0) <= 2018 and not i.get("weapon") and i["v"] < 50}),
+              [i for i in ITEMS if i.get("unu") and (i.get("yr") or 0) <= 2018 and "S1" in i["fx"]], ["S1"], .05, "Classic", "2017-18 hats"),
+    build("unusualifier-pack", "Unusualifier Pack", CRATE_IMG.get("Cosmetic Crate 1"), [unusual_entry([i for i in ITEMS if i.get("unu")], ["UX"], 1)], "Classic", "Guaranteed (cheap) unusual"),
+]
+CLASS_IMG = {c: "https://static.wikia.nocookie.net/tc2/images/" + f for c, f in {"Flanker": "a/aa/Flankertransparent.png", "Trooper": "b/be/Troopertransparent.png",
+    "Arsonist": "7/7b/Arsonisttransparent.png", "Annihilator": "3/3c/Annihilatortransparent.png", "Brute": "2/26/Brutetransparent.png", "Mechanic": "a/a2/Mechanictransparent.png",
+    "Doctor": "d/d1/Doctortransparent.png", "Marksman": "4/46/Marksmantransparent.png", "Agent": "5/56/Agenttransparent.png"}.items()}
+for cls in CLASS_IMG:
+    mine = [i for i in ITEMS if not i.get("weapon") and cls in (i.get("worn") or "") and i["v"] < 30]
+    hats = [i for i in mine if i.get("unu") and i["name"] not in ranked]
+    extra.append(low_crate(f"{cls.lower()}-crate", f"{cls} Crate", CLASS_IMG[cls], [i["name"] for i in mine], hats, STD, .012, "Classic", f"{cls} cosmetics"))
+for c in extra: print(f"  new {c['name']:<20} price {c['price']:>12,}  avg payout {c['ev']:>12,.0f}  ({c['ev'] / c['price'] * 100:.0f}%)  drops {len(c['entries'])}")
+cases = [gc, cv, fv, gg, ub, cc] + extra + low + cases
 for i, c in enumerate(cases): c["sort"] = i
 
 # ---- client data
@@ -248,9 +284,9 @@ L.append(",\n".join(f"({q(c['id'])},{q(c['name'])},{c['price']},{c['sort']})" fo
 rows = []
 for c in cases:
     for k, e in enumerate(c["entries"]):
-        if e.get("unusual"): rows.append(f"({q(c['id'])},{k},NULL,{e['p']!r},true,{arr(e['groups'])},{arr(e['hats'])})")
-        else: rows.append(f"({q(c['id'])},{k},{q(e['n'])},{e['p']!r},false,NULL,NULL)")
-L.append("insert into case_entries(case_id,idx,name,p,unusual,groups,hats) values")
+        if e.get("unusual"): rows.append(f"({q(c['id'])},{k},NULL,{e['p']!r},true,{arr(e['groups'])},{arr(e['hats'])},{arr(e['effects']) if e.get('effects') else 'NULL'})")
+        else: rows.append(f"({q(c['id'])},{k},{q(e['n'])},{e['p']!r},false,NULL,NULL,NULL)")
+L.append("insert into case_entries(case_id,idx,name,p,unusual,groups,hats,effects) values")
 L.append(",\n".join(rows) + ";")
 # drop anything players own that no longer exists (e.g. removed admin items/effects)
 L.append("delete from inventory where name not in (select name from catalog) or (fx is not null and fx not in (select name from effects));")

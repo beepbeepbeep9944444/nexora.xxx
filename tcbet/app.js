@@ -407,7 +407,8 @@ async function unusualSpin(reel, c, win, ms) {
   wrap.classList.add("unu-flash"); SFX.rare(); await sleep(ms > 2000 ? 900 : 300);
   const e = c?.entries?.find(x => x.unusual);
   const hats = (e?.hats || [win.n]).map(n => ITEM[n]).filter(Boolean), groups = e?.groups || [...STANDARD];
-  const combo = () => { for (let i = 0; i < 20; i++) { const h = pick(hats), o = allowedFx(h).filter(f => f.g.some(g => groups.includes(g) && h.fx.includes(g))); if (o.length) return { n: h.name, fx: pick(o).name }; } return win; };
+  const only = e?.effects;
+  const combo = () => { for (let i = 0; i < 20; i++) { const h = pick(hats), o = allowedFx(h).filter(f => f.g.some(g => groups.includes(g) && h.fx.includes(g)) && (!only || only.includes(f.name))); if (o.length) return { n: h.name, fx: pick(o).name }; } return win; };
   reel.innerHTML = Array.from({ length: N }, (_, i) => card(i === WIN ? win : combo())).join("");
   wrap.classList.remove("unu-flash"); wrap.classList.add("unu-mode");
   const offset = WIN * W + rand(10, 140) - wrap.clientWidth / 2, t = ms > 2000 ? 4200 : 1400;

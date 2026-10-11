@@ -9,6 +9,7 @@ alter table catalog add column if not exists fany float8 not null default 0;
 create table if not exists effects (name text primary key, m float8 not null, g text[] not null);
 create table if not exists cases (id text primary key, name text not null, price numeric(14,2) not null, sort int not null default 0);
 create table if not exists case_entries (case_id text references cases on delete cascade, idx int, name text, p float8 not null, unusual bool not null default false, groups text[], hats text[], primary key (case_id, idx));
+alter table case_entries add column if not exists effects text[];   -- optional: an unusual entry that only rolls these effects (e.g. Burning Crate)
 
 -- ============================================================ players
 create table if not exists profiles (
@@ -191,7 +192,7 @@ begin
   if e.unusual then
     hat := e.hats[1 + floor(random() * cardinality(e.hats))::int];
     select array(select unnest(e.groups) intersect select unnest(fx)) into inter from catalog where name = hat;
-    select name into fxn from effects where g && inter order by random() limit 1;
+    select name into fxn from effects where g && inter and (e.effects is null or name = any(e.effects)) order by random() limit 1;
   else hat := e.name; fxn := null; end if;
   return jsonb_build_object('n', hat, 'fx', fxn, 'v', item_value(hat, fxn));
 end $$;
