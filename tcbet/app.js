@@ -1368,72 +1368,100 @@ async function bjAct(fn) {
 }
 
 // ---------------------------------------------------------------- keno (coins): pick 1-10 of 40, server draws 10
-const KENO_PAY = {"1": [0.0, 3.8], "2": [0.0, 1.4, 6.8], "3": [0.0, 0.0, 4.2, 31], "4": [0.0, 0.0, 2.0, 8.2, 84], "5": [0.0, 0.0, 0.0, 5.8, 33, 460], "6": [0.0, 0.0, 0.0, 3.0, 12, 93, 1749], "7": [0.0, 0.0, 0.0, 0.0, 9.5, 51, 533, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.1, 21, 153, 2169, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 97, 957, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.2, 41, 312, 4353, 5000, 10000]};   // same table as keno_paytable() on the server
-const KN = { picks: new Set(), busy: false, last: null, history: [] };
+const KENO_PAY = {"classic": {"1": [0.0, 3.8], "2": [0.0, 1.4, 6.8], "3": [0.0, 0.0, 4.2, 31], "4": [0.0, 0.0, 2.0, 8.2, 84], "5": [0.0, 0.0, 0.0, 5.8, 33, 460], "6": [0.0, 0.0, 0.0, 3.0, 12, 93, 1749], "7": [0.0, 0.0, 0.0, 0.0, 9.5, 51, 533, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.1, 21, 153, 2169, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 97, 957, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.2, 41, 312, 4353, 5000, 10000]}, "low": {"1": [0.0, 3.7], "2": [0.0, 1.7, 5.0], "3": [0.0, 1.2, 2.3, 8.8], "4": [0.0, 0.99, 1.5, 3.7, 18], "5": [0.0, 0.9, 1.1, 2.3, 7.2, 42], "6": [0.0, 0.0, 1.4, 2.4, 5.9, 23, 168], "7": [0.0, 0.0, 1.1, 1.7, 3.5, 11, 52, 458], "8": [0.0, 0.0, 1.0, 1.3, 2.4, 6.3, 24, 141, 1000], "9": [0.0, 0.0, 0.0, 1.6, 2.7, 6.0, 19, 87, 653, 1000], "10": [0.0, 0.0, 0.0, 1.3, 2.0, 3.9, 11, 41, 242, 1000, 1000]}, "medium": {"1": [0.0, 3.7], "2": [0.0, 1.3, 7.4], "3": [0.0, 0.0, 3.9, 34], "4": [0.0, 0.0, 1.8, 8.2, 105], "5": [0.0, 0.0, 0.0, 5.0, 33, 607], "6": [0.0, 0.0, 0.0, 2.5, 11, 108, 2725], "7": [0.0, 0.0, 0.0, 0.0, 8.0, 50, 660, 10000], "8": [0.0, 0.0, 0.0, 0.0, 4.2, 20, 177, 3249, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 15, 95, 1179, 10000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 7.6, 39, 362, 6542, 10000, 10000]}, "high": {"1": [0.0, 3.7], "2": [0.0, 0.0, 16], "3": [0.0, 0.0, 3.0, 44], "4": [0.0, 0.0, 0.0, 10, 239], "5": [0.0, 0.0, 0.0, 3.0, 31, 1077], "6": [0.0, 0.0, 0.0, 0.0, 9.7, 150, 7744], "7": [0.0, 0.0, 0.0, 0.0, 0.0, 46, 1058, 50000], "8": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 245, 8608, 50000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 97, 2089, 50000, 50000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 34, 513, 17605, 50000, 50000]}};   // [risk][picks][hits] -> multiplier, same as keno_paytable() on the server
+const KN = { picks: new Set(), busy: false, mode: "manual", risk: "classic", auto: false, history: [] };
+const RISKS = [["classic", "Classic"], ["low", "Low"], ["medium", "Medium"], ["high", "High"]];
 function viewKeno() {
-  $("#view").innerHTML = `<div class="page-head"><div><h1>Keno</h1><p>Pick 1 to 10 numbers, place a bet, and 10 numbers are drawn. The more you match, the bigger the multiplier.</p></div></div>
-    <div class="kn-wrap"><div class="panel kn-board-wrap"><div class="kn-board" id="knBoard">${Array.from({ length: 40 }, (_, i) => `<button class="kn-cell" data-n="${i + 1}">${i + 1}</button>`).join("")}</div>
-      <div class="kn-tools"><button class="btn" id="knRandom">Random pick</button><button class="btn" id="knClear">Clear</button><span class="muted" id="knCount"></span></div></div>
-    <div class="kn-side"><div class="panel" style="padding:14px"><div class="section-title">Bet</div>
-        <span class="val"><i class="coin"></i><input id="knAmt" type="number" min="1" step="1" value="10" style="width:150px;font-size:18px;font-weight:800;text-align:center"></span>
-        <div class="bj-chips" style="margin-top:8px">${[["+10", 10], ["+100", 100], ["+1K", 1000], ["+10K", 10000]].map(([t, v]) => `<button class="chipbtn" data-add="${v}">${t}</button>`).join("")}<button class="chipbtn" data-x="half">½</button><button class="chipbtn" data-x="dbl">2×</button><button class="chipbtn" data-x="max">Max</button></div>
-        <button class="btn btn-gold" id="knPlay" style="width:100%;margin-top:12px;padding:14px;font-size:17px">Play</button>
-        <div class="kn-result" id="knResult"></div></div>
-      <div class="panel" style="padding:14px"><div class="section-title">Payouts <span id="knPayFor"></span></div><div id="knPay" class="kn-pay"></div></div></div></div>
-    <div class="section-title" style="margin-top:16px">Your recent rounds</div><div id="knHist" class="bj-hist"></div>`;
-  $("#knBoard").onclick = e => { const c = e.target.closest(".kn-cell"); if (!c || KN.busy) return; const n = +c.dataset.n;
-    if (KN.picks.has(n)) KN.picks.delete(n); else if (KN.picks.size < 10) KN.picks.add(n); else return toast("Pick up to 10 numbers", "bad");
+  $("#view").innerHTML = `<div class="kx">
+    <div class="kx-side">
+      <div class="kx-tabs" id="kxMode"><button data-m="manual" class="on">Manual</button><button data-m="auto">Auto</button></div>
+      <div class="kx-lbl"><span>Bet Amount</span><span id="kxBal"></span></div>
+      <div class="kx-amt"><i class="coin"></i><input id="kxAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button></div>
+      <div class="kx-lbl"><span>Risk</span></div>
+      <div class="kx-risk" id="kxRisk">${RISKS.map(([k, t]) => `<button data-r="${k}" class="r-${k} ${k === "classic" ? "on" : ""}">${t}</button>`).join("")}</div>
+      <div id="kxAutoBox" hidden><div class="kx-lbl"><span>Number of Bets</span><span class="muted">0 = until stopped</span></div><div class="kx-amt"><input id="kxCount" type="number" min="0" step="1" value="10"></div></div>
+      <div class="kx-two"><button id="kxPick">Auto pick</button><button id="kxClear">Clear table</button></div>
+      <button class="kx-bet" id="kxBet">Bet</button>
+      <div class="kx-sess" id="kxSess"></div>
+    </div>
+    <div class="kx-main">
+      <div class="kx-board" id="kxBoard">${Array.from({ length: 40 }, (_, i) => `<button class="kx-cell" data-n="${i + 1}"><span>${i + 1}</span></button>`).join("")}</div>
+      <div class="kx-pop" id="kxPop"></div>
+      <div class="kx-strip" id="kxStrip"></div>
+    </div></div>`;
+  $("#kxMode").onclick = e => { const b = e.target.closest("button"); if (!b || KN.auto) return; KN.mode = b.dataset.m; $$("#kxMode button").forEach(x => x.classList.toggle("on", x === b)); $("#kxAutoBox").hidden = KN.mode !== "auto"; drawKeno(); };
+  $("#kxRisk").onclick = e => { const b = e.target.closest("button"); if (!b || KN.busy) return; KN.risk = b.dataset.r; $$("#kxRisk button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); clearDraw(); drawKeno(); };
+  $(".kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#kxAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(1000000, v * 2); $("#kxAmt").value = v; SFX.chip(); drawKeno(); };
+  $("#kxAmt").oninput = drawKeno;
+  $("#kxBoard").onclick = e => { const c = e.target.closest(".kx-cell"); if (!c || KN.busy) return; const n = +c.dataset.n;
+    if (KN.picks.has(n)) KN.picks.delete(n); else if (KN.picks.size < 10) KN.picks.add(n); else return;
     SFX.click(); clearDraw(); drawKeno(); };
-  $("#knRandom").onclick = () => { if (KN.busy) return; const k = KN.picks.size || 5; KN.picks = new Set([...Array(40).keys()].map(i => i + 1).sort(() => Math.random() - .5).slice(0, k)); SFX.chip(); clearDraw(); drawKeno(); };
-  $("#knClear").onclick = () => { if (KN.busy) return; KN.picks.clear(); clearDraw(); drawKeno(); };
-  $(".kn-side .bj-chips").onclick = e => { const b = e.target.closest(".chipbtn"); if (!b) return; SFX.chip();
-    const bal = ME.profile ? +ME.profile.balance : 0; let v = +$("#knAmt").value || 0;
-    if (b.dataset.add) v += +b.dataset.add; else if (b.dataset.x === "half") v = Math.floor(v / 2); else if (b.dataset.x === "dbl") v *= 2; else v = Math.min(1000000, Math.floor(bal));
-    $("#knAmt").value = v; drawKeno(); };
-  $("#knAmt").oninput = drawKeno;
-  $("#knPlay").onclick = playKeno;
-  drawKeno(); drawKenoHist();
+  $("#kxPick").onclick = () => { if (KN.busy) return; const k = KN.picks.size || 10; KN.picks = new Set([...Array(40).keys()].map(i => i + 1).sort(() => Math.random() - .5).slice(0, k)); SFX.chip(); clearDraw(); drawKeno(); };
+  $("#kxClear").onclick = () => { if (KN.busy) return; KN.picks.clear(); clearDraw(); drawKeno(); };
+  $("#kxBet").onclick = () => { if (KN.mode === "auto") { if (KN.auto) { KN.auto = false; drawKeno(); } else runAutoKeno(); } else playKeno(); };
+  drawKeno();
 }
-const clearDraw = () => { $$(".kn-cell").forEach(c => c.classList.remove("drawn", "hit")); $("#knResult").className = "kn-result"; $("#knResult").innerHTML = ""; $$(".kn-pay-row").forEach(r => r.classList.remove("on")); };
-function drawKeno(hits = null) {
-  if (!$("#knBoard")) return;
-  $$(".kn-cell").forEach(c => c.classList.toggle("picked", KN.picks.has(+c.dataset.n)));
-  const k = KN.picks.size, bet = +$("#knAmt").value || 0;
-  $("#knCount").textContent = `${k}/10 picked`;
-  $("#knPayFor").textContent = k ? `(${k} pick${k === 1 ? "" : "s"})` : "";
-  const row = KENO_PAY[k] || [];
-  $("#knPay").innerHTML = k ? row.map((m, h) => ({ m, h })).filter(x => x.m > 0).reverse().map(x => `<div class="kn-pay-row ${hits === x.h ? "on" : ""}"><span>${x.h} hit${x.h === 1 ? "" : "s"}</span><b>${x.m}×</b><span class="muted">${coinVal(bet * x.m)}</span></div>`).join("") : `<div class="muted">Pick some numbers to see the payouts.</div>`;
-  $("#knPlay").disabled = !k || KN.busy;
+const clearDraw = () => { $$(".kx-cell").forEach(c => c.classList.remove("drawn", "hit", "miss")); $("#kxPop").className = "kx-pop"; drawStrip(null); };
+function drawStrip(hits) {
+  const k = KN.picks.size, row = KENO_PAY[KN.risk]?.[k];
+  if (!k || !row) { $("#kxStrip").innerHTML = `<div class="kx-hint">Select 1 - 10 numbers to play</div>`; return; }
+  $("#kxStrip").innerHTML = `<div class="kx-mults">${row.map((m, h) => `<div class="kx-m ${hits === h ? "on" : ""} ${m >= 1 ? "pay" : ""}"><b>${m ? (m >= 100 ? Math.round(m).toLocaleString() : m) : 0}x</b><span>${h} <i>◆</i></span></div>`).join("")}</div>`;
 }
-function drawKenoHist() {
-  if (!$("#knHist")) return;
-  $("#knHist").innerHTML = KN.history.map(r => `<div class="bj-hrow ${+r.payout > +r.bet ? "win" : "lose"}"><b>${r.hits}/${r.picks.length} hits · ${r.multiplier}×</b><span>${r.picks.length} picks</span><span>bet ${coinVal(r.bet)}</span><span>${+r.payout >= +r.bet ? "+" : ""}${coinVal(+r.payout - +r.bet)}</span></div>`).join("") || `<div class="muted">No rounds yet.</div>`;
+function drawKeno() {
+  if (!$("#kxBoard")) return;
+  $$(".kx-cell").forEach(c => c.classList.toggle("picked", KN.picks.has(+c.dataset.n)));
+  $("#kxBal").innerHTML = ME.profile ? coinVal(ME.profile.balance) : "";
+  if (!$(".kx-cell.drawn")) drawStrip(null);
+  const k = KN.picks.size, b = $("#kxBet");
+  b.textContent = KN.mode === "auto" ? (KN.auto ? "Stop Autobet" : "Start Autobet") : "Bet";
+  b.disabled = !k || (KN.busy && !KN.auto);
+  b.classList.toggle("stop", KN.auto);
+  $$("#kxRisk button, #kxPick, #kxClear").forEach(x => x.disabled = KN.busy || KN.auto);
+}
+async function kenoRound(fast) {
+  const r = await rpc("keno_play", { p_picks: [...KN.picks], p_bet: +$("#kxAmt").value, p_risk: KN.risk });
+  ME.profile.balance = +r.balance - +r.payout; syncTop(); if ($("#kxBal")) $("#kxBal").innerHTML = coinVal(ME.profile.balance);
+  clearDraw();
+  for (const n of r.draw) {             // tiles flip over one at a time
+    if (!$("#kxBoard")) return r;
+    const c = $(`.kx-cell[data-n="${n}"]`), hit = KN.picks.has(n);
+    c.classList.add("drawn", hit ? "hit" : "miss");
+    if (hit) SFX.coin(); else SFX.tick();
+    await sleep(fast ? 70 : hit ? 210 : 150);
+  }
+  if (!$("#kxBoard")) return r;
+  drawStrip(r.hits);
+  const net = +r.payout - +r.bet;
+  if (+r.payout > 0) {
+    $("#kxPop").className = "kx-pop show"; $("#kxPop").innerHTML = `<b>${r.multiplier}x</b><span>${coinVal(r.payout)}</span>`;
+    if (net >= BIG_WIN) bigWin(+r.payout, `Keno ${r.hits}/${r.picks.length}`); else if (r.multiplier >= 10) { SFX.rare(); confetti($("#kxPop"), 60); } else SFX.good();
+  } else if (!fast) SFX.lose();
+  KN.history.unshift(r); KN.history = KN.history.slice(0, 50);
+  const s = KN.history.reduce((a, x) => ({ n: a.n + 1, w: a.w + (+x.payout - +x.bet) }), { n: 0, w: 0 });
+  $("#kxSess").innerHTML = `Session: ${s.n} round${s.n === 1 ? "" : "s"} · ${s.w >= 0 ? "+" : ""}${coinVal(s.w)}`;
+  return r;
 }
 async function playKeno() {
   if (needLogin() || KN.busy || !KN.picks.size) return;
-  KN.busy = true; drawKeno(); clearDraw();
-  try {
-    const r = await rpc("keno_play", { p_picks: [...KN.picks], p_bet: +$("#knAmt").value });
-    ME.profile.balance = +r.balance - +r.payout; syncTop();
-    let hits = 0;
-    for (const n of r.draw) {           // reveal the 10 drawn numbers one by one
-      if (!$("#knBoard")) break;
-      const c = $(`.kn-cell[data-n="${n}"]`), hit = KN.picks.has(n);
-      c.classList.add("drawn"); if (hit) { c.classList.add("hit"); hits++; SFX.coin(); } else SFX.tick();
-      await sleep(hit ? 330 : 240);
-    }
-    const net = +r.payout - +r.bet;
-    if ($("#knResult")) {
-      drawKeno(r.hits);
-      $("#knResult").className = "kn-result show " + (net > 0 ? "win" : r.payout > 0 ? "push" : "lose");
-      $("#knResult").innerHTML = `${r.hits} hit${r.hits === 1 ? "" : "s"} · ${r.multiplier}×<small>${net > 0 ? "+" : ""}${coinVal(net)}</small>`;
-      if (net > 0) { confetti($("#knResult"), 40 + Math.min(80, r.multiplier * 4)); if (net >= BIG_WIN) bigWin(+r.payout, `Keno ${r.hits}/${r.picks.length}`); else if (r.multiplier >= 10) SFX.rare(); else { SFX.good(); SFX.cash(); } }
-      else SFX.lose();
-    }
-    KN.history.unshift(r); KN.history = KN.history.slice(0, 10); drawKenoHist();
-    await refreshMe(); bumpBalance();
-  } catch (e) { fail(e); }
+  KN.busy = true; drawKeno();
+  try { await kenoRound(false); await refreshMe(); bumpBalance(); } catch (e) { fail(e); }
   KN.busy = false; drawKeno();
+}
+async function runAutoKeno() {
+  if (needLogin() || KN.busy || !KN.picks.size) return;
+  const total = Math.max(0, Math.floor(+$("#kxCount").value || 0));
+  KN.auto = true; KN.busy = true; drawKeno();
+  let done = 0;
+  try {
+    while (KN.auto && $("#kxBoard") && (total === 0 || done < total)) {
+      await kenoRound(true); done++;
+      if ($("#kxCount") && total) $("#kxCount").value = total - done;
+      await sleep(450);
+    }
+  } catch (e) { fail(e); }
+  KN.auto = false; KN.busy = false;
+  if ($("#kxCount") && total) $("#kxCount").value = total;
+  await refreshMe(); drawKeno();
 }
 
 // ---------------------------------------------------------------- value list: every item and every possible unusual

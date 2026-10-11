@@ -773,13 +773,15 @@ begin
 end $$;
 
 -- ============================================================ keno (coins): pick 1-10 of 40, the server draws 10
--- paytable: multiplier by [picks][hits]; ~95% return for every pick count
-create or replace function keno_paytable() returns jsonb language sql immutable as $$ select '{"1": [0.0, 3.8], "2": [0.0, 1.4, 6.8], "3": [0.0, 0.0, 4.2, 31], "4": [0.0, 0.0, 2.0, 8.2, 84], "5": [0.0, 0.0, 0.0, 5.8, 33, 460], "6": [0.0, 0.0, 0.0, 3.0, 12, 93, 1749], "7": [0.0, 0.0, 0.0, 0.0, 9.5, 51, 533, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.1, 21, 153, 2169, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 97, 957, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.2, 41, 312, 4353, 5000, 10000]}'::jsonb $$;
-create or replace function keno_play(p_picks int[], p_bet numeric) returns jsonb language plpgsql security definer set search_path = public as $$
+-- paytables: multiplier by [risk][picks][hits]; ~95% return for every risk and pick count
+create or replace function keno_paytable() returns jsonb language sql immutable as $$ select '{"classic": {"1": [0.0, 3.8], "2": [0.0, 1.4, 6.8], "3": [0.0, 0.0, 4.2, 31], "4": [0.0, 0.0, 2.0, 8.2, 84], "5": [0.0, 0.0, 0.0, 5.8, 33, 460], "6": [0.0, 0.0, 0.0, 3.0, 12, 93, 1749], "7": [0.0, 0.0, 0.0, 0.0, 9.5, 51, 533, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.1, 21, 153, 2169, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 97, 957, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.2, 41, 312, 4353, 5000, 10000]}, "low": {"1": [0.0, 3.7], "2": [0.0, 1.7, 5.0], "3": [0.0, 1.2, 2.3, 8.8], "4": [0.0, 0.99, 1.5, 3.7, 18], "5": [0.0, 0.9, 1.1, 2.3, 7.2, 42], "6": [0.0, 0.0, 1.4, 2.4, 5.9, 23, 168], "7": [0.0, 0.0, 1.1, 1.7, 3.5, 11, 52, 458], "8": [0.0, 0.0, 1.0, 1.3, 2.4, 6.3, 24, 141, 1000], "9": [0.0, 0.0, 0.0, 1.6, 2.7, 6.0, 19, 87, 653, 1000], "10": [0.0, 0.0, 0.0, 1.3, 2.0, 3.9, 11, 41, 242, 1000, 1000]}, "medium": {"1": [0.0, 3.7], "2": [0.0, 1.3, 7.4], "3": [0.0, 0.0, 3.9, 34], "4": [0.0, 0.0, 1.8, 8.2, 105], "5": [0.0, 0.0, 0.0, 5.0, 33, 607], "6": [0.0, 0.0, 0.0, 2.5, 11, 108, 2725], "7": [0.0, 0.0, 0.0, 0.0, 8.0, 50, 660, 10000], "8": [0.0, 0.0, 0.0, 0.0, 4.2, 20, 177, 3249, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 15, 95, 1179, 10000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 7.6, 39, 362, 6542, 10000, 10000]}, "high": {"1": [0.0, 3.7], "2": [0.0, 0.0, 16], "3": [0.0, 0.0, 3.0, 44], "4": [0.0, 0.0, 0.0, 10, 239], "5": [0.0, 0.0, 0.0, 3.0, 31, 1077], "6": [0.0, 0.0, 0.0, 0.0, 9.7, 150, 7744], "7": [0.0, 0.0, 0.0, 0.0, 0.0, 46, 1058, 50000], "8": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 245, 8608, 50000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 97, 2089, 50000, 50000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 34, 513, 17605, 50000, 50000]}}'::jsonb $$;
+drop function if exists keno_play(int[], numeric);
+create or replace function keno_play(p_picks int[], p_bet numeric, p_risk text default 'classic') returns jsonb language plpgsql security definer set search_path = public as $$
 declare uid uuid := _uid(); bet numeric := round(coalesce(p_bet, 0), 2); picks int[] := array(select distinct unnest(p_picks) order by 1);
         d int[]; h int; m numeric; pay numeric; bal numeric; uname text;
 begin
   if cardinality(picks) not between 1 and 10 or exists (select 1 from unnest(picks) x where x not between 1 and 40) then raise exception 'Pick 1 to 10 numbers from 1 to 40'; end if;
+  if p_risk not in ('classic', 'low', 'medium', 'high') then raise exception 'Unknown risk level'; end if;
   if bet < 1 then raise exception 'The minimum bet is 1 coin'; end if;
   if bet > 1000000 then raise exception 'The maximum keno bet is 1,000,000 coins'; end if;
   update profiles set balance = balance - bet where id = uid and balance >= bet returning username into uname;
@@ -787,12 +789,12 @@ begin
   perform _wager(uid, bet);
   d := array(select x from generate_series(1, 40) x order by random() limit 10);
   h := (select count(*) from unnest(d) x where x = any(picks));
-  m := (keno_paytable() -> cardinality(picks)::text ->> h)::numeric;
+  m := (keno_paytable() -> p_risk -> cardinality(picks)::text ->> h)::numeric;
   pay := least(round(bet * m, 2), 25000000);
   update profiles set balance = balance + pay where id = uid returning balance into bal;
   insert into keno_rounds (user_id, bet, picks, draw, hits, multiplier, payout) values (uid, bet, picks, d, h, m, pay);
   if pay - bet >= 5000 then insert into chat (username, body, show_at) values ('TCBET', uname || ' hit ' || h || '/' || cardinality(picks) || ' at Keno for ' || round(pay) || ' coins (' || m || 'x)!', now() + interval '5 seconds'); end if;
-  return jsonb_build_object('draw', to_jsonb(d), 'picks', to_jsonb(picks), 'hits', h, 'multiplier', m, 'payout', pay, 'bet', bet, 'balance', bal);
+  return jsonb_build_object('draw', to_jsonb(d), 'picks', to_jsonb(picks), 'hits', h, 'multiplier', m, 'payout', pay, 'bet', bet, 'balance', bal, 'risk', p_risk);
 end $$;
 
 -- ============================================================ tipping
@@ -848,7 +850,7 @@ grant execute on function claim_daily(), open_case(text, int), sell_items(bigint
   claim_rakeback(), open_level_crate(), tip(text, numeric), set_avatar(text, text),
   battle_create(text[], int, int, bool), battle_join(bigint, int), battle_fill_bots(bigint), battle_cancel(bigint),
   rr_create(bigint[]), rr_join(bigint, bigint[]), rr_fill_bots(bigint), rr_cancel(bigint),
-  bj_start(numeric), bj_start_items(bigint[]), bj_hit(), bj_stand(), bj_double(), bj_current(), keno_play(int[], numeric) to authenticated;
+  bj_start(numeric), bj_start_items(bigint[]), bj_hit(), bj_stand(), bj_double(), bj_current(), keno_play(int[], numeric, text) to authenticated;
 grant execute on function keno_paytable() to anon, authenticated;
 grant execute on function level_of(numeric), rake_rate(int, text), is_vip(text) to anon, authenticated;
 
