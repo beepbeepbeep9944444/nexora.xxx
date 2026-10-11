@@ -778,7 +778,6 @@ declare uid uuid := _uid(); bet numeric := round(coalesce(p_bet, 0), 2); d int[]
 begin
   if exists (select 1 from blackjack_hands where user_id = uid and status = 'playing') then raise exception 'Finish your current hand first'; end if;
   if bet < 1 then raise exception 'The minimum bet is 1 coin'; end if;
-  if bet > 5000000 then raise exception 'The maximum bet is 5,000,000 coins'; end if;
   update profiles set balance = balance - bet where id = uid and balance >= bet;
   if not found then raise exception 'Not enough coins'; end if;
   perform _wager(uid, bet);
@@ -832,7 +831,6 @@ begin
   if exists (select 1 from blackjack_hands where user_id = uid and status = 'playing') then raise exception 'Finish your current hand first'; end if;
   j := _claim_items(p_ids, uid, 'blackjack'); bet := _jsum(j);
   if bet < 1 then raise exception 'Bet at least 1 coin worth of items'; end if;
-  if bet > 5000000 then raise exception 'The maximum item bet is 5,000,000'; end if;
   perform _wager(uid, bet);
   d := array(select c from generate_series(0, 51) c order by random());
   insert into blackjack_hands (user_id, bet, items, deck, player, dealer) values (uid, bet, j, d[5:], array[d[1], d[3]], array[d[2], d[4]]) returning * into h;

@@ -708,3 +708,6 @@ body.shake{animation:shake .45s}
 .wh-wheel{width:clamp(220px,32cqw,300px);height:clamp(220px,32cqw,300px)}
 @container (max-width:880px){.rs-window{display:none}.wh-top{grid-template-columns:auto auto}}
 @container (max-width:560px){.wh-left .rs-logo{display:none}.wh-top{grid-template-columns:1fr}.wh-left{order:2}}
+
+.rs-dealer{width:230px;height:auto;display:block;filter:drop-shadow(0 14px 22px rgba(30,20,80,.45))}
+.rs-window .rs-arch,.rs-window .rs-sill{display:none}

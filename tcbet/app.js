@@ -1297,7 +1297,7 @@ async function viewBlackjack() {
       <div class="kx-pop" id="bjPop"></div>
     </div></div>`;
   $("#bjMode").onclick = e => { const b = e.target.closest("button"); if (!b || BJ.busy || BJ.hand?.status === "playing") return; BJ.mode = b.dataset.m; $$("#bjMode button").forEach(x => x.classList.toggle("on", x === b)); $("#bjCoins").hidden = BJ.mode !== "coins"; $("#bjItems").hidden = BJ.mode !== "items"; };
-  $("#bjCoins").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#bjAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(5000000, v * 2); $("#bjAmt").value = v; SFX.chip(); };
+  $("#bjCoins").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#bjAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : v * 2; $("#bjAmt").value = v; SFX.chip(); };   // no max bet
   $("#bjPick").onclick = async () => { if (needLogin()) return; const it = await pickItems({ title: "Bet items at Blackjack", min: 1, confirm: "Use these items", hint: "Win and you get House items worth the same (1.5x on blackjack)." }); if (it) { BJ.items = it; drawBjItems(); } };
   $("#bjDeal").onclick = bjDeal;
   $("#bjHit").onclick = () => bjAct("bj_hit"); $("#bjStand").onclick = () => bjAct("bj_stand"); $("#bjSplit").onclick = () => bjAct("bj_split"); $("#bjDouble").onclick = () => bjAct("bj_double");
@@ -1395,6 +1395,7 @@ const betCovers = (key, n) => { const [t, v] = key.split(":");
   if (t === "n") return +v === n; if (n === 0) return false;
   return { red: REDS.has(n), black: !REDS.has(n), even: n % 2 === 0, odd: n % 2 === 1, low: n <= 18, high: n >= 19,
     d1: n <= 12, d2: n >= 13 && n <= 24, d3: n >= 25, c1: n % 3 === 1, c2: n % 3 === 2, c3: n % 3 === 0 }[t]; };
+const BALL_TRACK = 141, BALL_POCKET = 117;   // radii (svg units): outer track the ball spins on, and the pocket it settles in
 function wheelSvg() {
   const R = 150, step = 360 / 37;
   const seg = (i, n) => { const a0 = (i * step - step / 2 - 90) * Math.PI / 180, a1 = (i * step + step / 2 - 90) * Math.PI / 180, r1 = R - 2, r0 = R - 40;
@@ -1404,7 +1405,7 @@ function wheelSvg() {
   return `<svg viewBox="0 0 ${R * 2} ${R * 2}" class="wh-svg"><circle cx="${R}" cy="${R}" r="${R}" class="wh-rim"/>
     <g id="whRot">${WHEEL_ORDER.map((n, i) => seg(i, n)).join("")}<circle cx="${R}" cy="${R}" r="${R - 40}" class="wh-inner"/>
     <g class="wh-hub"><circle cx="${R}" cy="${R}" r="12"/><path d="M${R} ${R - 44}V${R + 44}M${R - 44} ${R}H${R + 44}"/><circle cx="${R}" cy="${R - 44}" r="4"/><circle cx="${R}" cy="${R + 44}" r="4"/><circle cx="${R - 44}" cy="${R}" r="4"/><circle cx="${R + 44}" cy="${R}" r="4"/></g></g>
-    <g id="whBall"><circle cx="${R}" cy="${R - 30 - 20}" r="6" class="wh-ball"/></g></svg>`;
+    <circle id="whBall" cx="${R}" cy="${R - BALL_TRACK}" r="6" class="wh-ball"/></svg>`;
 }
 function viewWheel() {
   const row = r => Array.from({ length: 12 }, (_, i) => 3 * i + r).map(n => `<button class="wt ${numColor(n)}" data-k="n:${n}">${n}</button>`).join("");
@@ -1424,7 +1425,7 @@ function viewWheel() {
       <div class="wh-top">
         <div class="wh-left">${window.TCBET_SCENE?.logo || ""}<div class="wh-recent"><div class="wh-last" id="whLast"></div><div class="wh-hist" id="whHist"></div></div></div>
         <div class="wh-wheel">${wheelSvg()}<div class="wh-marker"></div></div>
-        <div class="rs-window"><div class="rs-arch">${window.TCBET_SCENE?.character || ""}</div><div class="rs-sill"></div></div>
+        <div class="rs-window"><img class="rs-dealer" src="roulette-dealer.png" alt="Roulette dealer in the castle window"></div>
       </div>
       <div class="wh-tools"><button id="whUndo">↶ Undo</button><button id="whClear">⊗ Clear</button></div>
       <div class="wh-table" id="whTable">
@@ -1469,18 +1470,62 @@ function drawWheelHistory() {
   $("#whLast").className = "wh-last " + (WH.history.length ? numColor(WH.history[0]) : ""); $("#whLast").textContent = WH.history.length ? WH.history[0] : "";
   $("#whHist").innerHTML = WH.history.slice(1, 9).map(n => `<span class="${numColor(n)}">${n}</span>`).join("");
 }
+// Roulette ball physics. The wheel turns one way and decelerates; the ball is launched the other way around the
+// outer track, loses speed to friction, falls inward clattering off the pocket separators, then drops into the
+// winning pocket (decided by the server) and rides round with the wheel until everything stops.
+function spinBall(result, fast) {
+  return new Promise(done => {
+    const rot = $("#whRot"), ball = $("#whBall"), C = 150, step = 360 / 37, idx = WHEEL_ORDER.indexOf(result);
+    const T = fast ? 3200 : 7000;
+    const w0 = WH.angle, wEnd = w0 - (w0 % 360) - 360 * (fast ? 3 : 5) - idx * step;          // pocket idx ends under the top marker
+    const wheelAt = u => w0 + (wEnd - w0) * (1 - Math.pow(1 - u, 2.6));                       // wheel eases out
+    // free ball: launched clockwise, angular speed decays exponentially (friction)
+    const om0 = fast ? 1500 : 1150, tau = (fast ? .9 : 1.9) * 1000;
+    const free = t => om0 * (tau / 1000) * (1 - Math.exp(-t / tau));
+    const t2 = T * .5, t3 = T * .82;                                                            // fall starts at t2, ball is in its pocket at t3
+    const target3 = idx * step - 90 + wheelAt(t3 / T);                                          // screen angle of the winning pocket at t3
+    const start = -90 + Math.random() * 360;
+    let corr = (target3 - (start + free(t3))) % 360; if (corr > 120) corr -= 360; if (corr < -240) corr += 360;
+    const smooth = x => x * x * (3 - 2 * x);
+    const bounces = 3 + Math.floor(Math.random() * 3), jitterSeed = Math.random() * 6;
+    let lastPocket = null, lastBounce = -1, t0 = performance.now();
+    SFX.whoosh();
+    const frame = now => {
+      if (!ball.isConnected) return done();
+      const t = Math.min(T, now - t0), u = t / T, w = wheelAt(u);
+      rot.style.transform = `rotate(${w}deg)`;            // CSS sets transform-origin to the wheel centre
+      let ang, rad;
+      if (t < t3) {
+        const p = t < t2 ? 0 : (t - t2) / (t3 - t2);
+        ang = start + free(t) + corr * smooth(p);
+        if (t < t2) rad = BALL_TRACK - 1.5 * Math.sin(t / 90);                                    // humming round the track
+        else {                                                                                   // falling in: decaying bounces off the frets
+          const k = Math.abs(Math.cos(Math.PI * bounces * p));
+          rad = BALL_POCKET + (BALL_TRACK - BALL_POCKET) * Math.pow(1 - p, 1.4) * (.35 + .65 * k);
+          ang += (1 - p) * 9 * Math.sin(jitterSeed + p * 23);
+          const b = Math.floor(bounces * p + .5); if (b !== lastBounce && p > .05) { lastBounce = b; SFX.click2(); }
+        }
+      } else {
+        const p = (t - t3) / (T - t3);                                                           // seated: rides with the wheel
+        ang = idx * step - 90 + w + (1 - p) * 2.5 * Math.sin(p * 18);
+        rad = BALL_POCKET;
+      }
+      const a = ang * Math.PI / 180;
+      ball.setAttribute("cx", (C + rad * Math.cos(a)).toFixed(2)); ball.setAttribute("cy", (C + rad * Math.sin(a)).toFixed(2));
+      // a tick every time the ball passes a pocket (relative to the wheel)
+      const rel = Math.floor((((ang + 90 - w) % 360) + 360) % 360 / step);
+      if (lastPocket !== null && rel !== lastPocket && t > t2 * .6 && t < t3) SFX.tick();
+      lastPocket = rel;
+      if (t < T) requestAnimationFrame(frame); else { WH.angle = wEnd; done(); }
+    };
+    requestAnimationFrame(frame);
+  });
+}
 async function wheelRound(fast) {
   const bets = Object.entries(WH.bets).map(([k, a]) => k.startsWith("n:") ? { t: "n", n: +k.slice(2), a } : { t: k, a });
   const r = await rpc("wheel_spin", { p_bets: bets });
   ME.profile.balance = +r.balance - +r.payout; syncTop(); clearWheelResult();
-  // spin the wheel so the winning pocket stops under the marker; the ball spins the other way and drops in
-  const idx = WHEEL_ORDER.indexOf(r.result), step = 360 / 37, T = fast ? 2200 : 5200;
-  const target = WH.angle - (WH.angle % 360) - 360 * (fast ? 3 : 6) - idx * step;
-  $("#whRot").animate([{ transform: `rotate(${WH.angle}deg)` }, { transform: `rotate(${target}deg)` }], { duration: T, easing: "cubic-bezier(.12,.62,.15,1)", fill: "forwards" });
-  $("#whBall").animate([{ transform: "rotate(0deg) translateY(-14px)" }, { transform: `rotate(${360 * (fast ? 3 : 7)}deg) translateY(-14px)`, offset: .75 }, { transform: `rotate(${360 * (fast ? 3 : 7)}deg) translateY(0)` }], { duration: T, easing: "cubic-bezier(.2,.6,.3,1)", fill: "forwards" });
-  WH.angle = target; SFX.whoosh();
-  { let k = 0; const iv = setInterval(() => { if (++k > (fast ? 12 : 26)) return clearInterval(iv); SFX.tick(); }, T * .8 / (fast ? 12 : 26)); }
-  await sleep(T + 100); SFX.land();
+  await spinBall(r.result, fast);
   if (!$("#whTable")) return r;
   WH.history.unshift(r.result); WH.history = WH.history.slice(0, 20); drawWheelHistory();
   $$("#whTable [data-k]").forEach(c => c.classList.toggle("win", betCovers(c.dataset.k, r.result)));
