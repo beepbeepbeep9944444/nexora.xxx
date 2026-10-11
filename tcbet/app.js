@@ -1291,7 +1291,7 @@ async function viewBlackjack() {
   $("#bjMode").onclick = e => { const b = e.target.closest("button"); if (!b) return; BJ.mode = b.dataset.m; $$("#bjMode button").forEach(x => x.classList.toggle("on", x === b)); $("#bjCoins").hidden = BJ.mode !== "coins"; $("#bjItems").hidden = BJ.mode !== "items"; };
   $(".bj-chips").onclick = e => { const b = e.target.closest(".chipbtn"); if (!b) return; SFX.chip();
     const bal = ME.profile ? +ME.profile.balance : 0; let v = +$("#bjAmt").value || 0;
-    if (b.dataset.add) v += +b.dataset.add; else if (b.dataset.x === "half") v = Math.floor(v / 2); else if (b.dataset.x === "dbl") v *= 2; else if (b.dataset.x === "max") v = Math.min(250000, Math.floor(bal)); else v = 0;
+    if (b.dataset.add) v += +b.dataset.add; else if (b.dataset.x === "half") v = Math.floor(v / 2); else if (b.dataset.x === "dbl") v *= 2; else if (b.dataset.x === "max") v = Math.min(5000000, Math.floor(bal)); else v = 0;
     $("#bjAmt").value = v; };
   $("#bjPick").onclick = async () => { if (needLogin()) return; const it = await pickItems({ title: "Bet items at Blackjack", min: 1, confirm: "Use these items", hint: "Win and you get House items worth the same (1.5x on blackjack)." }); if (it) { BJ.items = it; drawBjItems(); } };
   $("#bjDeal").onclick = bjDeal;
@@ -1365,6 +1365,75 @@ async function bjAct(fn) {
   try { BJ.hand = await rpc(fn); ME.profile.balance = BJ.hand.balance; syncTop(); await drawBjTable(true); if (BJ.hand.status !== "playing") { await refreshMe(); bumpBalance(); } }
   catch (e) { fail(e); }
   $$("#bjActions button").forEach(b => b.disabled = false); BJ.busy = false;
+}
+
+// ---------------------------------------------------------------- keno (coins): pick 1-10 of 40, server draws 10
+const KENO_PAY = {"1": [0.0, 3.8], "2": [0.0, 1.4, 6.8], "3": [0.0, 0.0, 4.2, 31], "4": [0.0, 0.0, 2.0, 8.2, 84], "5": [0.0, 0.0, 0.0, 5.8, 33, 460], "6": [0.0, 0.0, 0.0, 3.0, 12, 93, 1749], "7": [0.0, 0.0, 0.0, 0.0, 9.5, 51, 533, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.1, 21, 153, 2169, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 97, 957, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.2, 41, 312, 4353, 5000, 10000]};   // same table as keno_paytable() on the server
+const KN = { picks: new Set(), busy: false, last: null, history: [] };
+function viewKeno() {
+  $("#view").innerHTML = `<div class="page-head"><div><h1>Keno</h1><p>Pick 1 to 10 numbers, place a bet, and 10 numbers are drawn. The more you match, the bigger the multiplier.</p></div></div>
+    <div class="kn-wrap"><div class="panel kn-board-wrap"><div class="kn-board" id="knBoard">${Array.from({ length: 40 }, (_, i) => `<button class="kn-cell" data-n="${i + 1}">${i + 1}</button>`).join("")}</div>
+      <div class="kn-tools"><button class="btn" id="knRandom">Random pick</button><button class="btn" id="knClear">Clear</button><span class="muted" id="knCount"></span></div></div>
+    <div class="kn-side"><div class="panel" style="padding:14px"><div class="section-title">Bet</div>
+        <span class="val"><i class="coin"></i><input id="knAmt" type="number" min="1" step="1" value="10" style="width:150px;font-size:18px;font-weight:800;text-align:center"></span>
+        <div class="bj-chips" style="margin-top:8px">${[["+10", 10], ["+100", 100], ["+1K", 1000], ["+10K", 10000]].map(([t, v]) => `<button class="chipbtn" data-add="${v}">${t}</button>`).join("")}<button class="chipbtn" data-x="half">½</button><button class="chipbtn" data-x="dbl">2×</button><button class="chipbtn" data-x="max">Max</button></div>
+        <button class="btn btn-gold" id="knPlay" style="width:100%;margin-top:12px;padding:14px;font-size:17px">Play</button>
+        <div class="kn-result" id="knResult"></div></div>
+      <div class="panel" style="padding:14px"><div class="section-title">Payouts <span id="knPayFor"></span></div><div id="knPay" class="kn-pay"></div></div></div></div>
+    <div class="section-title" style="margin-top:16px">Your recent rounds</div><div id="knHist" class="bj-hist"></div>`;
+  $("#knBoard").onclick = e => { const c = e.target.closest(".kn-cell"); if (!c || KN.busy) return; const n = +c.dataset.n;
+    if (KN.picks.has(n)) KN.picks.delete(n); else if (KN.picks.size < 10) KN.picks.add(n); else return toast("Pick up to 10 numbers", "bad");
+    SFX.click(); clearDraw(); drawKeno(); };
+  $("#knRandom").onclick = () => { if (KN.busy) return; const k = KN.picks.size || 5; KN.picks = new Set([...Array(40).keys()].map(i => i + 1).sort(() => Math.random() - .5).slice(0, k)); SFX.chip(); clearDraw(); drawKeno(); };
+  $("#knClear").onclick = () => { if (KN.busy) return; KN.picks.clear(); clearDraw(); drawKeno(); };
+  $(".kn-side .bj-chips").onclick = e => { const b = e.target.closest(".chipbtn"); if (!b) return; SFX.chip();
+    const bal = ME.profile ? +ME.profile.balance : 0; let v = +$("#knAmt").value || 0;
+    if (b.dataset.add) v += +b.dataset.add; else if (b.dataset.x === "half") v = Math.floor(v / 2); else if (b.dataset.x === "dbl") v *= 2; else v = Math.min(1000000, Math.floor(bal));
+    $("#knAmt").value = v; drawKeno(); };
+  $("#knAmt").oninput = drawKeno;
+  $("#knPlay").onclick = playKeno;
+  drawKeno(); drawKenoHist();
+}
+const clearDraw = () => { $$(".kn-cell").forEach(c => c.classList.remove("drawn", "hit")); $("#knResult").className = "kn-result"; $("#knResult").innerHTML = ""; $$(".kn-pay-row").forEach(r => r.classList.remove("on")); };
+function drawKeno(hits = null) {
+  if (!$("#knBoard")) return;
+  $$(".kn-cell").forEach(c => c.classList.toggle("picked", KN.picks.has(+c.dataset.n)));
+  const k = KN.picks.size, bet = +$("#knAmt").value || 0;
+  $("#knCount").textContent = `${k}/10 picked`;
+  $("#knPayFor").textContent = k ? `(${k} pick${k === 1 ? "" : "s"})` : "";
+  const row = KENO_PAY[k] || [];
+  $("#knPay").innerHTML = k ? row.map((m, h) => ({ m, h })).filter(x => x.m > 0).reverse().map(x => `<div class="kn-pay-row ${hits === x.h ? "on" : ""}"><span>${x.h} hit${x.h === 1 ? "" : "s"}</span><b>${x.m}×</b><span class="muted">${coinVal(bet * x.m)}</span></div>`).join("") : `<div class="muted">Pick some numbers to see the payouts.</div>`;
+  $("#knPlay").disabled = !k || KN.busy;
+}
+function drawKenoHist() {
+  if (!$("#knHist")) return;
+  $("#knHist").innerHTML = KN.history.map(r => `<div class="bj-hrow ${+r.payout > +r.bet ? "win" : "lose"}"><b>${r.hits}/${r.picks.length} hits · ${r.multiplier}×</b><span>${r.picks.length} picks</span><span>bet ${coinVal(r.bet)}</span><span>${+r.payout >= +r.bet ? "+" : ""}${coinVal(+r.payout - +r.bet)}</span></div>`).join("") || `<div class="muted">No rounds yet.</div>`;
+}
+async function playKeno() {
+  if (needLogin() || KN.busy || !KN.picks.size) return;
+  KN.busy = true; drawKeno(); clearDraw();
+  try {
+    const r = await rpc("keno_play", { p_picks: [...KN.picks], p_bet: +$("#knAmt").value });
+    ME.profile.balance = +r.balance - +r.payout; syncTop();
+    let hits = 0;
+    for (const n of r.draw) {           // reveal the 10 drawn numbers one by one
+      if (!$("#knBoard")) break;
+      const c = $(`.kn-cell[data-n="${n}"]`), hit = KN.picks.has(n);
+      c.classList.add("drawn"); if (hit) { c.classList.add("hit"); hits++; SFX.coin(); } else SFX.tick();
+      await sleep(hit ? 330 : 240);
+    }
+    const net = +r.payout - +r.bet;
+    if ($("#knResult")) {
+      drawKeno(r.hits);
+      $("#knResult").className = "kn-result show " + (net > 0 ? "win" : r.payout > 0 ? "push" : "lose");
+      $("#knResult").innerHTML = `${r.hits} hit${r.hits === 1 ? "" : "s"} · ${r.multiplier}×<small>${net > 0 ? "+" : ""}${coinVal(net)}</small>`;
+      if (net > 0) { confetti($("#knResult"), 40 + Math.min(80, r.multiplier * 4)); if (net >= BIG_WIN) bigWin(+r.payout, `Keno ${r.hits}/${r.picks.length}`); else if (r.multiplier >= 10) SFX.rare(); else { SFX.good(); SFX.cash(); } }
+      else SFX.lose();
+    }
+    KN.history.unshift(r); KN.history = KN.history.slice(0, 10); drawKenoHist();
+    await refreshMe(); bumpBalance();
+  } catch (e) { fail(e); }
+  KN.busy = false; drawKeno();
 }
 
 // ---------------------------------------------------------------- value list: every item and every possible unusual
@@ -1613,7 +1682,7 @@ function render() {
   closeModal();
   const [r, arg] = route();
   $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r)));
-  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack }[r] || viewCases)();
+  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno }[r] || viewCases)();
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", render);

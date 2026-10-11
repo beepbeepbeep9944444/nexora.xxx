@@ -560,3 +560,26 @@ body.shake{animation:shake .45s}
 .bc-adds{display:flex;gap:4px}
 .bc-add{padding:5px 8px;border-radius:7px;background:var(--panel2);border:1px solid var(--line2);font:800 12px Inter}
 .bc-add:hover{border-color:var(--gold);color:var(--gold)}
+
+/* ---------- keno ---------- */
+.kn-wrap{display:grid;grid-template-columns:1fr 320px;gap:16px}
+.kn-board-wrap{padding:16px}
+.kn-board{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.kn-cell{aspect-ratio:1;border-radius:12px;background:var(--bg2);border:1px solid var(--line);font:800 18px Rubik;color:var(--muted);transition:.15s}
+.kn-cell:hover{border-color:var(--line2);color:var(--text)}
+.kn-cell.picked{background:linear-gradient(180deg,#3b2a6b,#2a1d52);border-color:var(--unu2);color:#fff;box-shadow:0 0 14px -4px var(--unu2)}
+.kn-cell.drawn{background:#2b3245;color:#cbd5e1;animation:knpop .25s}
+.kn-cell.picked.drawn.hit{background:linear-gradient(180deg,#ffd36b,var(--gold2));color:#1a1204;border-color:var(--gold);box-shadow:0 0 22px rgba(245,184,61,.7);animation:knhit .35s}
+@keyframes knpop{50%{transform:scale(1.12)}}
+@keyframes knhit{50%{transform:scale(1.22)}}
+.kn-tools{display:flex;gap:8px;align-items:center;margin-top:12px}
+.kn-side{display:flex;flex-direction:column;gap:12px}
+.kn-pay{display:flex;flex-direction:column;gap:4px}
+.kn-pay-row{display:grid;grid-template-columns:70px 70px 1fr;gap:8px;align-items:center;padding:6px 10px;border-radius:8px;background:var(--bg2);font-size:13px}
+.kn-pay-row b{color:var(--gold)}
+.kn-pay-row.on{background:rgba(245,184,61,.18);outline:1px solid var(--gold)}
+.kn-result{min-height:0;margin-top:10px;text-align:center;font:900 24px Rubik;opacity:0;transition:.3s}
+.kn-result small{display:block;font:700 14px Inter}
+.kn-result.show{opacity:1;min-height:56px}
+.kn-result.win{color:#ffd36b} .kn-result.lose{color:#fca5a5} .kn-result.push{color:#e5e7eb}
+@media (max-width:900px){.kn-wrap{grid-template-columns:1fr}.kn-cell{font-size:15px}}

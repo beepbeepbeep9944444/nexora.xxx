@@ -56,6 +56,11 @@ create table if not exists blackjack_hands (
 alter table blackjack_hands add column if not exists items jsonb;   -- staked items for item hands (null = coin hand)
 alter table blackjack_hands add column if not exists won jsonb;     -- House items paid out on an item hand win
 alter table blackjack_hands enable row level security;                     -- no read policy on purpose: the deck stays server-side
+create table if not exists keno_rounds (id bigint generated always as identity primary key, user_id uuid not null, bet numeric(14,2) not null,
+  picks int[] not null, draw int[] not null, hits int not null, multiplier numeric not null, payout numeric(14,2) not null, created_at timestamptz not null default now());
+alter table keno_rounds enable row level security;
+drop policy if exists read_own on keno_rounds;
+create policy read_own on keno_rounds for select using (auth.uid() = user_id);
 create table if not exists tips (id bigint generated always as identity primary key, sender uuid, sender_name text, receiver uuid, receiver_name text, amount numeric(14,2), created_at timestamptz not null default now());
 
 create table if not exists inventory (
@@ -702,7 +707,7 @@ declare uid uuid := _uid(); bet numeric := round(coalesce(p_bet, 0), 2); d int[]
 begin
   if exists (select 1 from blackjack_hands where user_id = uid and status = 'playing') then raise exception 'Finish your current hand first'; end if;
   if bet < 1 then raise exception 'The minimum bet is 1 coin'; end if;
-  if bet > 250000 then raise exception 'The maximum bet is 250,000 coins'; end if;
+  if bet > 5000000 then raise exception 'The maximum bet is 5,000,000 coins'; end if;
   update profiles set balance = balance - bet where id = uid and balance >= bet;
   if not found then raise exception 'Not enough coins'; end if;
   perform _wager(uid, bet);
@@ -750,7 +755,7 @@ begin
   if exists (select 1 from blackjack_hands where user_id = uid and status = 'playing') then raise exception 'Finish your current hand first'; end if;
   j := _claim_items(p_ids, uid, 'blackjack'); bet := _jsum(j);
   if bet < 1 then raise exception 'Bet at least 1 coin worth of items'; end if;
-  if bet > 500000 then raise exception 'The maximum item bet is 500,000'; end if;
+  if bet > 5000000 then raise exception 'The maximum item bet is 5,000,000'; end if;
   perform _wager(uid, bet);
   d := array(select c from generate_series(0, 51) c order by random());
   insert into blackjack_hands (user_id, bet, items, deck, player, dealer) values (uid, bet, j, d[5:], array[d[1], d[3]], array[d[2], d[4]]) returning * into h;
@@ -765,6 +770,29 @@ begin
   select * into h from blackjack_hands where user_id = uid and status = 'playing' order by id desc limit 1;
   if not found then return null; end if;
   return _bj_view(h);
+end $$;
+
+-- ============================================================ keno (coins): pick 1-10 of 40, the server draws 10
+-- paytable: multiplier by [picks][hits]; ~95% return for every pick count
+create or replace function keno_paytable() returns jsonb language sql immutable as $$ select '{"1": [0.0, 3.8], "2": [0.0, 1.4, 6.8], "3": [0.0, 0.0, 4.2, 31], "4": [0.0, 0.0, 2.0, 8.2, 84], "5": [0.0, 0.0, 0.0, 5.8, 33, 460], "6": [0.0, 0.0, 0.0, 3.0, 12, 93, 1749], "7": [0.0, 0.0, 0.0, 0.0, 9.5, 51, 533, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.1, 21, 153, 2169, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 97, 957, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.2, 41, 312, 4353, 5000, 10000]}'::jsonb $$;
+create or replace function keno_play(p_picks int[], p_bet numeric) returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); bet numeric := round(coalesce(p_bet, 0), 2); picks int[] := array(select distinct unnest(p_picks) order by 1);
+        d int[]; h int; m numeric; pay numeric; bal numeric; uname text;
+begin
+  if cardinality(picks) not between 1 and 10 or exists (select 1 from unnest(picks) x where x not between 1 and 40) then raise exception 'Pick 1 to 10 numbers from 1 to 40'; end if;
+  if bet < 1 then raise exception 'The minimum bet is 1 coin'; end if;
+  if bet > 1000000 then raise exception 'The maximum keno bet is 1,000,000 coins'; end if;
+  update profiles set balance = balance - bet where id = uid and balance >= bet returning username into uname;
+  if not found then raise exception 'Not enough coins'; end if;
+  perform _wager(uid, bet);
+  d := array(select x from generate_series(1, 40) x order by random() limit 10);
+  h := (select count(*) from unnest(d) x where x = any(picks));
+  m := (keno_paytable() -> cardinality(picks)::text ->> h)::numeric;
+  pay := least(round(bet * m, 2), 25000000);
+  update profiles set balance = balance + pay where id = uid returning balance into bal;
+  insert into keno_rounds (user_id, bet, picks, draw, hits, multiplier, payout) values (uid, bet, picks, d, h, m, pay);
+  if pay - bet >= 5000 then insert into chat (username, body, show_at) values ('TCBET', uname || ' hit ' || h || '/' || cardinality(picks) || ' at Keno for ' || round(pay) || ' coins (' || m || 'x)!', now() + interval '5 seconds'); end if;
+  return jsonb_build_object('draw', to_jsonb(d), 'picks', to_jsonb(picks), 'hits', h, 'multiplier', m, 'payout', pay, 'bet', bet, 'balance', bal);
 end $$;
 
 -- ============================================================ tipping
@@ -820,7 +848,8 @@ grant execute on function claim_daily(), open_case(text, int), sell_items(bigint
   claim_rakeback(), open_level_crate(), tip(text, numeric), set_avatar(text, text),
   battle_create(text[], int, int, bool), battle_join(bigint, int), battle_fill_bots(bigint), battle_cancel(bigint),
   rr_create(bigint[]), rr_join(bigint, bigint[]), rr_fill_bots(bigint), rr_cancel(bigint),
-  bj_start(numeric), bj_start_items(bigint[]), bj_hit(), bj_stand(), bj_double(), bj_current() to authenticated;
+  bj_start(numeric), bj_start_items(bigint[]), bj_hit(), bj_stand(), bj_double(), bj_current(), keno_play(int[], numeric) to authenticated;
+grant execute on function keno_paytable() to anon, authenticated;
 grant execute on function level_of(numeric), rake_rate(int, text), is_vip(text) to anon, authenticated;
 
 do $$ declare t text; begin
