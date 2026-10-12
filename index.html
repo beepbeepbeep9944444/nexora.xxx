@@ -1,1574 +1,473 @@
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>nexora.xxx</title>
-
-  <style>
-    :root {
-      --bg: #030407;
-      --bg-soft: #070910;
-      --card: #090c14;
-      --card-hover: #0c1020;
-      --blue: #000d62;
-      --blue-bright: #6177ff;
-      --blue-soft: #344bd1;
-      --text: #f5f6fb;
-      --muted: #777f91;
-      --muted-2: #555c6c;
-      --line: rgba(255,255,255,.075);
-      --line-blue: rgba(88,112,255,.25);
-      --max: 1180px;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      min-height: 100vh;
-      overflow-x: hidden;
-      background: var(--bg);
-      color: var(--text);
-      font-family: "Segoe UI", Arial, sans-serif;
-    }
-
-    body::selection {
-      color: white;
-      background: rgba(83,109,255,.35);
-    }
-
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    button,
-    a {
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    /* background */
-
-    .background {
-      position: fixed;
-      inset: 0;
-      z-index: -10;
-      overflow: hidden;
-      pointer-events: none;
-      background:
-        radial-gradient(
-          circle at 50% -10%,
-          rgba(0,13,98,.62),
-          transparent 42%
-        ),
-        var(--bg);
-    }
-
-    .grid {
-      position: absolute;
-      inset: -15%;
-      opacity: .55;
-      background-image:
-        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-      background-size: 80px 80px;
-      transform:
-        perspective(700px)
-        rotateX(58deg)
-        translateY(-14%);
-      transform-origin: center top;
-      mask-image: linear-gradient(
-        to bottom,
-        black 0%,
-        rgba(0,0,0,.8) 35%,
-        transparent 78%
-      );
-      animation: gridMove 28s linear infinite;
-    }
-
-    .glow {
-      position: absolute;
-      width: 620px;
-      height: 620px;
-      top: 22%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      background: rgba(0,13,98,.23);
-      filter: blur(140px);
-      animation: glow 9s ease-in-out infinite;
-    }
-
-    .glow.left {
-      width: 330px;
-      height: 330px;
-      top: 65%;
-      left: 5%;
-      background: rgba(30,48,170,.12);
-      animation-delay: -3s;
-    }
-
-    .glow.right {
-      width: 360px;
-      height: 360px;
-      top: 70%;
-      left: 95%;
-      background: rgba(39,59,190,.1);
-      animation-delay: -6s;
-    }
-
-    @keyframes gridMove {
-      from {
-        transform:
-          perspective(700px)
-          rotateX(58deg)
-          translateY(-14%);
-      }
-
-      to {
-        transform:
-          perspective(700px)
-          rotateX(58deg)
-          translateY(-2%);
-      }
-    }
-
-    @keyframes glow {
-      0%, 100% {
-        opacity: .5;
-        scale: .92;
-      }
-
-      50% {
-        opacity: .9;
-        scale: 1.08;
-      }
-    }
-
-    /* navigation */
-
-    .topbar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      height: 72px;
-      border-bottom: 1px solid rgba(255,255,255,.055);
-      background: rgba(3,4,7,.68);
-      backdrop-filter: blur(22px);
-      -webkit-backdrop-filter: blur(22px);
-    }
-
-    .nav {
-      width: min(var(--max), calc(100% - 40px));
-      height: 100%;
-      margin: auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .logo {
-      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
-      font-size: 20px;
-      font-weight: 900;
-      letter-spacing: -.9px;
-    }
-
-    .logo span {
-      color: var(--blue-bright);
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 31px;
-      color: #777e8e;
-      font-size: 13px;
-    }
-
-    .nav-links a {
-      position: relative;
-      transition: color .25s ease;
-    }
-
-    .nav-links a::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      bottom: -8px;
-      width: 0;
-      height: 1px;
-      transform: translateX(-50%);
-      background: var(--blue-bright);
-      box-shadow: 0 0 12px var(--blue-bright);
-      transition: width .25s ease;
-    }
-
-    .nav-links a:hover {
-      color: white;
-    }
-
-    .nav-links a:hover::after {
-      width: 100%;
-    }
-
-    .nav-purchase {
-      padding: 10px 17px;
-      border-radius: 8px;
-      color: #050609;
-      background: white;
-      font-size: 13px;
-      font-weight: 800;
-      transition: .25s ease;
-    }
-
-    .nav-purchase:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 35px rgba(255,255,255,.1);
-    }
-
-    /* shared */
-
-    .container {
-      width: min(var(--max), calc(100% - 40px));
-      margin: auto;
-    }
-
-    .section {
-      padding: 145px 0;
-    }
-
-    .eyebrow-small {
-      margin-bottom: 18px;
-      color: #687cff;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: .15em;
-      text-transform: lowercase;
-    }
-
-    .section-title {
-      max-width: 850px;
-      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
-      font-size: clamp(45px, 6vw, 78px);
-      line-height: .92;
-      letter-spacing: -4px;
-    }
-
-    /* hero */
-
-    .hero {
-      min-height: 930px;
-      padding-top: 72px;
-      display: flex;
-      align-items: center;
-    }
-
-    .hero-inner {
-      width: 100%;
-      padding: 85px 0 50px;
-      text-align: center;
-    }
-
-    .hero-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 11px;
-      border: 1px solid rgba(83,109,255,.22);
-      border-radius: 999px;
-      background: rgba(28,43,135,.1);
-      color: #a2adff;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: .1em;
-      animation: fadeUp .8s ease both;
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #7185ff;
-      box-shadow: 0 0 14px #7185ff;
-      animation: pulse 2.5s ease-in-out infinite;
-    }
-
-    .hero h1 {
-      max-width: 1000px;
-      margin: 26px auto 0;
-      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
-      font-size: clamp(65px, 10vw, 132px);
-      line-height: .83;
-      letter-spacing: -8px;
-      animation: fadeUp .9s .08s ease both;
-    }
-
-    .gradient {
-      color: transparent;
-      background:
-        linear-gradient(
-          100deg,
-          #fff 8%,
-          #d5d9ff 48%,
-          #6177ff 95%
-        );
-      -webkit-background-clip: text;
-      background-clip: text;
-    }
-
-    .hero-description {
-      max-width: 500px;
-      margin: 31px auto 0;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.75;
-      animation: fadeUp .9s .16s ease both;
-    }
-
-    .hero-buttons {
-      margin-top: 31px;
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      animation: fadeUp .9s .24s ease both;
-    }
-
-    .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 45px;
-      padding: 0 20px;
-      border-radius: 9px;
-      font-size: 13px;
-      font-weight: 800;
-      transition:
-        transform .25s ease,
-        box-shadow .25s ease,
-        background .25s ease,
-        border-color .25s ease;
-    }
-
-    .button.primary {
-      color: #050609;
-      background: white;
-    }
-
-    .button.secondary {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.035);
-    }
-
-    .button:hover {
-      transform: translateY(-3px);
-    }
-
-    .button.primary:hover {
-      box-shadow: 0 15px 45px rgba(255,255,255,.11);
-    }
-
-    .button.secondary:hover {
-      border-color: rgba(255,255,255,.13);
-      background: rgba(255,255,255,.065);
-    }
-
-    /* hero visual */
-
-    .orbital {
-      position: relative;
-      width: 620px;
-      height: 530px;
-      margin: 75px auto 0;
-      animation: fadeUp 1s .32s ease both;
-    }
-
-    .orbit {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      border: 1px solid rgba(96,118,255,.12);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-    }
-
-    .orbit.one {
-      width: 620px;
-      height: 220px;
-      animation: orbitOne 16s linear infinite;
-    }
-
-    .orbit.two {
-      width: 495px;
-      height: 175px;
-      animation: orbitTwo 19s linear infinite;
-    }
-
-    .orbit.three {
-      width: 365px;
-      height: 135px;
-      animation: orbitThree 13s linear infinite;
-    }
-
-    .orb-dot {
-      position: absolute;
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #7185ff;
-      box-shadow:
-        0 0 13px #7185ff,
-        0 0 30px rgba(83,109,255,.75);
-    }
-
-    .dot-one {
-      left: 18%;
-      top: 25%;
-    }
-
-    .dot-two {
-      right: 13%;
-      top: 42%;
-    }
-
-    .dot-three {
-      left: 25%;
-      bottom: 20%;
-    }
-
-    .dot-four {
-      right: 23%;
-      bottom: 17%;
-    }
-
-    .dot-five {
-      left: 50%;
-      top: 9%;
-    }
-
-    .core {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 136px;
-      height: 136px;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      background:
-        radial-gradient(
-          circle at 32% 22%,
-          #5369ef,
-          #000d62 47%,
-          #050713 80%
-        );
-      box-shadow:
-        0 0 45px rgba(49,71,220,.45),
-        0 0 130px rgba(0,13,98,.28);
-      animation: coreFloat 5s ease-in-out infinite;
-    }
-
-    .core::before {
-      content: "";
-      position: absolute;
-      inset: 18px;
-      border: 1px solid rgba(255,255,255,.15);
-      border-radius: 50%;
-    }
-
-    .core::after {
-      content: "n";
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      color: white;
-      font-family: "Segoe UI Black", sans-serif;
-      font-size: 52px;
-    }
-
-    @keyframes orbitOne {
-      from {
-        transform: translate(-50%, -50%) rotate(16deg);
-      }
-
-      to {
-        transform: translate(-50%, -50%) rotate(376deg);
-      }
-    }
-
-    @keyframes orbitTwo {
-      from {
-        transform: translate(-50%, -50%) rotate(-30deg);
-      }
-
-      to {
-        transform: translate(-50%, -50%) rotate(330deg);
-      }
-    }
-
-    @keyframes orbitThree {
-      from {
-        transform: translate(-50%, -50%) rotate(55deg);
-      }
-
-      to {
-        transform: translate(-50%, -50%) rotate(-305deg);
-      }
-    }
-
-    @keyframes coreFloat {
-      0%, 100% {
-        margin-top: 0;
-      }
-
-      50% {
-        margin-top: -10px;
-      }
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        opacity: .5;
-        transform: scale(.8);
-      }
-
-      50% {
-        opacity: 1;
-        transform: scale(1.15);
-      }
-    }
-
-    @keyframes fadeUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    /* movement */
-
-    .movement-header {
-      max-width: 800px;
-    }
-
-    .feature-grid {
-      margin-top: 55px;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-    }
-
-    .feature {
-      position: relative;
-      min-height: 290px;
-      overflow: hidden;
-      padding: 28px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background:
-        linear-gradient(
-          145deg,
-          rgba(255,255,255,.045),
-          rgba(255,255,255,.008)
-        );
-      transition:
-        transform .35s cubic-bezier(.2,.8,.2,1),
-        border-color .35s ease,
-        background .35s ease;
-    }
-
-    .feature:hover {
-      transform: translateY(-7px);
-      border-color: var(--line-blue);
-      background:
-        linear-gradient(
-          145deg,
-          rgba(29,46,150,.13),
-          rgba(255,255,255,.01)
-        );
-    }
-
-    .feature::before {
-      content: "";
-      position: absolute;
-      right: -150px;
-      bottom: -160px;
-      width: 250px;
-      height: 250px;
-      border-radius: 50%;
-      background: rgba(0,13,98,.45);
-      filter: blur(60px);
-      transition: transform .5s ease;
-    }
-
-    .feature:hover::before {
-      transform: scale(1.3);
-    }
-
-    .feature-number {
-      color: #51586e;
-      font-size: 10px;
-      font-weight: 700;
-    }
-
-    .feature h3 {
-      position: relative;
-      margin-top: 96px;
-      font-family: "Segoe UI Black", "Segoe UI", sans-serif;
-      font-size: 26px;
-      line-height: 1;
-      letter-spacing: -1px;
-    }
-
-    .feature p {
-      position: relative;
-      max-width: 370px;
-      margin-top: 11px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
-    /* reviews */
-
-    .reviews-header {
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: 30px;
-    }
-
-    .rating {
-      text-align: right;
-    }
-
-    .stars {
-      color: #8190ff;
-      font-size: 15px;
-      letter-spacing: 4px;
-    }
-
-    .rating-text {
-      margin-top: 7px;
-      color: #5e6472;
-      font-size: 10px;
-    }
-
-    .review-grid {
-      margin-top: 55px;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-    }
-
-    .review {
-      position: relative;
-      min-height: 255px;
-      padding: 25px;
-      border: 1px solid var(--line);
-      border-radius: 15px;
-      background: rgba(8,10,16,.72);
-      transition:
-        transform .35s cubic-bezier(.2,.8,.2,1),
-        border-color .3s ease;
-    }
-
-    .review:hover {
-      transform: translateY(-7px);
-      border-color: var(--line-blue);
-    }
-
-    .review-stars {
-      color: #7e8dff;
-      font-size: 12px;
-      letter-spacing: 2px;
-    }
-
-    .review p {
-      margin-top: 24px;
-      color: #d8dbe4;
-      font-size: 14px;
-      line-height: 1.75;
-    }
-
-    .reviewer {
-      position: absolute;
-      left: 25px;
-      bottom: 23px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .avatar {
-      width: 35px;
-      height: 35px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 1px solid rgba(255,255,255,.12);
-    }
-
-    .reviewer-name {
-      font-size: 11px;
-      font-weight: 800;
-    }
-
-    .reviewer-tag {
-      margin-top: 2px;
-      color: #5d6370;
-      font-size: 9px;
-    }
-
-    /* purchase */
-
-    .purchase {
-      padding: 110px 0 155px;
-    }
-
-    .purchase-header {
-      max-width: 700px;
-    }
-
-    .purchase-subtitle {
-      max-width: 500px;
-      margin-top: 20px;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.7;
-    }
-
-    .pricing-grid {
-      max-width: 900px;
-      margin-top: 58px;
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-    }
-
-    .price-card {
-      position: relative;
-      min-height: 425px;
-      overflow: hidden;
-      padding: 31px;
-      border: 1px solid var(--line);
-      border-radius: 17px;
-      background:
-        linear-gradient(
-          145deg,
-          rgba(255,255,255,.045),
-          rgba(255,255,255,.008)
-        );
-      transition:
-        transform .35s cubic-bezier(.2,.8,.2,1),
-        border-color .35s ease;
-    }
-
-    .price-card:hover {
-      transform: translateY(-7px);
-      border-color: rgba(91,112,255,.3);
-    }
-
-    .price-card.featured {
-      border-color: rgba(83,109,255,.32);
-      background:
-        radial-gradient(
-          circle at 85% 0%,
-          rgba(31,54,190,.2),
-          transparent 40%
-        ),
-        linear-gradient(
-          145deg,
-          rgba(255,255,255,.05),
-          rgba(255,255,255,.008)
-        );
-    }
-
-    .price-card::after {
-      content: "";
-      position: absolute;
-      width: 250px;
-      height: 250px;
-      right: -170px;
-      bottom: -170px;
-      border-radius: 50%;
-      background: rgba(0,13,98,.5);
-      filter: blur(70px);
-      pointer-events: none;
-    }
-
-    .popular {
-      position: absolute;
-      top: 22px;
-      right: 22px;
-      padding: 6px 9px;
-      border: 1px solid rgba(83,109,255,.25);
-      border-radius: 999px;
-      background: rgba(83,109,255,.08);
-      color: #8797ff;
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: .08em;
-    }
-
-    .price-name {
-      display: block;
-      font-family: "Segoe UI Black", sans-serif;
-      font-size: 25px;
-      letter-spacing: -1px;
-    }
-
-    .price-description {
-      display: block;
-      margin-top: 4px;
-      color: #626979;
-      font-size: 11px;
-    }
-
-    .price {
-      margin-top: 50px;
-      font-family: "Segoe UI Black", sans-serif;
-      font-size: 62px;
-      line-height: 1;
-      letter-spacing: -3px;
-    }
-
-    .price span {
-      color: #747b8b;
-      font-family: "Segoe UI", sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0;
-    }
-
-    .price-divider {
-      height: 1px;
-      margin: 28px 0 22px;
-      background: var(--line);
-    }
-
-    .price-features {
-      display: grid;
-      gap: 11px;
-      list-style: none;
-    }
-
-    .price-features li {
-      color: #a7acb8;
-      font-size: 12px;
-    }
-
-    .price-features li::before {
-      content: "✓";
-      margin-right: 9px;
-      color: #667bff;
-    }
-
-    .purchase-button {
-      position: relative;
-      z-index: 2;
-      width: 100%;
-      margin-top: 28px;
-    }
-
-    /* footer */
-
-    footer {
-      width: min(var(--max), calc(100% - 40px));
-      margin: auto;
-      padding: 30px 0 40px;
-      border-top: 1px solid var(--line);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: #626875;
-      font-size: 10px;
-    }
-
-    .footer-logo {
-      color: white;
-      font-family: "Segoe UI Black", sans-serif;
-      font-size: 13px;
-    }
-
-    .footer-logo span {
-      color: var(--blue-bright);
-    }
-
-    .footer-links {
-      display: flex;
-      gap: 22px;
-    }
-
-    .footer-links a {
-      transition: color .2s ease;
-    }
-
-    .footer-links a:hover {
-      color: white;
-    }
-
-    /* responsive */
-
-    @media (max-width: 900px) {
-      .feature-grid,
-      .review-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 800px) {
-      .nav-links {
-        display: none;
-      }
-
-      .hero {
-        min-height: auto;
-      }
-
-      .hero-inner {
-        padding: 105px 0 50px;
-      }
-
-      .hero h1 {
-        letter-spacing: -5px;
-      }
-
-      .orbital {
-        width: 100%;
-        height: 300px;
-        margin-top: 55px;
-      }
-
-      .orbit.one {
-        width: 100%;
-      }
-
-      .orbit.two {
-        width: 78%;
-      }
-
-      .orbit.three {
-        width: 58%;
-      }
-
-      .reviews-header {
-        display: block;
-      }
-
-      .rating {
-        margin-top: 20px;
-        text-align: left;
-      }
-
-      .section {
-        padding: 105px 0;
-      }
-
-      .purchase {
-        padding: 90px 0 110px;
-      }
-    }
-
-    @media (max-width: 650px) {
-      .feature-grid,
-      .review-grid,
-      .pricing-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .feature {
-        min-height: 260px;
-      }
-
-      .feature h3 {
-        margin-top: 75px;
-      }
-    }
-
-    @media (max-width: 500px) {
-      .container,
-      .nav,
-      footer {
-        width: calc(100% - 28px);
-      }
-
-      .hero h1 {
-        font-size: 64px;
-      }
-
-      .hero-description {
-        font-size: 14px;
-      }
-
-      .hero-buttons {
-        width: 200px;
-        margin-left: auto;
-        margin-right: auto;
-        flex-direction: column;
-      }
-
-      .orbital {
-        height: 260px;
-      }
-
-      .core {
-        width: 105px;
-        height: 105px;
-      }
-
-      .core::after {
-        font-size: 42px;
-      }
-
-      .section-title {
-        letter-spacing: -3px;
-      }
-
-      footer {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 18px;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
-        animation-duration: .01ms !important;
-        animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-      }
-    }
-  </style>
-</head>
-
-<body>
-
-  <div class="background">
-    <div class="grid"></div>
-    <div class="glow"></div>
-    <div class="glow left"></div>
-    <div class="glow right"></div>
-  </div>
-
-
-  <header class="topbar">
-    <nav class="nav">
-
-      <a href="#" class="logo">
-        nexora<span>.xxx</span>
-      </a>
-
-      <div class="nav-links">
-        <a href="#movement">movement</a>
-        <a href="#reviews">reviews</a>
-        <a href="#purchase">purchase</a>
-      </div>
-
-      <a
-        href="https://discord.gg/7FBssWkesu"
-        class="nav-purchase"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        purchase
-      </a>
-
+<title>nexora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* layout: centered dark column, drifting violet light, glass cards that follow the cursor */
+:root {
+  color-scheme: dark;
+
+  --bg:        #06060a;
+  --glass:     rgba(255,255,255,0.026);
+  --glass-hi:  rgba(255,255,255,0.05);
+  --edge:      rgba(255,255,255,0.07);
+  --edge-hi:   rgba(255,255,255,0.16);
+  --fg:        #eceef4;
+  --dim:       #8b8f9d;
+  --faint:     #565a67;
+  --accent:    #7c5cff;
+  --accent-2:  #bda4ff;
+  --glow:      rgba(124,92,255,0.3);
+
+  --display: "Sora", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --maxw: 1020px;
+  --ease: cubic-bezier(.22,.68,.36,1);
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--display);
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 1.65;
+  text-transform: lowercase;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ---------- ambient ---------- */
+.bgfx { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
+.grid-l {
+  position: absolute; inset: -20%;
+  background:
+    linear-gradient(transparent 0 97%, rgba(255,255,255,0.02) 97% 100%) 0 0 / 100% 52px,
+    linear-gradient(90deg, transparent 0 97%, rgba(255,255,255,0.02) 97% 100%) 0 0 / 52px 100%;
+  -webkit-mask-image: radial-gradient(1000px 680px at 50% 4%, #000 30%, transparent 86%);
+  mask-image: radial-gradient(1000px 680px at 50% 4%, #000 30%, transparent 86%);
+}
+.orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .5; }
+.orb.a { width: 620px; height: 620px; left: 50%; top: -340px; margin-left: -310px; background: var(--glow); animation: driftA 19s var(--ease) infinite alternate; }
+.orb.b { width: 460px; height: 460px; right: -140px; top: 220px; background: rgba(189,164,255,0.16); animation: driftB 24s var(--ease) infinite alternate; }
+.orb.c { width: 520px; height: 520px; left: -180px; top: 760px; background: rgba(124,92,255,0.12); animation: driftA 27s var(--ease) infinite alternate-reverse; }
+@keyframes driftA { from { transform: translate3d(-40px, 0, 0) scale(1); } to { transform: translate3d(50px, 60px, 0) scale(1.12); } }
+@keyframes driftB { from { transform: translate3d(0, -30px, 0) scale(1.05); } to { transform: translate3d(-70px, 50px, 0) scale(.92); } }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding-inline: 22px; }
+
+h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.04em; line-height: 1.08; text-wrap: balance; }
+p { margin: 0; }
+a { color: inherit; }
+
+.lab { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; color: var(--faint); }
+
+/* ---------- entrance ---------- */
+.rise { animation: rise .8s var(--ease) both; }
+.d1 { animation-delay: .05s } .d2 { animation-delay: .12s } .d3 { animation-delay: .19s }
+.d4 { animation-delay: .26s } .d5 { animation-delay: .33s } .d6 { animation-delay: .4s }
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* ---------- nav ---------- */
+.nav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40;
+  background: rgba(6,6,10,0.68); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--edge);
+}
+.nav-in { display: flex; align-items: center; gap: 18px; padding-block: 14px; }
+.wordmark { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -0.06em; }
+.pip {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: var(--accent); box-shadow: 0 0 0 0 var(--glow);
+  animation: pulse 2.6s ease-out infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(124,92,255,.55); }
+  70% { box-shadow: 0 0 0 9px rgba(124,92,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(124,92,255,0); }
+}
+.nav-links { margin-left: auto; display: flex; gap: 24px; font-size: 13.5px; color: var(--dim); }
+.nav-links a { text-decoration: none; position: relative; transition: color .18s; }
+.nav-links a::after {
+  content: ""; position: absolute; left: 0; right: 100%; bottom: -5px; height: 1px;
+  background: var(--accent); transition: right .28s var(--ease);
+}
+.nav-links a:hover { color: var(--fg); }
+.nav-links a:hover::after { right: 0; }
+@media (max-width: 720px) { .nav-links { display: none; } }
+
+/* ---------- buttons ---------- */
+.btn {
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  font-family: var(--mono); font-size: 12.5px; font-weight: 500;
+  padding: 12px 22px; border-radius: 9px; text-decoration: none;
+  border: 1px solid var(--edge); background: var(--glass); color: var(--fg);
+  transition: background .18s, border-color .18s, box-shadow .25s, transform .12s var(--ease);
+}
+.btn::before {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 45%;
+  left: -60%; transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent);
+  transition: left .55s var(--ease);
+}
+.btn:hover::before { left: 120%; }
+.btn:hover { background: var(--glass-hi); border-color: var(--edge-hi); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn.solid {
+  background: var(--accent); border-color: transparent; color: #0a0616; font-weight: 500;
+  box-shadow: 0 6px 26px -10px var(--glow);
+}
+.btn.solid:hover { background: #8e72ff; box-shadow: 0 10px 34px -10px rgba(124,92,255,.6); }
+.btn:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+
+/* ---------- hero ---------- */
+.hero { padding-block: 96px 84px; text-align: center; }
+@media (max-width: 720px) { .hero { padding-block: 56px 56px; } }
+
+.status {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+  color: var(--dim); border: 1px solid var(--edge); background: var(--glass);
+  border-radius: 99px; padding: 6px 14px;
+}
+.status .pip { width: 5px; height: 5px; }
+
+.hero h1 { font-size: clamp(42px, 8.6vw, 82px); font-weight: 800; letter-spacing: -0.065em; margin-top: 24px; }
+.shine {
+  background: linear-gradient(100deg, var(--accent) 10%, #e4d9ff 38%, var(--accent) 62%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  animation: sweep 6.5s linear infinite;
+}
+@keyframes sweep { from { background-position: 180% 0; } to { background-position: -80% 0; } }
+
+.hero .sub { color: var(--dim); font-size: 16.5px; max-width: 50ch; margin: 20px auto 0; }
+.hero .cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+.hero .meta { margin-top: 20px; font-family: var(--mono); font-size: 11px; color: var(--faint); letter-spacing: 0.1em; }
+
+/* ---------- sections ---------- */
+section { padding-block: 74px; }
+.sec-head { text-align: center; max-width: 52ch; margin: 0 auto 40px; }
+.sec-head h2 { font-size: clamp(26px, 4.2vw, 36px); margin-block: 12px 12px; }
+.sec-head p { color: var(--dim); font-size: 15.5px; }
+
+/* ---------- big feature cards ---------- */
+.feats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 720px) { .feats { grid-template-columns: 1fr; } }
+
+.card {
+  position: relative; overflow: hidden; min-width: 0;
+  border: 1px solid var(--edge); border-radius: 15px;
+  background: var(--glass);
+  padding: 24px 22px 22px;
+  transition: border-color .25s, transform .3s var(--ease), background .25s;
+}
+.card::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(340px circle at var(--mx, 50%) var(--my, 0%), rgba(124,92,255,.14), transparent 62%);
+  opacity: 0; transition: opacity .3s;
+}
+.card:hover { transform: translateY(-3px); border-color: rgba(124,92,255,.38); background: var(--glass-hi); }
+.card:hover::before { opacity: 1; }
+
+.card .num {
+  font-family: var(--mono); font-size: 10.5px; color: var(--faint); letter-spacing: .18em;
+}
+.card .nm {
+  font-size: 22px; font-weight: 700; letter-spacing: -0.04em;
+  margin-block: 8px 10px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.card .code {
+  font-family: var(--mono); font-size: 10.5px; font-weight: 500; color: var(--accent-2);
+  background: rgba(124,92,255,.12); border: 1px solid rgba(124,92,255,.3);
+  border-radius: 5px; padding: 2px 7px; letter-spacing: .04em;
+}
+.card p { color: var(--dim); font-size: 14.5px; line-height: 1.6; }
+.card .key {
+  display: inline-block; margin-top: 14px;
+  font-family: var(--mono); font-size: 10.5px; color: var(--faint);
+  border: 1px solid var(--edge); border-radius: 6px; padding: 3px 9px;
+}
+
+/* ---------- how ---------- */
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.note {
+  border: 1px solid var(--edge); border-radius: 13px; background: var(--glass);
+  padding: 18px 19px; min-width: 0; transition: border-color .25s, background .25s;
+}
+.note:hover { border-color: var(--edge-hi); background: var(--glass-hi); }
+.note h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.02em; }
+.note p { color: var(--dim); font-size: 13.5px; }
+code { font-family: var(--mono); font-size: .88em; color: var(--accent-2); }
+
+/* ---------- pricing ---------- */
+.tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 680px; margin: 0 auto; }
+@media (max-width: 620px) { .tiers { grid-template-columns: 1fr; } }
+.tier {
+  position: relative; border-radius: 16px; padding: 26px 24px;
+  display: flex; flex-direction: column; gap: 17px; min-width: 0;
+  border: 1px solid var(--edge); background: var(--glass);
+  transition: transform .3s var(--ease), border-color .25s;
+}
+.tier:hover { transform: translateY(-3px); border-color: var(--edge-hi); }
+.tier.hot {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    conic-gradient(from var(--spin, 0deg), rgba(124,92,255,.65), rgba(189,164,255,.15), rgba(124,92,255,.65)) border-box;
+  box-shadow: 0 18px 60px -32px var(--glow);
+  animation: spin 7s linear infinite;
+}
+@property --spin { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes spin { to { --spin: 360deg; } }
+.tier .top { display: flex; align-items: center; gap: 10px; }
+.tier .tag {
+  margin-left: auto; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em;
+  color: #0a0616; background: var(--accent); border-radius: 99px; padding: 3px 9px;
+}
+.price {
+  font-family: var(--mono); font-size: 40px; font-weight: 500;
+  letter-spacing: -0.05em; font-variant-numeric: tabular-nums; line-height: 1;
+}
+.price span { font-size: 11.5px; color: var(--faint); letter-spacing: .06em; }
+.tier ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.tier li { font-size: 13.5px; color: var(--dim); display: flex; gap: 10px; }
+.tier li::before { content: "/"; color: var(--accent); flex: none; font-family: var(--mono); }
+
+/* ---------- faq ---------- */
+.faq { max-width: 740px; margin: 0 auto; }
+details { border-bottom: 1px solid var(--edge); }
+details:first-of-type { border-top: 1px solid var(--edge); }
+summary {
+  cursor: pointer; list-style: none; padding-block: 17px;
+  font-size: 14.5px; display: flex; gap: 14px; align-items: center;
+  transition: color .18s;
+}
+summary:hover { color: var(--accent-2); }
+summary::-webkit-details-marker { display: none; }
+summary::after {
+  content: "+"; margin-left: auto; font-family: var(--mono); color: var(--faint);
+  flex: none; transition: transform .25s var(--ease), color .2s;
+}
+details[open] summary::after { content: "+"; transform: rotate(45deg); color: var(--accent-2); }
+details p { color: var(--dim); font-size: 13.5px; padding-bottom: 19px; max-width: 64ch; animation: rise .4s var(--ease) both; }
+summary:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* ---------- footer ---------- */
+footer { padding-block: 34px 46px; border-top: 1px solid var(--edge); margin-top: 44px; }
+.foot {
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--faint);
+}
+.foot .sp { margin-left: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition-duration: .001ms !important; }
+}
+</style>
+
+<div class="bgfx" aria-hidden="true">
+  <div class="orb a"></div>
+  <div class="orb b"></div>
+  <div class="orb c"></div>
+  <div class="grid-l"></div>
+</div>
+
+<div class="nav">
+  <div class="wrap nav-in">
+    <span class="wordmark"><span class="pip" aria-hidden="true"></span>nexora</span>
+    <nav class="nav-links">
+      <a href="#features">features</a>
+      <a href="#how">how it works</a>
+      <a href="#pricing">pricing</a>
+      <a href="#faq">faq</a>
     </nav>
-  </header>
-
-
-  <main>
-
-    <!-- hero -->
-
-    <section class="hero">
-
-      <div class="container">
-
-        <div class="hero-inner">
-
-          <div class="hero-pill">
-            <span class="status-dot"></span>
-            movement, reworked
-          </div>
-
-          <h1>
-            move
-            <span class="gradient">different.</span>
-          </h1>
-
-          <p class="hero-description">
-            nexora is a cleaner way to build your movement setup.
-            keep what you need, change what you want, and keep moving.
-          </p>
-
-          <div class="hero-buttons">
-
-            <a
-              href="https://discord.gg/7FBssWkesu"
-              class="button primary"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              purchase
-            </a>
-
-            <a href="#movement" class="button secondary">
-              explore
-            </a>
-
-          </div>
-
-
-          <div class="orbital">
-
-            <div class="orbit one"></div>
-            <div class="orbit two"></div>
-            <div class="orbit three"></div>
-
-            <div class="orb-dot dot-one"></div>
-            <div class="orb-dot dot-two"></div>
-            <div class="orb-dot dot-three"></div>
-            <div class="orb-dot dot-four"></div>
-            <div class="orb-dot dot-five"></div>
-
-            <div class="core"></div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-    <!-- movement -->
-
-    <section class="section" id="movement">
-
-      <div class="container">
-
-        <div class="movement-header">
-
-          <div class="eyebrow-small">
-            movement
-          </div>
-
-          <h2 class="section-title">
-            everything you need.
-          </h2>
-
-        </div>
-
-
-        <div class="feature-grid">
-
-          <div class="feature">
-
-            <div class="feature-number">
-              01
-            </div>
-
-            <h3>
-              edgebug
-            </h3>
-
-            <p>
-              keep your edgebug setup ready without
-              digging through a bunch of stuff.
-            </p>
-
-          </div>
-
-
-          <div class="feature">
-
-            <div class="feature-number">
-              02
-            </div>
-
-            <h3>
-              pixelsurf
-            </h3>
-
-            <p>
-              keep your pixelsurf setup close and
-              ready whenever you need it.
-            </p>
-
-          </div>
-
-
-          <div class="feature">
-
-            <div class="feature-number">
-              03
-            </div>
-
-            <h3>
-              route calculator
-            </h3>
-
-            <p>
-              plan routes, check your setup, and
-              keep the useful stuff in one place.
-            </p>
-
-          </div>
-
-
-          <div class="feature">
-
-            <div class="feature-number">
-              04
-            </div>
-
-            <h3>
-              movement engine
-            </h3>
-
-            <p>
-              keep your movement tools working
-              together without unnecessary clutter.
-            </p>
-
-          </div>
-
-
-          <div class="feature">
-
-            <div class="feature-number">
-              05
-            </div>
-
-            <h3>
-              movement assist
-            </h3>
-
-            <p>
-              useful movement options that stay easy
-              to access whenever you need them.
-            </p>
-
-          </div>
-
-
-          <div class="feature">
-
-            <div class="feature-number">
-              06
-            </div>
-
-            <h3>
-              custom setup
-            </h3>
-
-            <p>
-              change your setup around your own
-              style and keep what you actually use.
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-    <!-- reviews -->
-
-    <section class="section" id="reviews">
-
-      <div class="container">
-
-        <div class="reviews-header">
-
-          <div>
-
-            <div class="eyebrow-small">
-              reviews
-            </div>
-
-            <h2 class="section-title">
-              straight from the community.
-            </h2>
-
-          </div>
-
-          <div class="rating">
-
-            <div class="stars">
-              ★★★★★
-            </div>
-
-            <div class="rating-text">
-              from the nexora community
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <div class="review-grid">
-
-          <div class="review">
-
-            <div class="review-stars">
-              ★★★★★
-            </div>
-
-            <p>
-              "really clean. i opened it once and
-              immediately knew where everything was."
-            </p>
-
-            <div class="reviewer">
-
-              <img
-                class="avatar"
-                src="https://cdn.discordapp.com/avatars/834874573257441350/63ffaffaecf68f9edf2559fc7b4e9672.png?size=512"
-                alt="rup"
-              >
-
-              <div>
-                <div class="reviewer-name">
-                  rup
-                </div>
-
-                <div class="reviewer-tag">
-                  nexora user
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div class="review">
-
-            <div class="review-stars">
-              ★★★★★
-            </div>
-
-            <p>
-              "doesn't feel overloaded. everything
-              just feels like it belongs there."
-            </p>
-
-            <div class="reviewer">
-
-              <img
-                class="avatar"
-                src="https://cdn.discordapp.com/avatars/288857148203597836/546931fc5f8a44844d24c9750bac68b5.png?size=512"
-                alt="amari"
-              >
-
-              <div>
-                <div class="reviewer-name">
-                  amari
-                </div>
-
-                <div class="reviewer-tag">
-                  nexora user
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div class="review">
-
-            <div class="review-stars">
-              ★★★★★
-            </div>
-
-            <p>
-              "the whole thing feels way more polished
-              than i expected. super easy to use."
-            </p>
-
-            <div class="reviewer">
-
-              <img
-                class="avatar"
-                src="https://cdn.discordapp.com/avatars/395656040147976202/9953b578df0a3dbf5d4d6e076bdc9d8f.png?size=512"
-                alt="bonk"
-              >
-
-              <div>
-                <div class="reviewer-name">
-                  bonk
-                </div>
-
-                <div class="reviewer-tag">
-                  nexora user
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-    <!-- purchase -->
-
-    <section class="purchase" id="purchase">
-
-      <div class="container">
-
-        <div class="purchase-header">
-
-          <div class="eyebrow-small">
-            purchase
-          </div>
-
-          <h2 class="section-title">
-            pick your plan.
-          </h2>
-
-          <p class="purchase-subtitle">
-            get full access to nexora and choose
-            whichever option works best for you.
-          </p>
-
-        </div>
-
-
-        <div class="pricing-grid">
-
-          <div class="price-card">
-
-            <span class="price-name">
-              monthly
-            </span>
-
-            <span class="price-description">
-              cancel whenever
-            </span>
-
-            <div class="price">
-              $5<span>/month</span>
-            </div>
-
-            <div class="price-divider"></div>
-
-            <ul class="price-features">
-              <li>full nexora access</li>
-              <li>all movement features</li>
-              <li>future updates</li>
-              <li>easy setup</li>
-            </ul>
-
-            <a
-              href="https://discord.gg/7FBssWkesu"
-              class="button secondary purchase-button"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              purchase monthly
-            </a>
-
-          </div>
-
-
-          <div class="price-card featured">
-
-            <div class="popular">
-              best value
-            </div>
-
-            <span class="price-name">
-              lifetime
-            </span>
-
-            <span class="price-description">
-              one time payment
-            </span>
-
-            <div class="price">
-              $10<span> forever</span>
-            </div>
-
-            <div class="price-divider"></div>
-
-            <ul class="price-features">
-              <li>full nexora access</li>
-              <li>all movement features</li>
-              <li>future updates</li>
-              <li>one payment</li>
-            </ul>
-
-            <a
-              href="https://discord.gg/7FBssWkesu"
-              class="button primary purchase-button"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              purchase lifetime
-            </a>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-  </main>
-
-
-  <footer>
-
-    <div class="footer-logo">
-      nexora<span>.xxx</span>
+    <a class="btn solid" href="#pricing">get access</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="status rise d1"><span class="pip" aria-hidden="true"></span>v1.0 · active</span>
+    <h1 class="rise d2">four tricks<br>nobody <span class="shine">else has</span></h1>
+    <p class="sub rise d3">texture bug, wall stuck, wall climb and head bounce. written from scratch for matcha, read off your real motion, fired on the frame it actually happens.</p>
+    <div class="cta rise d4">
+      <a class="btn solid" href="#pricing">get access</a>
+      <a class="btn" href="#features">what it does</a>
+    </div>
+    <p class="meta rise d5">luau · one file · no injection</p>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="lab">features</span>
+      <h2>never been done before</h2>
+      <p>four tricks you will not find in another roblox script. each one has its own key and only ever touches your character.</p>
     </div>
 
-    <div class="footer-links">
-      <a href="#movement">movement</a>
-      <a href="#reviews">reviews</a>
-      <a href="#purchase">purchase</a>
+    <div class="feats">
+      <div class="card rise d1">
+        <div class="num">01</div>
+        <div class="nm">texture bug <span class="code">tb</span></div>
+        <p>sit on geometry you are not meant to sit on. it watches your fall for the exact resting signature and locks you to that height the frame it shows up. let go and you drop like nothing happened.</p>
+        <span class="key">x</span>
+      </div>
+
+      <div class="card rise d2">
+        <div class="num">02</div>
+        <div class="nm">wall stuck <span class="code">ws</span></div>
+        <p>stop dead against a wall and stay there. it holds you with velocity instead of yanking your position around, so there is none of the shaking you get from every other version of this.</p>
+        <span class="key">v</span>
+      </div>
+
+      <div class="card rise d3">
+        <div class="num">03</div>
+        <div class="nm">wall climb <span class="code">wc</span></div>
+        <p>hold into a wall and go straight up it. there is a constant push inward while you climb so you never peel off halfway and drop back down.</p>
+        <span class="key">f</span>
+      </div>
+
+      <div class="card rise d4">
+        <div class="num">04</div>
+        <div class="nm">head bounce <span class="code">hb</span></div>
+        <p>clip a ceiling and keep every bit of your speed. normally that kills your run on the spot. this catches the frame your rise dies and carries you straight through it.</p>
+        <span class="key">h</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="lab">how it works</span>
+      <h2>anyone can write a velocity</h2>
+      <p>knowing the frame to write it on is the whole job. that is where the others fall over.</p>
     </div>
 
-    <div>
-      © 2026 nexora.xxx
+    <div class="notes">
+      <div class="note">
+        <h3>contact from real movement</h3>
+        <p>checking your speed stops working the second a feature writes its own. wall contact comes from where you actually moved between frames, not from whatever the game was told.</p>
+      </div>
+      <div class="note">
+        <h3>a ground check that holds</h3>
+        <p>one threshold chatters on uneven floors and sets everything off twice. leaving the ground and landing on it use different numbers, so a landing fires once.</p>
+      </div>
+      <div class="note">
+        <h3>the right loop for the job</h3>
+        <p>some of it runs on render, the rest on <code>stepped</code> where velocity writes actually survive the physics step. put them all in one place and half of them break.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="lab">pricing</span>
+      <h2>pick one, get everything</h2>
+      <p>there is no cut down version. both tiers are the same build.</p>
     </div>
 
-  </footer>
+    <div class="tiers">
+      <div class="tier rise d1">
+        <div class="top"><span class="lab">monthly</span></div>
+        <div class="price">$5 <span>/ 30d</span></div>
+        <ul>
+          <li>all four tricks</li>
+          <li>full hud and binds</li>
+          <li>settings saved per game</li>
+          <li>updates while it runs</li>
+        </ul>
+        <a class="btn" href="#faq">get access</a>
+      </div>
 
+      <div class="tier hot rise d2">
+        <div class="top"><span class="lab">lifetime</span><span class="tag">best</span></div>
+        <div class="price">$10 <span>/ once</span></div>
+        <ul>
+          <li>same thing, kept</li>
+          <li>every update after</li>
+          <li>send me feature requests</li>
+          <li>never renew</li>
+        </ul>
+        <a class="btn solid" href="#faq">get access</a>
+      </div>
+    </div>
+  </div>
+</section>
 
-</body>
-</html>
-```
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="lab">faq</span>
+      <h2>before you buy</h2>
+    </div>
+
+    <div class="faq">
+      <details open>
+        <summary>what do i need to run it?</summary>
+        <p>matcha. it goes straight at matcha's memory and drawing apis, so nothing else will run it. one luau file, paste it in and you are going.</p>
+      </details>
+      <details>
+        <summary>is there aimbot or esp in here?</summary>
+        <p>no. it never touches another player. it moves you and draws your own hud, that is the whole thing.</p>
+      </details>
+      <details>
+        <summary>does it work in every game?</summary>
+        <p>anywhere normal humanoid physics apply. offsets shift when a game updates, so they are sliders you can fix yourself in ten seconds. settings save per place, so each game keeps its own tuning.</p>
+      </details>
+      <details>
+        <summary>can i change the keys?</summary>
+        <p>all of them. right click a bind to flip it between hold, toggle and always. the keys save with everything else.</p>
+      </details>
+      <details>
+        <summary>how do i know it actually fired?</summary>
+        <p>it tells you. the cue names the trick as it happens, the chip lights up for as long as it runs, and you get the numbers after.</p>
+      </details>
+      <details>
+        <summary>what do updates look like?</summary>
+        <p>same single file, newer version. your configs are json sitting on disk and they carry straight over.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <span class="wordmark" style="font-size:13px"><span class="pip" aria-hidden="true" style="width:5px;height:5px"></span>nexora</span>
+    <span>v1.0</span>
+    <span class="sp">not affiliated with roblox corporation</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var reduce = false;
+  try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+  if (reduce) return;
+
+  var cards = document.querySelectorAll(".card, .note, .tier");
+  cards.forEach(function (el) {
+    el.addEventListener("pointermove", function (e) {
+      var r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", (e.clientX - r.left) + "px");
+      el.style.setProperty("--my", (e.clientY - r.top) + "px");
+    });
+  });
+})();
+</script>
