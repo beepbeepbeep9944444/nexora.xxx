@@ -1,47 +1,95 @@
 --[[ nexora loader
-     paste this into matcha. it reads your PlaceId and pulls the right module.
+     paste into matcha. reads PlaceId, pulls the right module, runs it.
 
-     BASE is the only line that changes when you move to the private gate:
+     matcha drops top-level return values from loadstring chunks, so every
+     module publishes itself as a global and the loader reads that instead.
+
+     BASE is the only line that changes when the gate goes up:
        public  https://raw.githubusercontent.com/<you>/nexora-src/main
        gated   https://api.nexora.xxx/v1                                  ]]
 
 local BASE = "https://raw.githubusercontent.com/beepbeepbeep9944444/nexora-src/main"
 local KEY  = ""   -- leave empty while BASE is the public repo
 
-local function get(path)
+local ENV = (getfenv and getfenv()) or _G
+
+local function fetch(path)
     local url = BASE .. "/" .. path .. "?t=" .. tostring(tick())
     if KEY ~= "" then url = url .. "&key=" .. KEY end
-    local ok, body = pcall(function() return game:HttpGet(url, true) end)
-    if not ok or type(body) ~= "string" or #body < 32 then
-        return nil, "could not reach " .. path
+
+    local body
+    if httpget then
+        local ok, res = pcall(httpget, url)
+        if ok then body = res end
     end
-    if body:sub(1, 7) == "ERROR: " then return nil, body:sub(8) end
+    if not body or #body < 32 then
+        local ok, res = pcall(function() return game:HttpGet(url, true) end)
+        if ok then body = res end
+    end
+
+    if type(body) ~= "string" or #body < 32 then
+        return nil, "no response for " .. path
+    end
+    if body:sub(1, 1) == "<" then
+        return nil, path .. " served html, check the url"
+    end
+    if body:sub(1, 7) == "ERROR: " then
+        return nil, body:sub(8)
+    end
     return body
 end
 
-local function run(path)
-    local src, err = get(path)
+local function run(path, globalName)
+    local src, err = fetch(path)
     if not src then return nil, err end
-    local fn, cerr = loadstring(src, "=nexora/" .. path)
-    if not fn then return nil, "compile " .. path .. ": " .. tostring(cerr) end
+
+    ENV[globalName] = nil
+
+    local fn = loadstring(src, "=nexora/" .. path)
+    if type(fn) ~= "function" then
+        return nil, "could not compile " .. path
+    end
+
     local ok, res = pcall(fn)
-    if not ok then return nil, "run " .. path .. ": " .. tostring(res) end
-    return res
+    if not ok then
+        return nil, path .. " errored: " .. tostring(res)
+    end
+
+    local value = res
+    if value == nil then value = ENV[globalName] end
+    if value == nil then
+        return nil, path .. " produced nothing (" .. tostring(#src) .. " bytes)"
+    end
+    return value
 end
 
 local function boot(module, name)
-    local NX, err = run("core.lua")
-    if not NX then return warn("[nexora] core failed - " .. tostring(err)) end
+    local NX, err = run("core.lua", "NEXORA_CORE")
+    if not NX then
+        warn("[nexora] core failed - " .. tostring(err))
+        return
+    end
 
     local mod
-    mod, err = run("games/" .. module .. ".lua")
-    if not mod then return warn("[nexora] " .. module .. " failed - " .. tostring(err)) end
+    mod, err = run("games/" .. module .. ".lua", "NEXORA_MODULE")
+    if not mod then
+        warn("[nexora] " .. module .. " failed - " .. tostring(err))
+        return
+    end
 
     NX.placeId = game.PlaceId
     NX.gameName = name
-    mod(NX)
+
+    local ok, rerr = pcall(mod, NX)
+    if not ok then
+        warn("[nexora] " .. module .. " setup failed - " .. tostring(rerr))
+        return
+    end
+
+    if notify then pcall(notify, name .. " loaded", "nexora", 3) end
+    print("[nexora] loaded " .. name .. " - rshift for menu")
+
     NX.start("movement", "Movement")
-    print("[nexora] loaded " .. name)
 end
 
 if game.PlaceId == 328028363 then
