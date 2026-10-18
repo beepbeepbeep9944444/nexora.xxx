@@ -533,28 +533,48 @@ async function loadFlips() {
   drawFlips();
 }
 setInterval(() => { if (route()[0] === "coinflip" && FLIPS.some(flipLive)) drawFlips(); }, 2000);
+const COIN_IMG = { RED: "coin-red.svg", GRN: "coin-grn.svg" };
+const coinIcon = (s, size = 22) => `<img class="coin-ic" src="${COIN_IMG[s]}" width="${size}" height="${size}" alt="${s}">`;
+Object.values(COIN_IMG).forEach(src => { const i = new Image(); i.src = src; });
+const otherSide = s => s === "RED" ? "GRN" : "RED";
 function viewCoinflip() {
-  $("#view").innerHTML = `<div class="page-head"><div><h1>Coinflip</h1><p>RED or GRN. Match the other player's items within ±10% and flip for everything. Nobody joining? Flip against the House for coins.</p></div><button class="btn btn-gold" id="cfCreate">Create game</button></div>
-    <div class="cf-list" id="cfList"><div class="empty">Loading…</div></div><div class="section-title" style="margin-top:22px">Recent flips</div><div class="cf-list" id="cfDone"></div>`;
+  $("#view").innerHTML = `
+    <div class="cf2-head">
+      <div><h1>Coinflip</h1><p class="muted">Pick RED or GRN, put up your items, and flip for the whole pot. Opponents match your value within ±10%. Nobody coming? Call the House bot.</p></div>
+      <button class="btn btn-gold btn-lg" id="cfCreate">${coinIcon("RED", 20)}${coinIcon("GRN", 20)} Create flip</button>
+    </div>
+    <div class="cf2-stats" id="cfStats"></div>
+    <div class="cf2-list" id="cfList"><div class="empty">Loading…</div></div>
+    <div class="sec-head"><h2>Recent flips</h2></div>
+    <div class="cf2-list" id="cfDone"></div>`;
   $("#cfCreate").onclick = createFlip; loadFlips();
 }
-const sideChip = s => `<span class="side ${s}" style="position:static;display:inline-block;width:10px;height:10px;border:0;border-radius:50%"></span>`;
+const sideChip = s => coinIcon(s, 16);
+const cfPlayer = (name, side, sub) => `<div class="cf2-p">${name ? `<div class="cf2-av" style="background:${pfpColor(name)}">${esc(name[0].toUpperCase())}${coinIcon(side, 22)}</div><div class="cf2-pn"><b>${userLink(name)}</b><span>${sub}</span></div>`
+  : `<div class="cf2-av cf2-wait">?${coinIcon(side, 22)}</div><div class="cf2-pn"><b class="muted">Waiting…</b><span>${side}</span></div>`}</div>`;
 function drawFlips() {
   const el = $("#cfList"); if (!el) return;
   const open = FLIPS.filter(g => g.status === "open"), live = FLIPS.filter(flipLive), done = FLIPS.filter(g => g.status === "done" && !flipLive(g));
-  el.innerHTML = open.map(g => { const items = fromJ(g.creator_items), v = +g.creator_value, mine = ME.user && g.creator === ME.user.id, other = g.side === "RED" ? "GRN" : "RED"; return `<div class="panel cf-row">
-      <div class="player"><div class="pfp" style="background:${pfpColor(g.creator_name)}">${esc(g.creator_name[0].toUpperCase())}<span class="side ${g.side}"></span></div><div><div class="nm">${userLink(g.creator_name)}</div><div class="muted" style="font-size:12px">${items.length} items · ${g.side}</div></div></div>
-      <div class="mini-items">${minis(items, 7)}</div>
-      <div>${coinVal(v)}<div class="muted" style="font-size:11px">${fmt(v * .9)} – ${fmt(v * 1.1)}</div></div>
-      <div style="display:flex;gap:6px">${mine ? `<button class="btn" data-house="${g.id}" style="flex:1">vs House</button><button class="btn" data-cancel="${g.id}" title="Cancel">✕</button>` : `<button class="btn btn-${other === "GRN" ? "grn" : "red"}" data-join="${g.id}" style="flex:1">Join as ${other}</button>`}<button class="btn" data-watch="${g.id}" title="Watch">👁</button></div></div>`; }).join("")
-    + live.map(g => `<div class="panel cf-row live-row"><div class="player">${pfp(g.creator_name)}<div><div class="nm">${userLink(g.creator_name)}</div><div class="muted" style="font-size:12px">${g.side}</div></div></div>
-      <div class="player">${pfp(g.joiner_name)}<div><div class="nm">${userLink(g.joiner_name)}</div><div class="muted" style="font-size:12px">${g.side === "RED" ? "GRN" : "RED"}</div></div></div>
-      <div>${coinVal(+g.creator_value + +g.joiner_value)}</div><div><button class="btn btn-gold" data-livewatch="${g.id}" style="width:100%"><span class="live-dot"></span>LIVE · Watch</button></div></div>`).join("")
-    || `<div class="empty">No open games. Create one!</div>`;
-  $("#cfDone").innerHTML = done.map(g => `<div class="panel cf-row" style="opacity:.8">
-      <div class="player">${pfp(g.creator_name)}<div><div class="nm">${userLink(g.creator_name)}</div><div class="muted" style="font-size:12px">${g.side} ${g.winner_side === g.side ? "· won" : ""}</div></div></div>
-      <div class="player">${pfp(g.joiner_name)}<div><div class="nm">${userLink(g.joiner_name)}</div><div class="muted" style="font-size:12px">${g.side === "RED" ? "GRN" : "RED"} ${g.winner_side !== g.side ? "· won" : ""}</div></div></div>
-      <div>${coinVal(+g.creator_value + +g.joiner_value)}</div><div style="display:flex;gap:8px;align-items:center">${sideChip(g.winner_side)} <b>${g.winner_side}</b> won <button class="btn" data-replay="${g.id}" style="margin-left:auto;padding:6px 10px">Replay</button></div></div>`).join("") || `<div class="muted">No flips yet.</div>`;
+  const tv = open.reduce((s, g) => s + +g.creator_value, 0) + live.reduce((s, g) => s + +g.creator_value + +g.joiner_value, 0);
+  $("#cfStats").innerHTML = `<div><span>Open flips</span><b>${open.length}</b></div><div><span>Live now</span><b>${live.length}</b></div><div><span>Value on the table</span>${coinVal(tv)}</div>
+    <div><span>RED / GRN wins (recent)</span><b>${done.filter(g => g.winner_side === "RED").length} ${coinIcon("RED", 16)} · ${done.filter(g => g.winner_side === "GRN").length} ${coinIcon("GRN", 16)}</b></div>`;
+  el.innerHTML = live.map(g => `<div class="cf2-row is-live">
+      ${cfPlayer(g.creator_name, g.side, g.side)}<div class="cf2-vs">VS</div>${cfPlayer(g.joiner_name, otherSide(g.side), otherSide(g.side))}
+      <div class="mini-items">${minis([...fromJ(g.creator_items), ...fromJ(g.joiner_items)], 6)}</div>
+      <div class="cf2-val">${coinVal(+g.creator_value + +g.joiner_value)}<span>pot</span></div>
+      <div class="cf2-act"><button class="btn btn-gold" data-livewatch="${g.id}"><span class="live-dot"></span>Live · Watch</button></div></div>`).join("")
+    + open.map(g => { const items = fromJ(g.creator_items), v = +g.creator_value, mine = ME.user && g.creator === ME.user.id, o = otherSide(g.side); return `<div class="cf2-row">
+      ${cfPlayer(g.creator_name, g.side, `${items.length} item${items.length === 1 ? "" : "s"}`)}<div class="cf2-vs">VS</div>${cfPlayer(null, o)}
+      <div class="mini-items">${minis(items, 6)}</div>
+      <div class="cf2-val">${coinVal(v)}<span>${fmt(v * .9)} – ${fmt(v * 1.1)}</span></div>
+      <div class="cf2-act">${mine ? `<button class="btn" data-house="${g.id}">🤖 Call bot</button><button class="btn cf2-x" data-cancel="${g.id}" title="Cancel">✕</button>`
+        : `<button class="btn cf2-join ${o}" data-join="${g.id}">${coinIcon(o, 20)}Join</button>`}<button class="btn cf2-eye" data-watch="${g.id}" title="Watch">👁</button></div></div>`; }).join("")
+    || `<div class="empty cf2-empty">${coinIcon("RED", 44)}${coinIcon("GRN", 44)}<div>No open flips right now. Start one!</div></div>`;
+  $("#cfDone").innerHTML = done.map(g => { const ws = g.winner_side; return `<div class="cf2-row is-done">
+      ${cfPlayer(g.creator_name, g.side, g.side === ws ? `<i class="won">Won</i>` : "Lost")}<div class="cf2-vs">${coinIcon(ws, 30)}</div>${cfPlayer(g.joiner_name, otherSide(g.side), otherSide(g.side) === ws ? `<i class="won">Won</i>` : "Lost")}
+      <div class="mini-items">${minis([...fromJ(g.creator_items), ...fromJ(g.joiner_items)], 6)}</div>
+      <div class="cf2-val">${coinVal(+g.creator_value + +g.joiner_value)}<span>pot</span></div>
+      <div class="cf2-act"><button class="btn" data-replay="${g.id}">↻ Replay</button></div></div>`; }).join("") || `<div class="muted">No flips yet.</div>`;
   $("#cfDone").onclick = e => { const r = e.target.closest("[data-replay]"); if (r) showFlip(FLIPS.find(g => g.id === +r.dataset.replay), true); };
   el.onclick = async e => {
     const j = e.target.closest("[data-join]"), h = e.target.closest("[data-house]"), c = e.target.closest("[data-cancel]"), w = e.target.closest("[data-watch]");
@@ -576,7 +596,7 @@ async function createFlip() {
   if (needLogin()) return;
   const items = await pickItems({ title: "Create a coinflip", min: 0.1, confirm: "Next", hint: "Select the items you want to flip." });
   if (!items) return;
-  const side = await new Promise(res => { const m = modal(`<h2>Pick your side</h2><div class="vs" style="margin-top:18px"><button class="btn btn-red" data-s="RED" style="padding:24px">RED</button><span class="muted">or</span><button class="btn btn-grn" data-s="GRN" style="padding:24px">GRN</button></div>`); m.onclick = e => { const b = e.target.closest("[data-s]"); if (b) { closeModal(); res(b.dataset.s); } }; });
+  const side = await new Promise(res => { const m = modal(`<h2 style="text-align:center">Pick your side</h2><p class="muted" style="text-align:center">Your opponent gets the other coin.</p><div class="cf2-pick"><button data-s="RED">${coinIcon("RED", 150)}<b>RED</b></button><button data-s="GRN">${coinIcon("GRN", 150)}<b>GRN</b></button></div>`); m.onclick = e => { const b = e.target.closest("[data-s]"); if (b) { closeModal(); res(b.dataset.s); } }; });
   try { await rpc("coinflip_create", { p_ids: items.map(i => i.id), p_side: side }); toast("Game created. Waiting for an opponent…"); await refreshMe(); loadFlips(); } catch (e) { fail(e); }
 }
 const shownFlips = new Set();
@@ -584,7 +604,12 @@ const flipLive = g => g.status === "done" && Date.now() < new Date(g.finished_at
 let watchingFlip = null;
 const FLIP_WAIT = 5000, FLIP_TOSS = 5200;
 const flipCol = p => `<div><div class="player" style="justify-content:center;flex-direction:column">${pfp(p.name)}<b>${userLink(p.name)}</b><span class="chip">${sideChip(p.side)}${p.side}</span></div><div style="margin-top:8px">${coinVal(p.v)}</div><div class="mini-items" style="justify-content:center;margin-top:8px;flex-wrap:wrap">${p.items.length ? minis(p.items, 6) : `<span class="muted">${p.name === "House" ? "coins" : "…"}</span>`}</div></div>`;
-const coinStage = () => `<div class="cf-stage"><div class="cf-count" id="cfCount"></div><div class="cf-toss" id="cfToss"><div class="coin3d" id="coin3d"><div class="face RED">RED</div><div class="coin-edge"></div><div class="face GRN">GRN</div></div></div><div class="cf-shadow" id="cfShadow"></div></div>`;
+const COIN_T = 16, COIN_SLICES = 14;
+const coinStage = () => `<div class="cf-stage"><div class="cf-count" id="cfCount"></div><div class="cf-toss" id="cfToss"><div class="coin3d coin3d-v2" id="coin3d">
+  ${Array.from({ length: COIN_SLICES }, (_, i) => `<i class="ce" style="transform:translateZ(${(-COIN_T / 2 + i * COIN_T / (COIN_SLICES - 1)).toFixed(2)}px)"></i>`).join("")}
+  <div class="face RED" style="transform:translateZ(${COIN_T / 2 + .5}px)"><img src="${COIN_IMG.RED}" alt="RED"></div>
+  <div class="face GRN" style="transform:rotateY(180deg) translateZ(${COIN_T / 2 + .5}px)"><img src="${COIN_IMG.GRN}" alt="GRN"></div>
+</div></div><div class="cf-shadow" id="cfShadow"></div></div>`;
 // watch an open flip: shows the creator and waits for someone to join
 function watchFlip(g) {
   watchingFlip = g.id;
@@ -616,7 +641,7 @@ async function showFlip(g, replay = false) {
   $("#cfToss").animate([{ transform: "translateY(0) scale(1)" }, { transform: "translateY(-170px) scale(1.3)", offset: .42 }, { transform: "translateY(0) scale(1)", offset: .82 },
     { transform: "translateY(-22px) scale(1.05)", offset: .9 }, { transform: "translateY(0) scale(1)", offset: .96 }, { transform: "translateY(0) scale(1)" }], { duration: T, easing: "ease-in-out", fill: "forwards" });
   $("#cfShadow").animate([{ transform: "scale(1)", opacity: .5 }, { transform: "scale(.4)", opacity: .12, offset: .42 }, { transform: "scale(1)", opacity: .5, offset: .82 }, { transform: "scale(1)", opacity: .5 }], { duration: T, fill: "forwards" });
-  $("#coin3d").animate([{ transform: "rotateX(10deg) rotateY(0)" }, { transform: `rotateX(10deg) rotateY(${spins * 360}deg)` }], { duration: T * .86, easing: "cubic-bezier(.12,.55,.2,1)", fill: "forwards" });
+  $("#coin3d").animate([{ transform: "rotateX(14deg) rotateY(0)" }, { transform: `rotateX(14deg) rotateY(${spins * 360}deg)` }], { duration: T * .86, easing: "cubic-bezier(.12,.55,.2,1)", fill: "forwards" });
   { let k = 0; const iv = setInterval(() => { if (++k > 22) return clearInterval(iv); SFX.tick(); }, T * .8 / 26); }
   await sleep(T * .82); SFX.land(); await sleep(T * .18 + 150);
   if (!$("#coin3d")) return;

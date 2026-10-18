@@ -305,3 +305,57 @@ input:focus,select:focus{border-color:rgba(245,184,61,.5);box-shadow:0 0 0 3px r
 .kx-strip{container-type:inline-size}
 .kx-m b{padding:9px 0;font-size:clamp(9px,1.45cqw,13px);text-overflow:clip}
 .kx-m span{font-size:clamp(9px,1.4cqw,12px)}
+
+/* ---------- coinflip v2 ---------- */
+.coin-ic{display:inline-block;vertical-align:middle;flex:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}
+.cf2-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.cf2-head h1{margin:0;font:900 30px Rubik,Inter,sans-serif}.cf2-head p{margin:6px 0 0;max-width:640px}
+.cf2-head .btn .coin-ic{margin-right:-4px}
+.cf2-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.cf2-stats div{display:flex;flex-direction:column;gap:4px;padding:12px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.cf2-stats span{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+.cf2-stats b,.cf2-stats .val{font-size:17px;font-weight:800;display:flex;align-items:center;gap:6px}
+.cf2-list{display:flex;flex-direction:column;gap:8px}
+.cf2-row{display:grid;grid-template-columns:minmax(150px,1.1fr) 40px minmax(150px,1.1fr) minmax(0,1.6fr) 130px 210px;align-items:center;gap:14px;padding:12px 16px;border-radius:14px;
+  background:linear-gradient(90deg,rgba(255,255,255,.02),transparent),var(--panel);border:1px solid var(--line);transition:.15s;animation:slidein .3s ease-out}
+.cf2-row:hover{border-color:var(--line2);transform:translateY(-1px)}
+.cf2-row.is-live{border-color:rgba(245,184,61,.45);box-shadow:0 0 0 1px rgba(245,184,61,.15),0 10px 30px -18px var(--gold)}
+.cf2-row.is-done{opacity:.85}
+.cf2-p{display:flex;align-items:center;gap:10px;min-width:0}
+.cf2-av{position:relative;flex:none;width:44px;height:44px;border-radius:11px;display:grid;place-items:center;font:800 17px Rubik}
+.cf2-av .coin-ic{position:absolute;right:-8px;bottom:-8px}
+.cf2-wait{background:var(--bg2);border:2px dashed var(--line2);color:var(--dim);animation:pulse 1.6s infinite}
+.cf2-pn{display:flex;flex-direction:column;min-width:0}
+.cf2-pn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cf2-pn span{font-size:12px;color:var(--muted)}
+.cf2-pn .won{font-style:normal;color:var(--gold);font-weight:800}
+.cf2-vs{display:grid;place-items:center;font:900 13px Rubik;color:var(--dim)}
+.cf2-val{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.cf2-val .val{font-size:16px}
+.cf2-val span{font-size:11px;color:var(--dim)}
+.cf2-act{display:flex;gap:6px;justify-content:flex-end}
+.cf2-act .btn{padding:9px 14px}
+.cf2-join{flex:1;border:0;color:#fff}
+.cf2-join.RED{background:linear-gradient(180deg,#f8645c,var(--red2))}
+.cf2-join.GRN{background:linear-gradient(180deg,#34d77a,var(--grn2))}
+.cf2-eye,.cf2-x{padding:9px 11px!important}
+.cf2-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:34px;border-radius:14px;background:var(--panel);border:1px dashed var(--line2)}
+.cf2-empty .coin-ic+.coin-ic{margin-top:-54px;margin-left:40px}
+.cf2-pick{display:flex;justify-content:center;gap:28px;margin:18px 0 6px}
+.cf2-pick button{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px;border-radius:18px;border:1px solid var(--line);background:var(--bg2);transition:.2s}
+.cf2-pick button:hover{transform:translateY(-4px) rotate(-4deg);border-color:var(--line2)}
+.cf2-pick button[data-s=RED]:hover{box-shadow:0 14px 40px -12px var(--red)}
+.cf2-pick button[data-s=GRN]:hover{box-shadow:0 14px 40px -12px var(--grn)}
+.cf2-pick b{font:900 20px Rubik}
+.cf2-pick button[data-s=RED] b{color:#fca5a5}.cf2-pick button[data-s=GRN] b{color:#86efac}
+/* the 3D coin */
+.coin3d-v2{width:190px;height:190px}
+.coin3d-v2 .ce{position:absolute;inset:3px;border-radius:50%;background:radial-gradient(circle,#4a3a12 0 60%,#c9a24a 61%,#8a6a1c 75%,#5a430f 100%);backface-visibility:visible}
+.coin3d-v2 .face{position:absolute;inset:0;border-radius:50%;background:none!important;box-shadow:none!important;font-size:0;backface-visibility:hidden}
+.coin3d-v2 .face img{width:100%;height:100%;display:block}
+.coin3d-v2.glow-RED .face.RED,.coin3d-v2.glow-GRN .face.GRN{box-shadow:none!important}
+.coin3d-v2.glow-RED .face.RED img{filter:drop-shadow(0 0 26px rgba(239,68,68,.95))}
+.coin3d-v2.glow-GRN .face.GRN img{filter:drop-shadow(0 0 26px rgba(34,197,94,.95))}
+.cf-stage{perspective:900px}
+@media (max-width:1300px){.cf2-row{grid-template-columns:minmax(130px,1fr) 30px minmax(130px,1fr) 120px 190px}.cf2-row .mini-items{display:none}}
+@media (max-width:760px){.cf2-stats{grid-template-columns:1fr 1fr}.cf2-row{grid-template-columns:1fr 26px 1fr;row-gap:10px}.cf2-val{grid-column:1/2;align-items:flex-start}.cf2-act{grid-column:2/4}.cf2-pick{gap:12px}.cf2-pick .coin-ic{width:110px;height:110px}}
