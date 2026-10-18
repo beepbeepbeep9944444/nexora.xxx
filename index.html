@@ -1,30 +1,21 @@
 <title>nexora</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<meta name="claude:viewport-fit-sides" content="cover">
 
 <style>
-/* layout: centered dark column, drifting violet light, glass cards that follow the cursor */
+/* nav, short hero, four reasons, a closing band, footer. */
 :root {
+  --bg:      #0b0b0c;
+  --surface: #121214;
+  --fg:      #f4f4f5;
+  --dim:     #9a9aa0;
+  --faint:   #5a5a61;
+  --rule:    #232327;
+  --rule-hi: #34343a;
+
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
   color-scheme: dark;
-
-  --bg:        #06060a;
-  --glass:     rgba(255,255,255,0.026);
-  --glass-hi:  rgba(255,255,255,0.05);
-  --edge:      rgba(255,255,255,0.07);
-  --edge-hi:   rgba(255,255,255,0.16);
-  --fg:        #eceef4;
-  --dim:       #8b8f9d;
-  --faint:     #565a67;
-  --accent:    #7c5cff;
-  --accent-2:  #bda4ff;
-  --glow:      rgba(124,92,255,0.3);
-
-  --display: "Sora", "Helvetica Neue", Arial, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-
-  --maxw: 1020px;
-  --ease: cubic-bezier(.22,.68,.36,1);
 }
 
 * { box-sizing: border-box; }
@@ -34,377 +25,169 @@ html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--display);
-  font-weight: 300;
-  font-size: 16px;
-  line-height: 1.65;
-  text-transform: lowercase;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
 }
 
-/* ---------- ambient ---------- */
-.bgfx { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
-.grid-l {
-  position: absolute; inset: -20%;
-  background:
-    linear-gradient(transparent 0 97%, rgba(255,255,255,0.02) 97% 100%) 0 0 / 100% 52px,
-    linear-gradient(90deg, transparent 0 97%, rgba(255,255,255,0.02) 97% 100%) 0 0 / 52px 100%;
-  -webkit-mask-image: radial-gradient(1000px 680px at 50% 4%, #000 30%, transparent 86%);
-  mask-image: radial-gradient(1000px 680px at 50% 4%, #000 30%, transparent 86%);
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg);
+  z-index: 20;
 }
-.orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .5; }
-.orb.a { width: 620px; height: 620px; left: 50%; top: -340px; margin-left: -310px; background: var(--glow); animation: driftA 19s var(--ease) infinite alternate; }
-.orb.b { width: 460px; height: 460px; right: -140px; top: 220px; background: rgba(189,164,255,0.16); animation: driftB 24s var(--ease) infinite alternate; }
-.orb.c { width: 520px; height: 520px; left: -180px; top: 760px; background: rgba(124,92,255,0.12); animation: driftA 27s var(--ease) infinite alternate-reverse; }
-@keyframes driftA { from { transform: translate3d(-40px, 0, 0) scale(1); } to { transform: translate3d(50px, 60px, 0) scale(1.12); } }
-@keyframes driftB { from { transform: translate3d(0, -30px, 0) scale(1.05); } to { transform: translate3d(-70px, 50px, 0) scale(.92); } }
 
-.wrap { max-width: var(--maxw); margin: 0 auto; padding-inline: 22px; }
+a { color: inherit; text-decoration: none; }
+a:focus-visible { outline: 1px solid var(--fg); outline-offset: 3px; }
 
-h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.04em; line-height: 1.08; text-wrap: balance; }
-p { margin: 0; }
-a { color: inherit; }
-
-.lab { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; color: var(--faint); }
-
-/* ---------- entrance ---------- */
-.rise { animation: rise .8s var(--ease) both; }
-.d1 { animation-delay: .05s } .d2 { animation-delay: .12s } .d3 { animation-delay: .19s }
-.d4 { animation-delay: .26s } .d5 { animation-delay: .33s } .d6 { animation-delay: .4s }
-@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
 
 /* ---------- nav ---------- */
-.nav {
-  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40;
-  background: rgba(6,6,10,0.68); backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--edge);
+nav {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  background: rgba(11, 11, 12, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+  z-index: 19;
 }
-.nav-in { display: flex; align-items: center; gap: 18px; padding-block: 14px; }
-.wordmark { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -0.06em; }
-.pip {
-  width: 7px; height: 7px; border-radius: 50%; flex: none;
-  background: var(--accent); box-shadow: 0 0 0 0 var(--glow);
-  animation: pulse 2.6s ease-out infinite;
-}
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(124,92,255,.55); }
-  70% { box-shadow: 0 0 0 9px rgba(124,92,255,0); }
-  100% { box-shadow: 0 0 0 0 rgba(124,92,255,0); }
-}
-.nav-links { margin-left: auto; display: flex; gap: 24px; font-size: 13.5px; color: var(--dim); }
-.nav-links a { text-decoration: none; position: relative; transition: color .18s; }
-.nav-links a::after {
-  content: ""; position: absolute; left: 0; right: 100%; bottom: -5px; height: 1px;
-  background: var(--accent); transition: right .28s var(--ease);
-}
-.nav-links a:hover { color: var(--fg); }
-.nav-links a:hover::after { right: 0; }
-@media (max-width: 720px) { .nav-links { display: none; } }
+nav .wrap { display: flex; align-items: center; gap: 22px; padding-block: 13px; }
+.logo { font-weight: 600; letter-spacing: -0.01em; }
 
-/* ---------- buttons ---------- */
+.nav-links { position: relative; display: flex; gap: 20px; font-size: 14px; }
+.nav-links a { color: var(--dim); padding-bottom: 2px; transition: color 0.18s var(--ease); }
+.nav-links a:hover, .nav-links a.active { color: var(--fg); }
+.underline {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 1px;
+  width: 0;
+  background: var(--fg);
+  opacity: 0;
+  transition: transform 0.32s var(--ease), width 0.32s var(--ease), opacity 0.2s var(--ease);
+  pointer-events: none;
+}
+nav .spacer { flex: 1; }
+
 .btn {
-  position: relative; overflow: hidden;
-  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  font-family: var(--mono); font-size: 12.5px; font-weight: 500;
-  padding: 12px 22px; border-radius: 9px; text-decoration: none;
-  border: 1px solid var(--edge); background: var(--glass); color: var(--fg);
-  transition: background .18s, border-color .18s, box-shadow .25s, transform .12s var(--ease);
+  display: inline-block;
+  padding: 7px 15px;
+  border: 1px solid var(--rule-hi);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease),
+              color 0.18s var(--ease), transform 0.12s var(--ease);
 }
-.btn::before {
-  content: ""; position: absolute; top: 0; bottom: 0; width: 45%;
-  left: -60%; transform: skewX(-18deg);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent);
-  transition: left .55s var(--ease);
-}
-.btn:hover::before { left: 120%; }
-.btn:hover { background: var(--glass-hi); border-color: var(--edge-hi); transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
-.btn.solid {
-  background: var(--accent); border-color: transparent; color: #0a0616; font-weight: 500;
-  box-shadow: 0 6px 26px -10px var(--glow);
-}
-.btn.solid:hover { background: #8e72ff; box-shadow: 0 10px 34px -10px rgba(124,92,255,.6); }
-.btn:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+.btn:hover { border-color: var(--fg); }
+.btn:active { transform: translateY(1px); }
+.btn.solid { background: var(--fg); color: #0b0b0c; border-color: var(--fg); font-weight: 500; }
+.btn.solid:hover { background: #ffffff; }
 
 /* ---------- hero ---------- */
-.hero { padding-block: 96px 84px; text-align: center; }
-@media (max-width: 720px) { .hero { padding-block: 56px 56px; } }
+.hero .wrap { padding-block: 84px 60px; }
+h1 {
+  font-size: 50px;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.hero p { font-size: 17px; color: var(--dim); max-width: 44ch; margin: 0; }
 
-.status {
-  display: inline-flex; align-items: center; gap: 9px;
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
-  color: var(--dim); border: 1px solid var(--edge); background: var(--glass);
-  border-radius: 99px; padding: 6px 14px;
+/* ---------- reasons ---------- */
+section { border-top: 1px solid var(--rule); scroll-margin-top: 62px; }
+section > .wrap { padding-block: 50px; }
+h2 {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin: 0 0 26px;
+  transition: color 0.4s var(--ease);
 }
-.status .pip { width: 5px; height: 5px; }
+section.hit h2 { color: #ffffff; }
 
-.hero h1 { font-size: clamp(42px, 8.6vw, 82px); font-weight: 800; letter-spacing: -0.065em; margin-top: 24px; }
-.shine {
-  background: linear-gradient(100deg, var(--accent) 10%, #e4d9ff 38%, var(--accent) 62%);
-  background-size: 260% 100%;
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
-  animation: sweep 6.5s linear infinite;
-}
-@keyframes sweep { from { background-position: 180% 0; } to { background-position: -80% 0; } }
+.reasons { display: grid; gap: 26px; }
+.reason { display: grid; gap: 4px; max-width: 52ch; }
+.reason h3 { font-size: 15px; font-weight: 600; margin: 0; }
+.reason p { margin: 0; color: var(--dim); }
 
-.hero .sub { color: var(--dim); font-size: 16.5px; max-width: 50ch; margin: 20px auto 0; }
-.hero .cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
-.hero .meta { margin-top: 20px; font-family: var(--mono); font-size: 11px; color: var(--faint); letter-spacing: 0.1em; }
-
-/* ---------- sections ---------- */
-section { padding-block: 74px; }
-.sec-head { text-align: center; max-width: 52ch; margin: 0 auto 40px; }
-.sec-head h2 { font-size: clamp(26px, 4.2vw, 36px); margin-block: 12px 12px; }
-.sec-head p { color: var(--dim); font-size: 15.5px; }
-
-/* ---------- big feature cards ---------- */
-.feats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 720px) { .feats { grid-template-columns: 1fr; } }
-
-.card {
-  position: relative; overflow: hidden; min-width: 0;
-  border: 1px solid var(--edge); border-radius: 15px;
-  background: var(--glass);
-  padding: 24px 22px 22px;
-  transition: border-color .25s, transform .3s var(--ease), background .25s;
-}
-.card::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(340px circle at var(--mx, 50%) var(--my, 0%), rgba(124,92,255,.14), transparent 62%);
-  opacity: 0; transition: opacity .3s;
-}
-.card:hover { transform: translateY(-3px); border-color: rgba(124,92,255,.38); background: var(--glass-hi); }
-.card:hover::before { opacity: 1; }
-
-.card .num {
-  font-family: var(--mono); font-size: 10.5px; color: var(--faint); letter-spacing: .18em;
-}
-.card .nm {
-  font-size: 22px; font-weight: 700; letter-spacing: -0.04em;
-  margin-block: 8px 10px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-}
-.card .code {
-  font-family: var(--mono); font-size: 10.5px; font-weight: 500; color: var(--accent-2);
-  background: rgba(124,92,255,.12); border: 1px solid rgba(124,92,255,.3);
-  border-radius: 5px; padding: 2px 7px; letter-spacing: .04em;
-}
-.card p { color: var(--dim); font-size: 14.5px; line-height: 1.6; }
-.card .key {
-  display: inline-block; margin-top: 14px;
-  font-family: var(--mono); font-size: 10.5px; color: var(--faint);
-  border: 1px solid var(--edge); border-radius: 6px; padding: 3px 9px;
-}
-
-/* ---------- how ---------- */
-.notes { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
-@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
-.note {
-  border: 1px solid var(--edge); border-radius: 13px; background: var(--glass);
-  padding: 18px 19px; min-width: 0; transition: border-color .25s, background .25s;
-}
-.note:hover { border-color: var(--edge-hi); background: var(--glass-hi); }
-.note h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.02em; }
-.note p { color: var(--dim); font-size: 13.5px; }
-code { font-family: var(--mono); font-size: .88em; color: var(--accent-2); }
-
-/* ---------- pricing ---------- */
-.tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 680px; margin: 0 auto; }
-@media (max-width: 620px) { .tiers { grid-template-columns: 1fr; } }
-.tier {
-  position: relative; border-radius: 16px; padding: 26px 24px;
-  display: flex; flex-direction: column; gap: 17px; min-width: 0;
-  border: 1px solid var(--edge); background: var(--glass);
-  transition: transform .3s var(--ease), border-color .25s;
-}
-.tier:hover { transform: translateY(-3px); border-color: var(--edge-hi); }
-.tier.hot {
-  border-color: transparent;
-  background:
-    linear-gradient(var(--bg), var(--bg)) padding-box,
-    conic-gradient(from var(--spin, 0deg), rgba(124,92,255,.65), rgba(189,164,255,.15), rgba(124,92,255,.65)) border-box;
-  box-shadow: 0 18px 60px -32px var(--glow);
-  animation: spin 7s linear infinite;
-}
-@property --spin { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-@keyframes spin { to { --spin: 360deg; } }
-.tier .top { display: flex; align-items: center; gap: 10px; }
-.tier .tag {
-  margin-left: auto; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em;
-  color: #0a0616; background: var(--accent); border-radius: 99px; padding: 3px 9px;
-}
-.price {
-  font-family: var(--mono); font-size: 40px; font-weight: 500;
-  letter-spacing: -0.05em; font-variant-numeric: tabular-nums; line-height: 1;
-}
-.price span { font-size: 11.5px; color: var(--faint); letter-spacing: .06em; }
-.tier ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
-.tier li { font-size: 13.5px; color: var(--dim); display: flex; gap: 10px; }
-.tier li::before { content: "/"; color: var(--accent); flex: none; font-family: var(--mono); }
-
-/* ---------- faq ---------- */
-.faq { max-width: 740px; margin: 0 auto; }
-details { border-bottom: 1px solid var(--edge); }
-details:first-of-type { border-top: 1px solid var(--edge); }
-summary {
-  cursor: pointer; list-style: none; padding-block: 17px;
-  font-size: 14.5px; display: flex; gap: 14px; align-items: center;
-  transition: color .18s;
-}
-summary:hover { color: var(--accent-2); }
-summary::-webkit-details-marker { display: none; }
-summary::after {
-  content: "+"; margin-left: auto; font-family: var(--mono); color: var(--faint);
-  flex: none; transition: transform .25s var(--ease), color .2s;
-}
-details[open] summary::after { content: "+"; transform: rotate(45deg); color: var(--accent-2); }
-details p { color: var(--dim); font-size: 13.5px; padding-bottom: 19px; max-width: 64ch; animation: rise .4s var(--ease) both; }
-summary:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+/* ---------- closing band ---------- */
+.band { background: var(--surface); }
+.band .wrap { padding-block: 46px; display: grid; gap: 18px; justify-items: start; }
+.band h2 { margin: 0; }
+.prices { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: baseline; }
+.prices b { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.prices span { color: var(--dim); font-size: 14px; }
+.terms { color: var(--faint); font-size: 14px; margin: 0; max-width: 52ch; }
 
 /* ---------- footer ---------- */
-footer { padding-block: 34px 46px; border-top: 1px solid var(--edge); margin-top: 44px; }
-.foot {
-  display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--faint);
+footer { border-top: 1px solid var(--rule); }
+footer .wrap { padding-block: 24px 42px; display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--faint); font-size: 13px; }
+footer a { transition: color 0.18s var(--ease); }
+footer a:hover { color: var(--fg); }
+footer .spacer { flex: 1; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 36px; }
+  .hero .wrap { padding-block: 54px 42px; }
 }
-.foot .sp { margin-left: auto; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after { animation: none !important; transition-duration: .001ms !important; }
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 </style>
 
-<div class="bgfx" aria-hidden="true">
-  <div class="orb a"></div>
-  <div class="orb b"></div>
-  <div class="orb c"></div>
-  <div class="grid-l"></div>
-</div>
+<nav id="top">
+  <div class="wrap">
+    <span class="logo">nexora</span>
+    <span class="nav-links" id="navlinks">
+      <a href="#why">why nexora</a>
+      <a href="#faq">before you buy</a>
+      <a href="#buy">buy</a>
+      <span class="underline" id="underline"></span>
+    </span>
+    <span class="spacer"></span>
+    <a class="btn" href="#buy">get access</a>
+  </div>
+</nav>
 
-<div class="nav">
-  <div class="wrap nav-in">
-    <span class="wordmark"><span class="pip" aria-hidden="true"></span>nexora</span>
-    <nav class="nav-links">
-      <a href="#features">features</a>
-      <a href="#how">how it works</a>
-      <a href="#pricing">pricing</a>
-      <a href="#faq">faq</a>
-    </nav>
-    <a class="btn solid" href="#pricing">get access</a>
+<div class="hero">
+  <div class="wrap">
+    <h1>nexora</h1>
+    <p>movement script for matcha. edge bugs, texture bugs, surfs, wall work.</p>
   </div>
 </div>
 
-<header class="hero">
+<section id="why">
   <div class="wrap">
-    <span class="status rise d1"><span class="pip" aria-hidden="true"></span>v1.0 · active</span>
-    <h1 class="rise d2">four tricks<br>nobody <span class="shine">else has</span></h1>
-    <p class="sub rise d3">texture bug, wall stuck, wall climb and head bounce. written from scratch for matcha, read off your real motion, fired on the frame it actually happens.</p>
-    <div class="cta rise d4">
-      <a class="btn solid" href="#pricing">get access</a>
-      <a class="btn" href="#features">what it does</a>
-    </div>
-    <p class="meta rise d5">luau · one file · no injection</p>
-  </div>
-</header>
-
-<section id="features">
-  <div class="wrap">
-    <div class="sec-head">
-      <span class="lab">features</span>
-      <h2>never been done before</h2>
-      <p>four tricks you will not find in another roblox script. each one has its own key and only ever touches your character.</p>
-    </div>
-
-    <div class="feats">
-      <div class="card rise d1">
-        <div class="num">01</div>
-        <div class="nm">texture bug <span class="code">tb</span></div>
-        <p>sit on geometry you are not meant to sit on. it watches your fall for the exact resting signature and locks you to that height the frame it shows up. let go and you drop like nothing happened.</p>
-        <span class="key">x</span>
+    <h2>why nexora?</h2>
+    <div class="reasons">
+      <div class="reason">
+        <h3>detection</h3>
+        <p>it checks how far you actually moved, not what your velocity says.</p>
       </div>
-
-      <div class="card rise d2">
-        <div class="num">02</div>
-        <div class="nm">wall stuck <span class="code">ws</span></div>
-        <p>stop dead against a wall and stay there. it holds you with velocity instead of yanking your position around, so there is none of the shaking you get from every other version of this.</p>
-        <span class="key">v</span>
+      <div class="reason">
+        <h3>hud</h3>
+        <p>speed, keystrokes, and a graph that marks where a trick fired.</p>
       </div>
-
-      <div class="card rise d3">
-        <div class="num">03</div>
-        <div class="nm">wall climb <span class="code">wc</span></div>
-        <p>hold into a wall and go straight up it. there is a constant push inward while you climb so you never peel off halfway and drop back down.</p>
-        <span class="key">f</span>
+      <div class="reason">
+        <h3>offsets</h3>
+        <p>they update themselves on launch. roblox patches dont break it.</p>
       </div>
-
-      <div class="card rise d4">
-        <div class="num">04</div>
-        <div class="nm">head bounce <span class="code">hb</span></div>
-        <p>clip a ceiling and keep every bit of your speed. normally that kills your run on the spot. this catches the frame your rise dies and carries you straight through it.</p>
-        <span class="key">h</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="how">
-  <div class="wrap">
-    <div class="sec-head">
-      <span class="lab">how it works</span>
-      <h2>anyone can write a velocity</h2>
-      <p>knowing the frame to write it on is the whole job. that is where the others fall over.</p>
-    </div>
-
-    <div class="notes">
-      <div class="note">
-        <h3>contact from real movement</h3>
-        <p>checking your speed stops working the second a feature writes its own. wall contact comes from where you actually moved between frames, not from whatever the game was told.</p>
-      </div>
-      <div class="note">
-        <h3>a ground check that holds</h3>
-        <p>one threshold chatters on uneven floors and sets everything off twice. leaving the ground and landing on it use different numbers, so a landing fires once.</p>
-      </div>
-      <div class="note">
-        <h3>the right loop for the job</h3>
-        <p>some of it runs on render, the rest on <code>stepped</code> where velocity writes actually survive the physics step. put them all in one place and half of them break.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="pricing">
-  <div class="wrap">
-    <div class="sec-head">
-      <span class="lab">pricing</span>
-      <h2>pick one, get everything</h2>
-      <p>there is no cut down version. both tiers are the same build.</p>
-    </div>
-
-    <div class="tiers">
-      <div class="tier rise d1">
-        <div class="top"><span class="lab">monthly</span></div>
-        <div class="price">$5 <span>/ 30d</span></div>
-        <ul>
-          <li>all four tricks</li>
-          <li>full hud and binds</li>
-          <li>settings saved per game</li>
-          <li>updates while it runs</li>
-        </ul>
-        <a class="btn" href="#faq">get access</a>
-      </div>
-
-      <div class="tier hot rise d2">
-        <div class="top"><span class="lab">lifetime</span><span class="tag">best</span></div>
-        <div class="price">$10 <span>/ once</span></div>
-        <ul>
-          <li>same thing, kept</li>
-          <li>every update after</li>
-          <li>send me feature requests</li>
-          <li>never renew</li>
-        </ul>
-        <a class="btn solid" href="#faq">get access</a>
+      <div class="reason">
+        <h3>movement only</h3>
+        <p>no aimbot, no esp.</p>
       </div>
     </div>
   </div>
@@ -412,62 +195,129 @@ footer { padding-block: 34px 46px; border-top: 1px solid var(--edge); margin-top
 
 <section id="faq">
   <div class="wrap">
-    <div class="sec-head">
-      <span class="lab">faq</span>
-      <h2>before you buy</h2>
-    </div>
-
-    <div class="faq">
-      <details open>
-        <summary>what do i need to run it?</summary>
-        <p>matcha. it goes straight at matcha's memory and drawing apis, so nothing else will run it. one luau file, paste it in and you are going.</p>
-      </details>
-      <details>
-        <summary>is there aimbot or esp in here?</summary>
-        <p>no. it never touches another player. it moves you and draws your own hud, that is the whole thing.</p>
-      </details>
-      <details>
-        <summary>does it work in every game?</summary>
-        <p>anywhere normal humanoid physics apply. offsets shift when a game updates, so they are sliders you can fix yourself in ten seconds. settings save per place, so each game keeps its own tuning.</p>
-      </details>
-      <details>
-        <summary>can i change the keys?</summary>
-        <p>all of them. right click a bind to flip it between hold, toggle and always. the keys save with everything else.</p>
-      </details>
-      <details>
-        <summary>how do i know it actually fired?</summary>
-        <p>it tells you. the cue names the trick as it happens, the chip lights up for as long as it runs, and you get the numbers after.</p>
-      </details>
-      <details>
-        <summary>what do updates look like?</summary>
-        <p>same single file, newer version. your configs are json sitting on disk and they carry straight over.</p>
-      </details>
+    <h2>before you buy</h2>
+    <div class="reasons">
+      <div class="reason">
+        <h3>what do i need to run it?</h3>
+        <p>matcha, nothing else. it uses matcha's memory and drawing apis
+          directly. one file, paste it in.</p>
+      </div>
+      <div class="reason">
+        <h3>is there aimbot or esp?</h3>
+        <p>no. it moves you and draws your own hud. it never reads another
+          player.</p>
+      </div>
+      <div class="reason">
+        <h3>what games does it work in?</h3>
+        <p>typical colors 2 and counter blox are set up already. anything else
+          loads the universal profile. settings save per game.</p>
+      </div>
+      <div class="reason">
+        <h3>what happens when roblox updates?</h3>
+        <p>offsets come down fresh on launch and cache to disk. you dont have
+          to touch anything.</p>
+      </div>
+      <div class="reason">
+        <h3>can i change the keys?</h3>
+        <p>all of them. right click a bind for hold, toggle or always. they
+          save with the rest of your config.</p>
+      </div>
+      <div class="reason">
+        <h3>how do i know a trick fired?</h3>
+        <p>the cue names it on screen, the chip lights up while it runs, and it
+          gets marked on the graph.</p>
+      </div>
+      <div class="reason">
+        <h3>what do updates look like?</h3>
+        <p>same file, newer version. configs are json on disk and carry over.</p>
+      </div>
     </div>
   </div>
 </section>
 
+<section class="band" id="buy">
+  <div class="wrap">
+    <h2>pricing</h2>
+    <div class="prices">
+      <span><b>$5</b> a month</span>
+      <span><b>$10</b> once</span>
+    </div>
+    <a class="btn solid" href="#buy">get access</a>
+    <p class="terms">one pc per key, one reset. no refunds. referral only.</p>
+  </div>
+</section>
+
 <footer>
-  <div class="wrap foot">
-    <span class="wordmark" style="font-size:13px"><span class="pip" aria-hidden="true" style="width:5px;height:5px"></span>nexora</span>
-    <span>v1.0</span>
-    <span class="sp">not affiliated with roblox corporation</span>
+  <div class="wrap">
+    <a href="#why">terms</a>
+    <a href="#top">back to top</a>
+    <span class="spacer"></span>
+    <span>copyright © 2026 nexora. nothing to do with roblox corporation.</span>
   </div>
 </footer>
 
 <script>
 (function () {
-  "use strict";
-  var reduce = false;
-  try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
-  if (reduce) return;
+  var nav = document.getElementById("navlinks");
+  if (!nav) return;
+  var bar = document.getElementById("underline");
+  var links = Array.prototype.slice.call(nav.querySelectorAll("a"));
+  var sections = links
+    .map(function (a) { return document.querySelector(a.getAttribute("href")); })
+    .filter(Boolean);
 
-  var cards = document.querySelectorAll(".card, .note, .tier");
-  cards.forEach(function (el) {
-    el.addEventListener("pointermove", function (e) {
-      var r = el.getBoundingClientRect();
-      el.style.setProperty("--mx", (e.clientX - r.left) + "px");
-      el.style.setProperty("--my", (e.clientY - r.top) + "px");
+  function moveTo(link) {
+    if (!bar || !link) return;
+    bar.style.width = link.offsetWidth + "px";
+    bar.style.transform = "translateX(" + link.offsetLeft + "px)";
+    bar.style.opacity = "1";
+  }
+
+  function setActive(id) {
+    var hit = null;
+    links.forEach(function (a) {
+      var on = a.getAttribute("href") === "#" + id;
+      a.classList.toggle("active", on);
+      if (on) hit = a;
     });
+    if (hit) moveTo(hit);
+    else if (bar) bar.style.opacity = "0";
+  }
+
+  if ("IntersectionObserver" in window) {
+    var seen = {};
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { seen[e.target.id] = e.intersectionRatio; });
+      var best = null, score = 0;
+      sections.forEach(function (s) {
+        var r = seen[s.id] || 0;
+        if (r > score) { score = r; best = s.id; }
+      });
+      if (best && score > 0.08) setActive(best);
+    }, { threshold: [0, 0.08, 0.25, 0.5, 0.75, 1], rootMargin: "-62px 0px -40% 0px" });
+    sections.forEach(function (s) { io.observe(s); });
+  }
+
+  links.forEach(function (a) {
+    a.addEventListener("click", function () {
+      var target = document.querySelector(a.getAttribute("href"));
+      if (!target) return;
+      moveTo(a);
+      sections.forEach(function (s) { s.classList.remove("hit"); });
+      target.classList.add("hit");
+      setTimeout(function () { target.classList.remove("hit"); }, 1400);
+    });
+    a.addEventListener("mouseenter", function () { moveTo(a); });
+  });
+
+  nav.addEventListener("mouseleave", function () {
+    var on = nav.querySelector("a.active");
+    if (on) moveTo(on); else if (bar) bar.style.opacity = "0";
+  });
+
+  window.addEventListener("resize", function () {
+    var on = nav.querySelector("a.active");
+    if (on) moveTo(on);
   });
 })();
 </script>
