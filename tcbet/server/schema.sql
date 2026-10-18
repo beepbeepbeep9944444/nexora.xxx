@@ -889,24 +889,42 @@ create policy read_own on plinko_rounds for select using (auth.uid() = user_id);
 -- multiplier by [rows][risk][slot]
 create or replace function plinko_paytable() returns jsonb language sql immutable as $$ select '{"8": {"low": [5.54, 2.08, 1.09, 0.99, 0.5, 0.99, 1.09, 2.08, 5.54], "medium": [12.9, 2.97, 1.29, 0.69, 0.4, 0.69, 1.29, 2.97, 12.9], "high": [28.7, 3.96, 1.48, 0.3, 0.2, 0.3, 1.48, 3.96, 28.7]}, "12": {"low": [9.9, 2.97, 1.58, 1.39, 1.09, 0.99, 0.5, 0.99, 1.09, 1.39, 1.58, 2.97, 9.9], "medium": [32.7, 10.9, 3.96, 1.98, 1.09, 0.59, 0.3, 0.59, 1.09, 1.98, 3.96, 10.9, 32.7], "high": [168.0, 23.7, 8.01, 1.98, 0.69, 0.2, 0.2, 0.2, 0.69, 1.98, 8.01, 23.7, 168.0]}, "16": {"low": [15.8, 8.91, 1.98, 1.39, 1.39, 1.19, 1.09, 0.99, 0.49, 0.99, 1.09, 1.19, 1.39, 1.39, 1.98, 8.91, 15.8], "medium": [109.0, 40.6, 9.9, 4.95, 2.97, 1.49, 0.99, 0.5, 0.3, 0.5, 0.99, 1.49, 2.97, 4.95, 9.9, 40.6, 109.0], "high": [990.0, 129.0, 25.7, 8.91, 3.96, 1.98, 0.2, 0.2, 0.2, 0.2, 0.2, 1.98, 3.96, 8.91, 25.7, 129.0, 990.0]}}'::jsonb $$;
 
+-- every 100th plinko ball per player is a guaranteed MEGA ball: 999x the player's average bet over those 100 balls
+-- (capped at that ball's own bet, so betting 1 coin 99 times and max on the 100th doesn't work)
+alter table profiles add column if not exists plinko_count int not null default 0;
+alter table profiles add column if not exists plinko_sum numeric(16,2) not null default 0;
+alter table plinko_rounds add column if not exists mega bool not null default false;
 create or replace function plinko_play(p_bet numeric, p_rows int, p_risk text) returns jsonb language plpgsql security definer set search_path = public as $$
 declare uid uuid := _uid(); bet numeric := round(coalesce(p_bet, 0), 2); path int[]; k int; m numeric; pay numeric; bal numeric; uname text;
+        cnt int; total_ numeric; mega bool := false;
 begin
   if p_rows not in (8, 12, 16) then raise exception 'Pick 8, 12 or 16 rows'; end if;
   if p_risk not in ('low', 'medium', 'high') then raise exception 'Unknown risk level'; end if;
   if bet < 1 then raise exception 'The minimum bet is 1 coin'; end if;
   if bet > 25000000 then raise exception 'The maximum plinko bet is 25,000,000 coins'; end if;
-  update profiles set balance = balance - bet where id = uid and balance >= bet returning username into uname;
+  update profiles set balance = balance - bet, plinko_count = plinko_count + 1, plinko_sum = plinko_sum + bet
+    where id = uid and balance >= bet returning username, plinko_count, plinko_sum into uname, cnt, total_;
   if not found then raise exception 'Not enough coins'; end if;
   perform _wager(uid, bet);
-  path := array(select (random() < .5)::int from generate_series(1, p_rows));   -- 1 = bounce right
-  k := (select sum(x) from unnest(path) x);
-  m := (plinko_paytable() -> p_rows::text -> p_risk ->> k)::numeric;
-  pay := round(bet * m, 2);
+  if cnt >= 100 then
+    mega := true;
+    k := case when random() < .5 then 0 else p_rows end;                             -- an outer slot
+    path := array(select (k > 0)::int from generate_series(1, p_rows));
+    m := 999;
+    pay := round(least(bet, total_ / cnt) * 999, 2);
+    update profiles set plinko_count = 0, plinko_sum = 0 where id = uid;
+    cnt := 0;
+  else
+    path := array(select (random() < .5)::int from generate_series(1, p_rows));   -- 1 = bounce right
+    k := (select sum(x) from unnest(path) x);
+    m := (plinko_paytable() -> p_rows::text -> p_risk ->> k)::numeric;
+    pay := round(bet * m, 2);
+  end if;
   update profiles set balance = balance + pay where id = uid returning balance into bal;
-  insert into plinko_rounds (user_id, bet, rows, risk, path, slot, multiplier, payout) values (uid, bet, p_rows, p_risk, path, k, m, pay);
-  if pay - bet >= 5000 then insert into chat (username, body, show_at) values ('TCBET', uname || ' hit ' || m || 'x at Plinko for ' || round(pay) || ' coins!', now() + interval '4 seconds'); end if;
-  return jsonb_build_object('path', to_jsonb(path), 'slot', k, 'multiplier', m, 'payout', pay, 'bet', bet, 'balance', bal, 'rows', p_rows, 'risk', p_risk);
+  insert into plinko_rounds (user_id, bet, rows, risk, path, slot, multiplier, payout, mega) values (uid, bet, p_rows, p_risk, path, k, m, pay, mega);
+  if mega then insert into chat (username, body, show_at) values ('TCBET', '💥 ' || uname || ' hit the MEGA BALL at Plinko: 999x for ' || to_char(pay, 'FM999,999,999,990') || ' coins!', now() + interval '9 seconds');
+  elsif pay - bet >= 5000 then insert into chat (username, body, show_at) values ('TCBET', uname || ' hit ' || m || 'x at Plinko for ' || round(pay) || ' coins!', now() + interval '4 seconds'); end if;
+  return jsonb_build_object('path', to_jsonb(path), 'slot', k, 'multiplier', m, 'payout', pay, 'bet', bet, 'balance', bal, 'rows', p_rows, 'risk', p_risk, 'mega', mega, 'count', cnt);
 end $$;
 
 -- ============================================================ roulette wheel (coins, single zero)

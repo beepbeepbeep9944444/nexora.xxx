@@ -1676,6 +1676,7 @@ function viewPlinko() {
       <div class="kx-lbl"><span>Rows</span></div>
       <div class="kx-risk pl-rows" id="plRows">${[8, 12, 16].map(n => `<button data-n="${n}" class="${n === PL.rows ? "on" : ""}">${n}</button>`).join("")}</div>
       <div id="plAutoBox" hidden><div class="kx-lbl"><span>Number of Bets</span><span class="muted">0 = until stopped</span></div><div class="kx-amt"><input id="plCount" type="number" min="0" step="1" value="20"></div></div>
+      <div class="pl-mega" id="plMega"><div class="pl-mega-top"><b>⚡ MEGA BALL</b><span id="plMegaTxt"></span></div><div class="pl-mega-bar"><i id="plMegaFill"></i></div><small>Every 100th ball is a guaranteed 999x</small></div>
       <button class="kx-bet pl-bet" id="plBet">Drop ball</button>
       <div class="kx-sess" id="plSess"></div>
     </div>
@@ -1688,7 +1689,38 @@ function viewPlinko() {
   $("#plRows").onclick = e => { const b = e.target.closest("button"); if (!b || PL.live || PL.auto) return; PL.rows = +b.dataset.n; $$("#plRows button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); drawPlinkoBoard(); };
   $(".plx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#plAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(25000000, v * 2); $("#plAmt").value = v; SFX.chip(); };
   $("#plBet").onclick = () => { if (PL.mode === "auto") { if (PL.auto) { PL.auto = false; drawPlinkoSide(); } else runAutoPlinko(); } else dropPlinko(); };
-  drawPlinkoBoard(); drawPlinkoSide(); drawPlinkoHist();
+  drawPlinkoBoard(); drawPlinkoSide(); drawPlinkoHist(); drawMegaMeter();
+}
+// MEGA BALL celebration: shockwaves, coin storm, fireworks, rainbow shake, giant 999x. ~7s, click to skip.
+// (colour changes are smooth hue sweeps, no hard strobing)
+function megaFreakout(pay) {
+  if ($(".mega-fx")) return;
+  const o = document.createElement("div"); o.className = "mega-fx";
+  o.innerHTML = `<div class="mfx-rays"></div><div class="mfx-rings">${"<i></i>".repeat(5)}</div>
+    <div class="mfx-center"><div class="mfx-kicker">⚡ MEGA BALL ⚡</div><div class="mfx-big">999x</div><div class="mfx-pay"><i class="coin"></i><span id="mfxPay">0</span></div><div class="mfx-sub">click to continue</div></div>`;
+  document.body.append(o); document.body.classList.add("mega-shake");
+  SFX.jackpot?.(); SFX.rare(); SFX.cash();
+  // count the payout up
+  const t0 = performance.now(), dur = 3200;
+  const tick = now => { const u = Math.min(1, (now - t0) / dur); if (!o.isConnected) return; $("#mfxPay").textContent = fmt(Math.round(pay * (1 - Math.pow(1 - u, 3)))); if (u < 1) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  // coin + emoji storm and fireworks
+  const emo = ["🪙", "💰", "💎", "🔥", "⚡", "🍳", "⭐", "🎉"];
+  const rain = setInterval(() => {
+    for (let i = 0; i < 6; i++) {
+      const d = document.createElement("span"); d.className = "mfx-drop"; d.textContent = pick(emo);
+      d.style.left = rand(0, 100) + "vw"; d.style.fontSize = rand(22, 54) + "px"; o.append(d);
+      d.animate([{ transform: `translateY(-10vh) rotate(0)` }, { transform: `translateY(110vh) rotate(${rand(-540, 540)}deg)` }], { duration: rand(1400, 2600), easing: "cubic-bezier(.3,.1,.7,1)" }).onfinish = () => d.remove();
+    }
+  }, 120);
+  const fw = setInterval(() => { const x = rand(10, 90), y = rand(10, 60), c = pick(["#f5b83d", "#ec4899", "#22c55e", "#38bdf8", "#a78bfa", "#ef4444"]);
+    for (let i = 0; i < 26; i++) { const s = document.createElement("i"); s.className = "mfx-spark"; s.style.left = x + "vw"; s.style.top = y + "vh"; s.style.background = c; o.append(s);
+      const a = i / 26 * Math.PI * 2, r = rand(80, 200);
+      s.animate([{ transform: "translate(0,0) scale(1)", opacity: 1 }, { transform: `translate(${Math.cos(a) * r}px,${Math.sin(a) * r + 40}px) scale(.2)`, opacity: 0 }], { duration: rand(700, 1100), easing: "cubic-bezier(.1,.8,.3,1)" }).onfinish = () => s.remove(); }
+    SFX.bang?.(); }, 420);
+  for (let k = 0; k < 4; k++) setTimeout(() => confetti(o.querySelector(".mfx-center") || document.body, 120, ["#f5b83d", "#fff", "#ec4899", "#22c55e", "#38bdf8"]), k * 600);
+  const end = () => { clearInterval(rain); clearInterval(fw); document.body.classList.remove("mega-shake"); o.classList.add("out"); setTimeout(() => o.remove(), 500); };
+  o.onclick = end; setTimeout(end, 7500);
 }
 // board geometry in a 1000-wide SVG: each row the ball moves half a gap left or right
 function plGeo(n = PL.rows) { const gap = 1000 / (n + 2), gy = gap * .86, top = gap * .9; return { n, gap, gy, top, h: top + n * gy + gap * .95, pr: Math.max(4, gap * .09), br: gap * .23 }; }
@@ -1710,6 +1742,13 @@ function drawPlinkoSide() {
   $$("#plRisk button, #plRows button").forEach(b => b.disabled = !!(PL.live || PL.auto));
   const s = PL.sess; $("#plSess").innerHTML = s.n ? `Session: ${s.n} ball${s.n === 1 ? "" : "s"} · ${s.w >= 0 ? "+" : ""}${coinVal(s.w)}` : "";
 }
+function drawMegaMeter() {
+  if (!$("#plMega")) return;
+  const n = ME.profile ? +(ME.profile.plinko_count || 0) : 0, left = 100 - n;
+  $("#plMegaFill").style.width = n + "%";
+  $("#plMegaTxt").textContent = ME.profile ? (left === 1 ? "NEXT BALL!" : `${n}/100 · ${left} to go`) : "Sign in";
+  $("#plMega").classList.toggle("ready", left <= 1);
+}
 function drawPlinkoHist() {
   if (!$("#plHist")) return;
   $("#plHist").innerHTML = PL.hist.slice(0, 6).map(x => `<span style="background:${x.c}">${x.m >= 100 ? Math.round(x.m) : x.m}x</span>`).join("");
@@ -1724,6 +1763,7 @@ async function dropPlinko() {
   try { r = await rpc("plinko_play", { p_bet: bet, p_rows: PL.rows, p_risk: PL.risk }); } catch (e) { fail(e); return false; }
   // show the bet as spent now; the payout is added when the ball lands
   PL.pending += +r.payout; PL.bal = +r.balance;
+  if (ME.profile) { ME.profile.plinko_count = r.count; drawMegaMeter(); }
   ME.profile.balance = PL.bal - PL.pending; syncTop();
   PL.live++; drawPlinkoSide();
   animateBall(r).then(() => {
@@ -1732,11 +1772,12 @@ async function dropPlinko() {
     const net = +r.payout - +r.bet, row = PLINKO_PAY[r.rows][r.risk];
     PL.sess.n++; PL.sess.w += net;
     PL.hist.unshift({ m: +r.multiplier, c: plColor(+r.multiplier, Math.max(...row)) }); PL.hist = PL.hist.slice(0, 20);
-    if (net >= BIG_WIN) bigWin(+r.payout, `Plinko ${r.multiplier}x`);
+    if (r.mega) megaFreakout(+r.payout);
+    else if (net >= BIG_WIN) bigWin(+r.payout, `Plinko ${r.multiplier}x`);
     else if (+r.multiplier >= 10) { SFX.rare(); confetti($("#plPop") || document.body, 50); }
     else if (+r.multiplier >= 1) SFX.good(); else SFX.chip();
     drawPlinkoSide(); drawPlinkoHist();
-    if (!PL.live) refreshMe();
+    if (!PL.live) refreshMe().then(drawMegaMeter);
   });
   return true;
 }
@@ -1748,19 +1789,23 @@ function animateBall(r) {
     // waypoints: start above the board, then touch the top of one peg per row, then drop into the slot
     const pts = [{ x: 500 + (Math.random() - .5) * g.gap * .2, y: g.top - g.gy * 1.1 }]; let R = 0;
     // place the ball at the drop point before it's added, so it never shows at the SVG origin (0,0)
-    ball.setAttribute("r", g.br); ball.setAttribute("class", "pl-ball"); ball.setAttribute("cx", pts[0].x); ball.setAttribute("cy", pts[0].y); host.append(ball);
+    ball.setAttribute("r", r.mega ? g.br * 1.35 : g.br); ball.setAttribute("class", r.mega ? "pl-ball mega" : "pl-ball"); ball.setAttribute("cx", pts[0].x); ball.setAttribute("cy", pts[0].y); host.append(ball);
     for (let i = 0; i < g.n; i++) { pts.push({ x: 500 + (R - i / 2) * g.gap, y: g.top + i * g.gy - g.pr - g.br }); R += r.path[i]; }
     pts.push({ x: 500 + (R - g.n / 2) * g.gap, y: g.top + g.n * g.gy - g.gy * .25 + 4 });
-    const seg = 125, t0 = performance.now(); let last = -1;
+    // mega ball: each row takes longer than the last, ending in heavy slow motion
+    const segs = pts.slice(1).map((_, i) => r.mega ? 150 + Math.pow(i / (pts.length - 2), 3) * 900 : 125), ends = segs.reduce((a, d) => [...a, (a.at(-1) || 0) + d], []);
+    if (r.mega) { $(".pl-main")?.classList.add("mega-run"); SFX.drumroll?.(ends.at(-1)); }
+    const t0 = performance.now(); let last = -1;
     const step = now => {
       if (!document.body.contains(ball)) return done();
-      const f = (now - t0) / seg, i = Math.min(pts.length - 2, Math.floor(f)), t = Math.min(1, f - i), a = pts[i], b = pts[i + 1];
+      const el = now - t0, si = ends.findIndex(e => el < e), f = si < 0 ? pts.length - 1 : si + (el - (ends[si - 1] || 0)) / segs[si]; i = Math.min(pts.length - 2, Math.floor(f)), t = Math.min(1, f - i), a = pts[i], b = pts[i + 1];
       const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t * t - (i ? g.gy * .35 * Math.sin(Math.PI * t) : 0);
       ball.setAttribute("cx", x); ball.setAttribute("cy", y);
-      if (i !== last && i > 0) { last = i; SFX.tick(); }
+      if (i !== last && i > 0) { last = i; SFX.tick(); if (r.mega) { const tr = document.createElementNS("http://www.w3.org/2000/svg", "circle"); tr.setAttribute("cx", x); tr.setAttribute("cy", y); tr.setAttribute("r", g.br * 1.2); tr.setAttribute("class", "pl-trail"); host.append(tr); setTimeout(() => tr.remove(), 900); } }
       if (f < pts.length - 1) return requestAnimationFrame(step);
       ball.remove();
-      const s = $("#pls" + r.slot); if (s) { s.classList.remove("hit"); void s.getBBox(); s.classList.add("hit"); }
+      const s = $("#pls" + r.slot); if (s) { s.classList.remove("hit"); void s.getBBox(); s.classList.add("hit"); if (r.mega) { s.classList.add("mega-slot"); s.querySelector("text").textContent = "999x"; setTimeout(() => drawPlinkoBoard(), 9000); } }
+      if (r.mega) $(".pl-main")?.classList.remove("mega-run");
       done();
     };
     requestAnimationFrame(step);
