@@ -366,6 +366,10 @@ function openAuth(mode = "login") {
   setTimeout(() => $("#auUser")?.focus(), 50);
 }
 $("#loginBtn").onclick = () => openAuth("login");
+$("#burger").onclick = () => document.body.classList.toggle("nav-open");
+$("#scrim").onclick = () => document.body.classList.remove("nav-open");
+try { if (localStorage.getItem("tcbet_chat") === "off") document.body.classList.add("chat-off"); } catch {}
+$("#chatToggle").onclick = () => { if (matchMedia("(max-width:1100px)").matches) return document.body.classList.toggle("chat-open"); const off = document.body.classList.toggle("chat-off"); try { localStorage.setItem("tcbet_chat", off ? "off" : "on"); } catch {} };
 // admin panel (rank admin/owner): spawn coins. Every spawn is announced in chat and logged publicly.
 $("#adminBtn").onclick = () => {
   if (!isAdmin()) return;
@@ -1727,6 +1731,59 @@ function viewValues() {
   draw();
 }
 
+// ---------------------------------------------------------------- lobby (front page)
+const GAMES = [
+  { r: "cases", t: "Cases", d: "Real TC2 crates, 1% unusuals", c: "#f5b83d", icon: "M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10" },
+  { r: "battles", t: "Case Battles", d: "Up to 3v3v3, winner takes all", c: "#ef4444", icon: "M4 20l7-7 M14.5 3.5L20 3l-.5 5.5L9 19l-4-4z M20 20l-7-7 M9.5 3.5L4 3l.5 5.5 6 6" },
+  { r: "wheel", t: "Roulette", d: "Single zero, 35:1 straight up", c: "#8b5cf6", icon: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M12 3v5M12 16v5M3 12h5M16 12h5" },
+  { r: "blackjack", t: "Blackjack", d: "3:2 blackjack, split & double", c: "#22c55e", icon: "M5 5h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M17 4l4 14-4 1" },
+  { r: "keno", t: "Keno", d: "Pick 10, win up to 50,000x", c: "#38bdf8", icon: "M4 4h16v16H4z M8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01" },
+  { r: "unusualifier", t: "Unusualifier", d: "Stake items, roll for an unusual", c: "#b07ad8", icon: "M12 2l2.4 6.9H22l-6 4.6 2.3 7L12 16l-6.3 4.5 2.3-7-6-4.6h7.6z" },
+  { r: "coinflip", t: "Coinflip", d: "RED or GRN, double your items", c: "#fb7185", icon: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 3v18" },
+  { r: "jackpot", t: "Jackpot", d: "Bigger stake, bigger chance", c: "#facc15", icon: "M12 3a9 9 0 1 0 9 9h-9z M14 1v9h9a9 9 0 0 0-9-9z" },
+];
+async function viewHome() {
+  const top = [...CASES].slice(0, 10);
+  const gfp = ITEM["Golden Frying Pan"];
+  $("#view").innerHTML = `
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="hero-kicker">Typical Colors 2 · Free to play</span>
+        <h1>Unbox. Battle. Flip.<br><span>Chase the Golden Frying Pan.</span></h1>
+        <p>Real TC2 crates and unusuals, live case battles, roulette, blackjack and more, all with free fun-coins.</p>
+        <div class="hero-cta">${ME.user ? `<a class="btn btn-gold btn-lg" href="#/cases">Open cases</a><a class="btn btn-lg" href="#/battles">Join a battle</a>` : `<button class="btn btn-gold btn-lg" id="heroJoin">Sign up · 1,000 free coins</button><a class="btn btn-lg" href="#/cases">Browse cases</a>`}</div>
+        <div class="hero-stats"><div><b id="hsOnline">${$("#onlineCount").textContent || 0}</b><span>online now</span></div><div><b>${CASES.length}</b><span>cases</span></div><div><b>${(ITEMS.length + UNU_HATS.reduce((s, h) => s + allowedFx(h).length, 0)).toLocaleString()}</b><span>items & unusuals</span></div></div>
+      </div>
+      <div class="hero-art"><div class="hero-glow"></div><img src="${sized(gfp.img, 320)}" alt="Golden Frying Pan" referrerpolicy="no-referrer"><div class="hero-tag"><span>Golden Frying Pan</span>${coinVal(gfp.v)}</div></div>
+    </section>
+
+    <section class="promos">
+      <a class="promo p-gold" href="#/rewards"><b>Free coins every 4 hours</b><span>Claim from the top bar. VIPs get 100.</span></a>
+      <a class="promo p-purple" href="#/rewards"><b>Rakeback up to 4%</b><span>Every coin you wager earns XP, levels and rakeback.</span></a>
+      <a class="promo p-red" href="#/battles"><b>Case Battles</b><span>Open the same cases as your rivals. Winner takes all.</span></a>
+    </section>
+
+    <div class="sec-head"><h2>Originals</h2></div>
+    <section class="games">${GAMES.map(g => `<a class="game" href="#/${g.r}" style="--gc:${g.c}"><div class="game-art"><svg viewBox="0 0 24 24"><path d="${g.icon}"/></svg></div><div class="game-txt"><b>${g.t}</b><span>${g.d}</span></div></a>`).join("")}</section>
+
+    <div class="sec-head"><h2>Featured cases</h2><a href="#/cases">View all ${CASES.length} →</a></div>
+    <section class="rail">${top.map(c => `<a class="case-tile" href="#/case/${c.id}"><span class="chip season ${c.season}">${c.tag || c.season}</span><img src="${c.img.startsWith("http") ? sized(c.img, 240) : c.img}" alt="" referrerpolicy="no-referrer" loading="lazy"><h3>${esc(c.name)}</h3><span class="btn btn-gold"><span class="val" style="color:#1a1204"><i class="coin"></i>${fmt(c.price)}</span></span></a>`).join("")}</section>
+
+    <div class="home-cols">
+      <div class="panel home-box"><div class="sec-head"><h2>Big wins</h2></div><div id="homeWins" class="home-list"><div class="muted">Loading…</div></div></div>
+      <div class="panel home-box"><div class="sec-head"><h2>Top players</h2><a href="#/players">Leaderboard →</a></div><div id="homeTop" class="home-list"><div class="muted">Loading…</div></div></div>
+    </div>`;
+  $("#heroJoin") && ($("#heroJoin").onclick = () => openAuth("signup"));
+  if (!sb) return;
+  const [{ data: wins }, { data: tops }] = await Promise.all([
+    sb.from("drops").select("*").lte("show_at", new Date().toISOString()).gte("value", 1000).order("id", { ascending: false }).limit(8),
+    sb.from("profiles").select("username,rank,avatar,xp").order("xp", { ascending: false }).limit(6)]);
+  if (!$("#homeWins")) return;
+  (tops || []).forEach(rememberProfile);
+  $("#homeWins").innerHTML = (wins || []).filter(d => ITEM[d.name]).map(d => { const it = { n: d.name, fx: d.fx }; return `<div class="hw-row" style="--rc:${rarity(+d.value, d.fx)}">${mini(it)}<div class="hw-txt"><b class="${d.fx ? "unu" : ""}">${esc(label(it))}</b><span>${userLink(d.username)} · ${esc(d.source)}</span></div>${coinVal(d.value)}</div>`; }).join("") || `<div class="muted">No big wins yet. Be the first!</div>`;
+  $("#homeTop").innerHTML = (tops || []).map((r, i) => `<a class="lb-row" href="#/u/${encodeURIComponent(r.username)}"><span class="lb-n">${i + 1}</span>${pfp(r.username)}<b>${esc(r.username)}</b>${vipTag(r.rank)}<span class="grow"></span>${lvlChip(r.xp)}</a>`).join("") || `<div class="muted">No players yet.</div>`;
+}
+
 // ---------------------------------------------------------------- profiles
 async function viewProfile(name) {
   if (!name) return go("players");
@@ -1925,7 +1982,7 @@ function connectRealtime() {
     })
     .subscribe();
   const pres = sb.channel("online", { config: { presence: { key: Math.random().toString(36).slice(2) } } });
-  pres.on("presence", { event: "sync" }, () => $("#onlineCount").textContent = Object.keys(pres.presenceState()).length.toLocaleString())
+  pres.on("presence", { event: "sync" }, () => { const n = Object.keys(pres.presenceState()).length.toLocaleString(); $("#onlineCount").textContent = n; $("#onlineCount2").textContent = n; })
     .subscribe(s => { if (s === "SUBSCRIBED") pres.track({ at: Date.now() }); });
 }
 async function loadFeeds() {
@@ -1938,13 +1995,14 @@ async function loadFeeds() {
 }
 
 // ---------------------------------------------------------------- router
-const route = () => (location.hash.replace(/^#\/?/, "").split("?")[0] || "cases").split("/").map(decodeURIComponent);
+const route = () => (location.hash.replace(/^#\/?/, "").split("?")[0] || "home").split("/").map(decodeURIComponent);
 const go = r => location.hash = "#/" + r;
 function render() {
   closeModal();
   const [r, arg] = route();
-  $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r)));
-  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno, wheel: viewWheel }[r] || viewCases)();
+  $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r === "roulette" ? "wheel" : r)));
+  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno, wheel: viewWheel, home: viewHome }[r] || viewHome)();
+  document.body.classList.remove("nav-open", "chat-open");
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", render);
