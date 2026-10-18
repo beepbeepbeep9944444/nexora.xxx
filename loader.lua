@@ -53,7 +53,7 @@ local function run(path, globalName)
     return value
 end
 
-local function boot(name)
+local function boot(game_file)
     local prev = ENV.NEXORA_CORE
     if prev and prev.stop then pcall(prev.stop) end
 
@@ -63,23 +63,35 @@ local function boot(name)
         return
     end
 
+    NX.placeId = game.PlaceId
+
+    local profile
+    profile, err = run("games/" .. game_file .. ".lua", "NEXORA_GAME")
+    if not profile then
+        warn("[nexora] " .. game_file .. " profile failed - " .. tostring(err))
+        return
+    end
+
+    local ok, perr = pcall(profile, NX)
+    if not ok then
+        warn("[nexora] " .. game_file .. " profile errored - " .. tostring(perr))
+        return
+    end
+
     local mod
-    mod, err = run("games/movement.lua", "NEXORA_MODULE")
+    mod, err = run("movement.lua", "NEXORA_MODULE")
     if not mod then
         warn("[nexora] movement failed - " .. tostring(err))
         return
     end
 
-    NX.placeId = game.PlaceId
-
-    local ok, rerr = pcall(mod, NX)
-    if not ok then
+    local rok, rerr = pcall(mod, NX)
+    if not rok then
         warn("[nexora] setup failed - " .. tostring(rerr))
         return
     end
 
-    NX.gameName = name
-
+    local name = NX.gameName or game_file
     if notify then pcall(notify, name .. " loaded", "nexora", 3) end
     print("[nexora] loaded " .. name .. " - rshift for menu")
 
@@ -89,9 +101,9 @@ end
 local pid = game.PlaceId
 
 if pid == 328028363 then
-    boot("typical colors 2")
+    boot("tc2")
 elseif pid == 301549746 or pid == 1480424328 then
-    boot("counter blox")
+    boot("cbro")
 else
     boot("universal")
 end
