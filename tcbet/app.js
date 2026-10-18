@@ -1745,9 +1745,10 @@ function animateBall(r) {
     const svg = $("#plSvg"); if (!svg || +r.rows !== PL.rows || r.risk !== PL.risk) return done();
     const g = plGeo(+r.rows), host = $("#plBalls");
     const ball = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    ball.setAttribute("r", g.br); ball.setAttribute("class", "pl-ball"); host.append(ball);
     // waypoints: start above the board, then touch the top of one peg per row, then drop into the slot
     const pts = [{ x: 500 + (Math.random() - .5) * g.gap * .2, y: g.top - g.gy * 1.1 }]; let R = 0;
+    // place the ball at the drop point before it's added, so it never shows at the SVG origin (0,0)
+    ball.setAttribute("r", g.br); ball.setAttribute("class", "pl-ball"); ball.setAttribute("cx", pts[0].x); ball.setAttribute("cy", pts[0].y); host.append(ball);
     for (let i = 0; i < g.n; i++) { pts.push({ x: 500 + (R - i / 2) * g.gap, y: g.top + i * g.gy - g.pr - g.br }); R += r.path[i]; }
     pts.push({ x: 500 + (R - g.n / 2) * g.gap, y: g.top + g.n * g.gy - g.gy * .25 + 4 });
     const seg = 125, t0 = performance.now(); let last = -1;
