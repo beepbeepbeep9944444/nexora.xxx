@@ -92,18 +92,6 @@ const SFX = (() => {
     bang() { noise(.6, .55, 180); tone(90, .35, "sawtooth", .25, 0, 40); },
     survive() { notes([523, 659, 784, 1047, 1319], .1, "triangle", .14); },
     go() { tone(990, .18, "square", .06); },
-    scream() {    // jumpscare: distorted screech that sweeps down, plus a noise blast. Loud, but run through a limiter so it never clips.
-      if (muted) return; const c = ac(); if (!c) return;
-      const t = c.currentTime, out = c.createDynamicsCompressor(), g = c.createGain(), shape = c.createWaveShaper();
-      const curve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(x * 6); } shape.curve = curve;
-      out.threshold.value = -6; out.ratio.value = 12; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.9, t + .03); g.gain.setValueAtTime(.9, t + 1.4); g.gain.exponentialRampToValueAtTime(.0001, t + 1.9);
-      shape.connect(g).connect(out).connect(c.destination);
-      for (const [f, d] of [[1300, 0], [1340, 7], [1260, -9], [660, 3]]) { const o = c.createOscillator(); o.type = "sawtooth"; o.detune.value = d * 10;
-        o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * .28, t + 1.8); o.connect(shape); o.start(t); o.stop(t + 1.95); }
-      const buf = c.createBuffer(1, c.sampleRate * 1.9, c.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      const n = c.createBufferSource(), bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.setValueAtTime(2500, t); bp.frequency.exponentialRampToValueAtTime(500, t + 1.8);
-      n.buffer = buf; n.connect(bp).connect(shape); n.start(t);
-    },
     jackpot() {   // casino bells + coin shower for big wins
       for (let r = 0; r < 4; r++) notes([523, 659, 784, 1047, 784, 1047, 1319], .075, "triangle", .12, r * .62);
       for (let i = 0; i < 28; i++) tone(2400 + Math.random() * 1600, .14, "triangle", .05, .1 + i * .09);
@@ -149,23 +137,6 @@ function bigWin(v, what = "") {
   }, 300 + b * 450);
   o.onclick = () => o.remove();
   setTimeout(() => o.classList.add("out"), 4600); setTimeout(() => o.remove(), 5200);
-}
-// ---- owner prank: full-screen jumpscare (no strobing, ~2 seconds, click to dismiss)
-const SCARE_FACE = `<svg viewBox="0 0 400 400" class="scare-face"><defs><radialGradient id="scg" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#e8e2d6"/><stop offset=".7" stop-color="#9c9486"/><stop offset="1" stop-color="#2a2622"/></radialGradient></defs>
-  <rect width="400" height="400" fill="#050000"/>
-  <path d="M70 120q-6-80 130-96q136 16 130 96l-6 150q-10 90-124 104q-114-14-124-104z" fill="url(#scg)"/>
-  <path d="M60 110q20-90 140-96q120 6 140 96q-30-40-60-30q-20-40-80-36q-60-4-80 36q-30-10-60 30z" fill="#0b0a09"/>
-  <ellipse cx="140" cy="178" rx="40" ry="46" fill="#000"/><ellipse cx="260" cy="178" rx="40" ry="46" fill="#000"/>
-  <circle cx="146" cy="186" r="6" fill="#ff2a2a"/><circle cx="254" cy="186" r="6" fill="#ff2a2a"/>
-  <path d="M120 270q80 70 160 0q-10 70-80 76q-70-6-80-76z" fill="#000"/>
-  <path d="M128 276l12 22 10-20 12 24 12-24 12 26 12-26 12 24 12-24 12 22 12-20 10 20" fill="none" stroke="#e8e2d6" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M120 150l-26-30M280 150l26-30M190 230l10 22 10-22" stroke="#3a2f26" stroke-width="5" fill="none"/></svg>`;
-function jumpscare() {
-  if ($(".scare")) return;
-  const o = document.createElement("div"); o.className = "scare"; o.innerHTML = SCARE_FACE; document.body.append(o);
-  SFX.scream(); document.body.classList.add("shake"); setTimeout(() => document.body.classList.remove("shake"), 500);
-  const end = () => { o.classList.add("out"); setTimeout(() => o.remove(), 300); };
-  o.onclick = end; setTimeout(end, 2100);
 }
 function celebrate(items, what) {
   const top = items.reduce((m, it) => value(it) > value(m) ? it : m, items[0]);
@@ -533,124 +504,6 @@ function showWins(wins) {
   $("#sellAll", m).onclick = async () => {
     try { await rpc("sell_items", { p_ids: wins.map(w => w.id) }); closeModal(); await refreshMe(); bumpBalance(); toast(`Sold for ${fmt(r2(tv * sellRate()))} fun-coins`, "good"); } catch (e) { fail(e); }
   };
-}
-
-// ---------------------------------------------------------------- unusualifier (upgrader)
-const U = { stake: new Set(), hat: null, fx: null, tab: "stake", hatScope: "all", q: "" };
-function viewUnusualifier() {
-  $("#view").innerHTML = `
-    <div class="page-head"><div><h1>Unusualifier</h1><p>Stake items from your inventory, pick a hat and an effect it can actually roll, and spin. Win and the Unusual is yours.</p></div></div>
-    <div class="upg">
-      <div class="panel upg-slot"><h3>Your stake</h3><div class="upg-preview" id="stakePrev"></div><div id="stakeVal"></div></div>
-      <div class="panel upg-center">
-        <div class="dial" id="dial">
-          <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#1c2130" stroke-width="9"/>
-            <circle id="arc" cx="50" cy="50" r="44" fill="none" stroke="url(#ug)" stroke-width="9" stroke-dasharray="0 999" stroke-linecap="butt"/>
-            <defs><linearGradient id="ug"><stop offset="0" stop-color="#b07ad8"/><stop offset="1" stop-color="#8650ac"/></linearGradient></defs></svg>
-          <div class="needle" id="needle"></div>
-          <div class="readout"><div><b id="chance">0.00%</b><span>win chance</span></div></div>
-        </div>
-        <div class="mults" id="mults"></div>
-        <button class="btn btn-unu" id="spinBtn" style="width:100%">Unusualify</button>
-        <div class="muted" style="font-size:12px;text-align:center">Chance = stake ÷ target × 95%, capped at 75%.</div>
-      </div>
-      <div class="panel upg-slot"><h3>Target unusual</h3><div class="upg-preview" id="targetPrev"></div><div id="targetVal"></div></div>
-    </div>
-    <div class="panel picker" style="padding:16px">
-      <div class="picker-head"><div class="tabs" id="upgTabs"><button data-t="stake">1 · Stake items</button><button data-t="hat">2 · Choose hat</button><button data-t="fx">3 · Choose effect</button></div>
-        <input id="upgSearch" placeholder="Search…"></div>
-      <div id="pickerBody"></div>
-    </div>`;
-  $("#upgTabs").onclick = e => { const b = e.target.closest("button"); if (b) { U.tab = b.dataset.t; U.q = ""; $("#upgSearch").value = ""; drawPicker(); } };
-  $("#upgSearch").oninput = e => { U.q = e.target.value.toLowerCase(); drawPicker(); };
-  $("#spinBtn").onclick = spinUpgrade;
-  drawUpg(); drawPicker();
-}
-function stakeItems() {
-  const have = new Set(ME.inv.map(i => i.id));
-  for (const id of U.stake) if (!have.has(id)) U.stake.delete(id);   // items that were sold/traded away
-  return ME.inv.filter(it => U.stake.has(it.id));
-}
-// called whenever the stake changes: a target that's no longer worth more than the stake is cleared
-function stakeChanged() {
-  const s = total(stakeItems());
-  if (U.fx && value({ n: U.hat, fx: U.fx }) <= s) U.fx = null;
-  if (U.hat && !allowedFx(ITEM[U.hat]).some(e => value({ n: U.hat, fx: e.name }) > s)) { U.hat = null; U.fx = null; }
-  drawUpg();
-}
-const upgOptions = (h, s) => allowedFx(h).filter(e => value({ n: h.name, fx: e.name }) > s);
-const target = () => U.hat && U.fx ? { n: U.hat, fx: U.fx } : null;
-function upgChance() { const t = target(); if (!t) return 0; const s = total(stakeItems()); return Math.min(.75, s / value(t) * .95); }
-function drawUpg() {
-  if (!$("#stakePrev")) return;
-  const st = stakeItems(), t = target();
-  $("#stakePrev").innerHTML = st.length ? (st.length === 1 ? thumb(st[0], "", true) : `<div class="mini-items" style="flex-wrap:wrap;justify-content:center;padding:14px">${st.slice(0, 15).map(mini).join("")}</div>`) : `<div class="ph">${ME.user ? "Select items from your inventory below" : "Sign in to stake items"}</div>`;
-  $("#stakeVal").innerHTML = `<div class="muted">${st.length} item${st.length === 1 ? "" : "s"}</div>${coinVal(total(st))}`;
-  if (t) { $("#targetPrev").innerHTML = thumb(t, "", true); $("#targetVal").innerHTML = `<div style="color:var(--unu2);font-weight:700">${esc(label(t))}</div>${coinVal(value(t))}`; }
-  else if (U.hat) { $("#targetPrev").innerHTML = thumb({ n: U.hat }); $("#targetVal").innerHTML = `<div class="muted">${esc(U.hat)} · pick an effect</div>`; }
-  else { $("#targetPrev").innerHTML = `<div class="ph">Choose a hat, then an effect</div>`; $("#targetVal").innerHTML = ""; }
-  const ch = upgChance();
-  $("#chance").textContent = (ch * 100).toFixed(2) + "%";
-  $("#arc").setAttribute("stroke-dasharray", `${ch * 2 * Math.PI * 44} 999`);
-  $("#spinBtn").disabled = !t || !st.length || total(st) >= value(t);
-  $("#spinBtn").textContent = t && st.length && total(st) >= value(t) ? "Stake is worth more than target" : "Unusualify";
-  $("#mults").innerHTML = t ? "" : (st.length ? [2, 3, 5, 10, 20].map(m => `<button data-m="${m}">${m}x</button>`).join("") : "");
-  $("#mults").onclick = e => { const b = e.target.closest("button"); if (b) autoTarget(total(st) * +b.dataset.m); };
-}
-function autoTarget(v) {
-  let best = null, bd = Infinity;
-  for (const h of UNU_HATS) for (const e of allowedFx(h)) { const d = Math.abs(value({ n: h.name, fx: e.name }) - v); if (d < bd && Math.random() > .3) { bd = d; best = [h.name, e.name]; } }
-  if (best) { [U.hat, U.fx] = best; U.tab = "fx"; U.q = ""; $("#upgSearch").value = ""; drawUpg(); drawPicker(); }
-}
-function drawPicker() {
-  if (!$("#pickerBody")) return;
-  $$("#upgTabs button").forEach(b => b.classList.toggle("on", b.dataset.t === U.tab));
-  const body = $("#pickerBody"), q = U.q;
-  if (U.tab === "stake") {
-    const list = ME.inv.filter(it => label(it).toLowerCase().includes(q)).sort((a, b) => value(b) - value(a));
-    body.innerHTML = !ME.user ? `<div class="empty"><button class="btn btn-gold" id="pkLogin">Sign in to play</button></div>` : list.length ? `<div class="grid">${list.map(it => card(it, { click: 1, sel: U.stake.has(it.id) })).join("")}</div>` : `<div class="empty">Your inventory is empty. Open a case or visit the Market.</div>`;
-    body.onclick = e => { if (e.target.id === "pkLogin") return openAuth(); const c = e.target.closest(".card"); if (!c) return; const id = +c.dataset.id; U.stake.has(id) ? U.stake.delete(id) : U.stake.add(id); c.classList.toggle("sel"); stakeChanged(); };
-  } else if (U.tab === "hat") {
-    const mine = new Set(ME.inv.map(i => i.n)), s = total(stakeItems());
-    const hats = UNU_HATS.filter(h => (U.hatScope === "all" || mine.has(h.name)) && h.name.toLowerCase().includes(q) && upgOptions(h, s).length);
-    body.innerHTML = `<div class="tabs" id="hatScope" style="display:inline-flex;margin-bottom:12px"><button data-s="all" class="${U.hatScope === "all" ? "on" : ""}">All hats</button><button data-s="mine" class="${U.hatScope === "mine" ? "on" : ""}">Hats I own</button></div>
-      <div class="grid">${hats.map(h => card({ n: h.name }, { click: 1, sel: U.hat === h.name, sub: `${upgOptions(h, s).length} effects worth more than your stake`, extra: `data-hat="${esc(h.name)}"` })).join("") || `<div class="empty">No hats found</div>`}</div>`;
-    body.onclick = e => {
-      const s = e.target.closest("#hatScope button"); if (s) { U.hatScope = s.dataset.s; return drawPicker(); }
-      const c = e.target.closest(".card"); if (!c) return; U.hat = c.dataset.hat; U.fx = null; U.tab = "fx"; U.q = ""; $("#upgSearch").value = ""; drawUpg(); drawPicker();
-    };
-  } else {
-    if (!U.hat) { body.innerHTML = `<div class="empty">Pick a hat first.</div>`; return; }
-    const h = ITEM[U.hat], legal = allowedFx(h), lockedN = EFFECTS.length - legal.length, s = total(stakeItems());
-    const options = legal.filter(e => value({ n: h.name, fx: e.name }) > s), cheap = legal.length - options.length;
-    const src = h.fx.map(g => ({ UX: "Unusualifier effects (low value)", HAUNT: "Haunted", DEV: "Developer", COMM: "Community Sparkle", CODE: "Code-exclusive" }[g] || null)).filter(Boolean);
-    const series = h.fx.filter(g => STANDARD.has(g)).map(g => g.slice(1)).sort((a, b) => a - b);
-    body.innerHTML = `<div class="lock-note" style="margin-bottom:12px"><b>${esc(h.name)}</b> can roll ${legal.length} effects: ${series.length ? "crate series " + series.join(", ") : "no crate series"}${src.length ? " + " + src.join(", ") : ""}. ${lockedN} other effects are locked because this hat never came with them.${cheap && s ? ` ${cheap} more are hidden because they're worth less than your stake.` : ""}</div>
-      <div class="fx-grid">${options.filter(e => e.name.toLowerCase().includes(q)).sort((a, b) => value({ n: h.name, fx: b.name }) - value({ n: h.name, fx: a.name })).map(e => { const v = value({ n: h.name, fx: e.name }); return card({ n: h.name, fx: e.name }, { click: 1, sel: U.fx === e.name, sub: s ? `${e.series} · ${(Math.min(.75, s / v * .95) * 100).toFixed(2)}% chance` : e.series, extra: `data-fx="${esc(e.name)}"` }); }).join("") || `<div class="empty">No effects on this hat are worth more than your stake.</div>`}</div>`;
-    body.onclick = e => { const c = e.target.closest(".card"); if (!c) return; U.fx = c.dataset.fx; $$(".card", body).forEach(x => x.classList.toggle("sel", x === c)); drawUpg(); };
-  }
-}
-let upgBusy = false;
-async function spinUpgrade() {
-  if (upgBusy || needLogin()) return;
-  const st = stakeItems(), t = target(); if (!t || !st.length) return;
-  upgBusy = true; $("#spinBtn").disabled = true; $("#dial").className = "dial";
-  let res;
-  try { res = await rpc("upgrade", { p_ids: st.map(i => i.id), p_hat: t.n, p_fx: t.fx }); }
-  catch (e) { fail(e); upgBusy = false; await refreshMe(); U.stake.clear(); drawUpg(); drawPicker(); return; }
-  U.stake.clear();
-  const needle = $("#needle");
-  needle.style.transition = "none"; needle.style.transform = "rotate(0deg)"; void needle.offsetWidth;
-  needle.style.transition = ""; needle.style.transform = `rotate(${360 * 5 + res.roll * 360}deg)`;
-  SFX.whoosh(); { const t0 = performance.now(); let last = 0; const tk = () => { const a = new DOMMatrix(getComputedStyle(needle).transform), deg = (Math.atan2(a.b, a.a) * 180 / Math.PI + 360) % 360, seg = Math.floor(deg / 15); if (seg !== last) SFX.tick(); last = seg; if (performance.now() - t0 < 4200) requestAnimationFrame(tk); }; requestAnimationFrame(tk); }
-  await sleep(4400);
-  $("#dial").classList.add(res.win ? "win" : "lose");
-  $("#chance").textContent = res.win ? "WIN" : "LOSS";
-  await refreshMe();
-  if (res.win) celebrate([t], "Unusualifier"); else SFX.lose();
-  if (res.win) modal(`<div class="win-show"><h2>Unusualified!</h2>${thumb(t, "", true)}<div class="nm" style="color:var(--unu2)">${esc(label(t))}</div><div style="margin:6px 0 16px">${coinVal(value(t))}</div><button class="btn btn-gold" data-close>Nice</button></div>`);
-  else toast(`The effect fizzled. Lost ${fmt(total(st))} in items.`, "bad");
-  await sleep(1200); upgBusy = false; if (route()[0] === "unusualifier") { U.fx = res.win ? null : U.fx; drawUpg(); drawPicker(); }
 }
 
 // ---------------------------------------------------------------- inventory picker modal (shared)
@@ -1520,7 +1373,7 @@ function viewWheel() {
       <div class="wh-top">
         <div class="wh-left">${window.TCBET_SCENE?.logo || ""}<div class="wh-recent"><div class="wh-last" id="whLast"></div><div class="wh-hist" id="whHist"></div></div></div>
         <div class="wh-wheel">${wheelSvg()}<div class="wh-marker"></div></div>
-        <div class="rs-window"><img class="rs-dealer" src="roulette-dealer.png" alt="Roulette dealer in the castle window"></div>
+        <div class="rs-window"><img class="rs-dealer" id="whDealer" src="roulette-dealer.png" alt="Roulette dealer in the castle window"></div>
       </div>
       <div class="wh-tools"><button id="whUndo">↶ Undo</button><button id="whClear">⊗ Clear</button></div>
       <div class="wh-table" id="whTable">
@@ -1565,17 +1418,21 @@ function drawWheelHistory() {
   $("#whLast").className = "wh-last " + (WH.history.length ? numColor(WH.history[0]) : ""); $("#whLast").textContent = WH.history.length ? WH.history[0] : "";
   $("#whHist").innerHTML = WH.history.slice(1, 9).map(n => `<span class="${numColor(n)}">${n}</span>`).join("");
 }
+// dealer portrait: "" = normal, "sad" = player won, "laugh" = player lost
+const DEALER_IMG = { "": "roulette-dealer.png", sad: "roulette-dealer-sad.webp", laugh: "roulette-dealer-laugh.webp" };
+Object.values(DEALER_IMG).forEach(src => { const i = new Image(); i.src = src; });
+function dealerFace(k) { const d = $("#whDealer"); if (!d || d.getAttribute("src") === DEALER_IMG[k]) return; d.src = DEALER_IMG[k]; d.classList.remove("react"); void d.offsetWidth; if (k) d.classList.add("react"); }
 // Roulette ball physics. The wheel turns one way and decelerates; the ball is launched the other way around the
 // outer track, loses speed to friction, falls inward clattering off the pocket separators, then drops into the
 // winning pocket (decided by the server) and rides round with the wheel until everything stops.
 function spinBall(result, fast) {
   return new Promise(done => {
     const rot = $("#whRot"), ball = $("#whBall"), C = 150, step = 360 / 37, idx = WHEEL_ORDER.indexOf(result);
-    const T = fast ? 3200 : 7000;
-    const w0 = WH.angle, wEnd = w0 - (w0 % 360) - 360 * (fast ? 3 : 5) - idx * step;          // pocket idx ends under the top marker
+    const T = fast ? 2000 : 4200;
+    const w0 = WH.angle, wEnd = w0 - (w0 % 360) - 360 * (fast ? 2 : 4) - idx * step;          // pocket idx ends under the top marker
     const wheelAt = u => w0 + (wEnd - w0) * (1 - Math.pow(1 - u, 2.6));                       // wheel eases out
     // free ball: launched clockwise, angular speed decays exponentially (friction)
-    const om0 = fast ? 1500 : 1150, tau = (fast ? .9 : 1.9) * 1000;
+    const om0 = fast ? 1900 : 1500, tau = (fast ? .55 : 1.15) * 1000;
     const free = t => om0 * (tau / 1000) * (1 - Math.exp(-t / tau));
     const t2 = T * .5, t3 = T * .82;                                                            // fall starts at t2, ball is in its pocket at t3
     const target3 = idx * step - 90 + wheelAt(t3 / T);                                          // screen angle of the winning pocket at t3
@@ -1619,12 +1476,13 @@ function spinBall(result, fast) {
 async function wheelRound(fast) {
   const bets = Object.entries(WH.bets).map(([k, a]) => k.startsWith("n:") ? { t: "n", n: +k.slice(2), a } : { t: k, a });
   const r = await rpc("wheel_spin", { p_bets: bets });
-  ME.profile.balance = +r.balance - +r.payout; syncTop(); clearWheelResult();
+  ME.profile.balance = +r.balance - +r.payout; syncTop(); clearWheelResult(); dealerFace("");
   await spinBall(r.result, fast);
   if (!$("#whTable")) return r;
   WH.history.unshift(r.result); WH.history = WH.history.slice(0, 20); drawWheelHistory();
   $$("#whTable [data-k]").forEach(c => c.classList.toggle("win", betCovers(c.dataset.k, r.result)));
   const net = +r.payout - +r.wagered;
+  dealerFace(net > 0 ? "sad" : net < 0 ? "laugh" : "");
   $("#whPop").className = "kx-pop show " + (r.payout > 0 ? "" : "lose");
   $("#whPop").innerHTML = `<b class="${numColor(r.result)}-t">${r.result}</b><span>${net >= 0 ? "+" : ""}${coinVal(net)}</span>`;
   if (net > 0) { if (net >= BIG_WIN) bigWin(+r.payout, "Roulette " + r.result); else { SFX.good(); SFX.cash(); confetti($("#whPop"), 50); } } else if (!fast) SFX.lose();
@@ -1642,14 +1500,14 @@ async function runAutoWheel() {
   if (needLogin() || WH.busy || !wheelTotal()) return;
   const total = Math.max(0, Math.floor(+$("#whCount").value || 0)); let done = 0;
   WH.auto = true; WH.busy = true; drawWheel();
-  try { while (WH.auto && $("#whTable") && (total === 0 || done < total)) { await wheelRound(true); done++; if ($("#whCount") && total) $("#whCount").value = total - done; await sleep(700); } }
+  try { while (WH.auto && $("#whTable") && (total === 0 || done < total)) { await wheelRound(true); done++; if ($("#whCount") && total) $("#whCount").value = total - done; await sleep(400); } }
   catch (e) { fail(e); }
   WH.auto = false; WH.busy = false; if ($("#whCount") && total) $("#whCount").value = total;
   await refreshMe(); drawWheel();
 }
 
 // ---------------------------------------------------------------- keno (coins): pick 1-10 of 40, server draws 10
-const KENO_PAY = {"classic": {"1": [0.0, 3.92], "2": [0.0, 1.47, 7.16], "3": [0.0, 0.0, 4.33, 32.0], "4": [0.0, 0.0, 2.08, 8.51, 87.2], "5": [0.0, 0.0, 0.0, 5.97, 34.0, 473.0], "6": [0.0, 0.0, 0.0, 3.11, 12.4, 96.4, 1813.0], "7": [0.0, 0.0, 0.0, 0.0, 9.85, 52.9, 552.0, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.26, 21.7, 158.0, 2238.0, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17.8, 101.0, 999.0, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.49, 42.3, 322.0, 4492.0, 5000, 10000]}, "low": {"1": [0.0, 3.92], "2": [0.0, 1.77, 5.2], "3": [0.0, 1.24, 2.37, 9.08], "4": [0.0, 1.02, 1.55, 3.82, 18.6], "5": [0.0, 0.93, 1.14, 2.38, 7.45, 43.4], "6": [0.0, 0.0, 1.45, 2.48, 6.09, 23.7, 173.0], "7": [0.0, 0.0, 1.17, 1.8, 3.71, 11.7, 55.2, 486.0], "8": [0.0, 0.0, 1.05, 1.36, 2.51, 6.6, 25.1, 148.0, 1000], "9": [0.0, 0.0, 0.0, 1.66, 2.81, 6.23, 19.7, 90.4, 679.0, 1000], "10": [0.0, 0.0, 0.0, 1.36, 2.09, 4.07, 11.5, 42.8, 253.0, 1000, 1000]}, "medium": {"1": [0.0, 3.92], "2": [0.0, 1.37, 7.82], "3": [0.0, 0.0, 4.04, 35.2], "4": [0.0, 0.0, 1.86, 8.46, 108.0], "5": [0.0, 0.0, 0.0, 5.18, 34.2, 629.0], "6": [0.0, 0.0, 0.0, 2.6, 11.5, 112.0, 2838.0], "7": [0.0, 0.0, 0.0, 0.0, 8.3, 51.9, 684.0, 10000], "8": [0.0, 0.0, 0.0, 0.0, 4.34, 20.7, 183.0, 3357.0, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 15.5, 98.2, 1218.0, 10000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 7.85, 40.3, 374.0, 6753.0, 10000, 10000]}, "high": {"1": [0.0, 3.92], "2": [0.0, 0.0, 17.0], "3": [0.0, 0.0, 3.11, 45.7], "4": [0.0, 0.0, 0.0, 10.4, 248.0], "5": [0.0, 0.0, 0.0, 3.1, 32.1, 1114.0], "6": [0.0, 0.0, 0.0, 0.0, 10.0, 155.0, 7989.0], "7": [0.0, 0.0, 0.0, 0.0, 0.0, 48.2, 1109.0, 50000], "8": [0.0, 0.0, 0.0, 0.0, 0.0, 17.6, 253.0, 8894.0, 50000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 101.0, 2179.0, 50000, 50000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 35.1, 530.0, 18172.0, 50000, 50000]}};   // [risk][picks][hits] -> multiplier, same as keno_paytable() on the server
+const KENO_PAY = {"classic": {"1": [0.0, 3.96], "2": [0.0, 1.9, 4.5], "3": [0.0, 1.0, 3.1, 10.4], "4": [0.0, 0.8, 1.8, 5.0, 22.5], "5": [0.0, 0.25, 1.4, 4.1, 16.5, 36.0], "6": [0.0, 0.0, 1.0, 3.68, 7.0, 16.5, 40.0], "7": [0.0, 0.0, 0.47, 3.0, 4.5, 14.0, 31.0, 60.0], "8": [0.0, 0.0, 0.0, 2.2, 4.0, 13.0, 22.0, 55.0, 70.0], "9": [0.0, 0.0, 0.0, 1.55, 3.0, 8.0, 15.0, 44.0, 60.0, 85.0], "10": [0.0, 0.0, 0.0, 1.4, 2.25, 4.5, 8.0, 17.0, 50.0, 80.0, 100.0]}, "low": {"1": [0.7, 1.85], "2": [0.0, 2.0, 3.8], "3": [0.0, 1.1, 1.38, 26.0], "4": [0.0, 0.0, 2.2, 7.9, 90.0], "5": [0.0, 0.0, 1.5, 4.2, 13.0, 300.0], "6": [0.0, 0.0, 1.1, 2.0, 6.2, 100.0, 700.0], "7": [0.0, 0.0, 1.1, 1.6, 3.5, 15.0, 225.0, 700.0], "8": [0.0, 0.0, 1.1, 1.5, 2.0, 5.5, 39.0, 100.0, 800.0], "9": [0.0, 0.0, 1.1, 1.3, 1.7, 2.5, 7.5, 50.0, 250.0, 1000.0], "10": [0.0, 0.0, 1.1, 1.2, 1.3, 1.8, 3.5, 13.0, 50.0, 250.0, 1000.0]}, "medium": {"1": [0.4, 2.75], "2": [0.0, 1.8, 5.1], "3": [0.0, 0.0, 2.8, 50.0], "4": [0.0, 0.0, 1.7, 10.0, 100.0], "5": [0.0, 0.0, 1.4, 4.0, 14.0, 390.0], "6": [0.0, 0.0, 0.0, 3.0, 9.0, 180.0, 710.0], "7": [0.0, 0.0, 0.0, 2.0, 7.0, 30.0, 400.0, 800.0], "8": [0.0, 0.0, 0.0, 2.0, 4.0, 11.0, 67.0, 400.0, 900.0], "9": [0.0, 0.0, 0.0, 2.0, 2.5, 5.0, 15.0, 100.0, 500.0, 1000.0], "10": [0.0, 0.0, 0.0, 1.6, 2.0, 4.0, 7.0, 26.0, 100.0, 500.0, 1000.0]}, "high": {"1": [0.0, 3.96], "2": [0.0, 0.0, 17.1], "3": [0.0, 0.0, 0.0, 81.5], "4": [0.0, 0.0, 0.0, 10.0, 259.0], "5": [0.0, 0.0, 0.0, 4.5, 48.0, 450.0], "6": [0.0, 0.0, 0.0, 0.0, 11.0, 350.0, 710.0], "7": [0.0, 0.0, 0.0, 0.0, 7.0, 90.0, 400.0, 800.0], "8": [0.0, 0.0, 0.0, 0.0, 5.0, 20.0, 270.0, 600.0, 900.0], "9": [0.0, 0.0, 0.0, 0.0, 4.0, 11.0, 56.0, 500.0, 800.0, 1000.0], "10": [0.0, 0.0, 0.0, 0.0, 3.5, 8.0, 13.0, 63.0, 500.0, 800.0, 1000.0]}};   // [risk][picks][hits] -> multiplier, same as keno_paytable() on the server
 const KN = { picks: new Set(), busy: false, mode: "manual", risk: "classic", auto: false, history: [] };
 const RISKS = [["classic", "Classic"], ["low", "Low"], ["medium", "Medium"], ["high", "High"]];
 function viewKeno() {
@@ -1686,7 +1544,7 @@ const clearDraw = () => { $$(".kx-cell").forEach(c => c.classList.remove("drawn"
 function drawStrip(hits) {
   const k = KN.picks.size, row = KENO_PAY[KN.risk]?.[k];
   if (!k || !row) { $("#kxStrip").innerHTML = `<div class="kx-hint">Select 1 - 10 numbers to play</div>`; return; }
-  $("#kxStrip").innerHTML = `<div class="kx-mults">${row.map((m, h) => `<div class="kx-m ${hits === h ? "on" : ""} ${m >= 1 ? "pay" : ""}"><b>${m ? (m >= 100 ? Math.round(m).toLocaleString() : m) : 0}x</b><span>${h} <i>◆</i></span></div>`).join("")}</div>`;
+  $("#kxStrip").innerHTML = `<div class="kx-mults">${row.map((m, h) => `<div class="kx-m ${hits === h ? "on" : ""} ${m >= 1 ? "pay" : ""}"><b>${m >= 100 ? m.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : m.toFixed(2)}x</b><span>${h} <i>◆</i></span></div>`).join("")}</div>`;
 }
 function drawKeno() {
   if (!$("#kxBoard")) return;
@@ -1901,7 +1759,6 @@ const GAMES = [
   { r: "blackjack", t: "Blackjack", d: "3:2 blackjack, split & double", c: "#22c55e", icon: "M5 5h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M17 4l4 14-4 1" },
   { r: "plinko", t: "Plinko", d: "Drop balls, up to 1,000x", c: "#ec4899", icon: "M12 3a2 2 0 1 0 0 .1 M8 9h.01M16 9h.01M12 13h.01M4 13h.01M20 13h.01M8 17h.01M16 17h.01 M3 21h18" },
   { r: "keno", t: "Keno", d: "Pick 10, win up to 50,000x", c: "#38bdf8", icon: "M4 4h16v16H4z M8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01" },
-  { r: "unusualifier", t: "Unusualifier", d: "Stake items, roll for an unusual", c: "#b07ad8", icon: "M12 2l2.4 6.9H22l-6 4.6 2.3 7L12 16l-6.3 4.5 2.3-7-6-4.6h7.6z" },
   { r: "coinflip", t: "Coinflip", d: "RED or GRN, double your items", c: "#fb7185", icon: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 3v18" },
   { r: "jackpot", t: "Jackpot", d: "Bigger stake, bigger chance", c: "#facc15", icon: "M12 3a9 9 0 1 0 9 9h-9z M14 1v9h9a9 9 0 0 0-9-9z" },
 ];
@@ -2033,7 +1890,7 @@ function viewRewards() {
   if (!ME.user) { $("#view").innerHTML = `<div class="empty"><h2>Rewards</h2><p>Sign in to level up, earn rakeback and open reward crates.</p><button class="btn btn-gold" id="rwLogin">Sign in</button></div>`; $("#rwLogin").onclick = () => openAuth(); return; }
   const p = ME.profile, L = levelOf(p.xp), next = xpFor(L + 1), prev = xpFor(L), crates = Math.max(0, L - 1 - p.crates_claimed);
   const rate = rakeRate(L, p.rank), nextCrateLvl = p.crates_claimed + 2;
-  $("#view").innerHTML = `<div class="page-head"><div><h1>Rewards</h1><p>Every coin you wager (cases, Unusualifier, flips, jackpot) is 1 XP. Levels raise your rakeback and give you free reward crates.</p></div></div>
+  $("#view").innerHTML = `<div class="page-head"><div><h1>Rewards</h1><p>Every coin you wager (cases, flips, jackpot) is 1 XP. Levels raise your rakeback and give you free reward crates.</p></div></div>
     <div class="rw-grid">
       <div class="panel rw-card"><div class="section-title">Level</div><div class="rw-big">${L}</div>
         <div class="xpbar"><div style="width:${Math.min(100, (p.xp - prev) / (next - prev) * 100)}%"></div></div>
@@ -2131,10 +1988,6 @@ function connectRealtime() {
       if (r[0] === "roulette" && !r[1]) loadRoulette();
       if (r[0] === "roulette" && +r[1] === p.new.game_id && CUR_RR?.status === "open") { SFX.join(); viewRouletteGame(p.new.game_id); }
     })
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "jumpscares" }, p => {
-      const t = p.new.target, me = ME.profile?.username;
-      if (Date.now() - new Date(p.new.created_at) < 15000 && (!t || (me && t.toLowerCase() === me.toLowerCase()))) jumpscare();
-    })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "tips" }, p => {
       if (ME.user && p.new.receiver === ME.user.id) { toast(`${esc(p.new.sender_name)} tipped you ${fmt(p.new.amount)} coins!`, "good"); refreshMe().then(bumpBalance); }
     })
@@ -2164,7 +2017,7 @@ function render() {
   closeModal();
   const [r, arg] = route();
   $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r === "roulette" ? "wheel" : r)));
-  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno, wheel: viewWheel, home: viewHome, plinko: viewPlinko }[r] || viewHome)();
+  ({ cases: viewCases, case: () => viewCase(arg), coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno, wheel: viewWheel, home: viewHome, plinko: viewPlinko }[r] || viewHome)();
   document.body.classList.remove("nav-open", "chat-open");
   window.scrollTo(0, 0);
 }

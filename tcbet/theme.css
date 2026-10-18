@@ -299,3 +299,9 @@ input:focus,select:focus{border-color:rgba(245,184,61,.5);box-shadow:0 0 0 3px r
 .pl-rows button.on{background:#ec4899;color:#fff}
 .kx-risk button:disabled{opacity:.5;cursor:not-allowed}
 @media (max-width:700px){.pl-hist{display:none}}
+
+.rs-dealer.react{animation:dealerpop .35s ease-out}
+@keyframes dealerpop{0%{transform:scale(.96)}60%{transform:scale(1.03)}100%{transform:scale(1)}}
+.kx-strip{container-type:inline-size}
+.kx-m b{padding:9px 0;font-size:clamp(9px,1.45cqw,13px);text-overflow:clip}
+.kx-m span{font-size:clamp(9px,1.4cqw,12px)}
