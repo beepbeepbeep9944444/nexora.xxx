@@ -1782,10 +1782,12 @@ async function dropPlinko() {
   return true;
 }
 function animateBall(r) {
-  return new Promise(done => {
+  return new Promise(resolve => {
+    let fin = false; const done = () => { if (!fin) { fin = true; clearTimeout(guard); resolve(); } };
+    let ballRef = null; const guard = setTimeout(() => { ballRef?.remove(); done(); }, (r.mega ? 14000 : 4000) + 125 * +r.rows);
     const svg = $("#plSvg"); if (!svg || +r.rows !== PL.rows || r.risk !== PL.risk) return done();
     const g = plGeo(+r.rows), host = $("#plBalls");
-    const ball = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const ball = ballRef = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     // waypoints: start above the board, then touch the top of one peg per row, then drop into the slot
     const pts = [{ x: 500 + (Math.random() - .5) * g.gap * .2, y: g.top - g.gy * 1.1 }]; let R = 0;
     // place the ball at the drop point before it's added, so it never shows at the SVG origin (0,0)
@@ -1796,9 +1798,9 @@ function animateBall(r) {
     const segs = pts.slice(1).map((_, i) => r.mega ? 150 + Math.pow(i / (pts.length - 2), 3) * 900 : 125), ends = segs.reduce((a, d) => [...a, (a.at(-1) || 0) + d], []);
     if (r.mega) { $(".pl-main")?.classList.add("mega-run"); SFX.drumroll?.(ends.at(-1)); }
     const t0 = performance.now(); let last = -1;
-    const step = now => {
+    const step = now => { try {
       if (!document.body.contains(ball)) return done();
-      const el = now - t0, si = ends.findIndex(e => el < e), f = si < 0 ? pts.length - 1 : si + (el - (ends[si - 1] || 0)) / segs[si]; i = Math.min(pts.length - 2, Math.floor(f)), t = Math.min(1, f - i), a = pts[i], b = pts[i + 1];
+      const el = Math.max(0, now - t0), si = ends.findIndex(e => el < e), f = Math.max(0, si < 0 ? pts.length - 1 : si + (el - (ends[si - 1] || 0)) / segs[si]); i = Math.min(pts.length - 2, Math.floor(f)), t = Math.min(1, f - i), a = pts[i], b = pts[i + 1];
       const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t * t - (i ? g.gy * .35 * Math.sin(Math.PI * t) : 0);
       ball.setAttribute("cx", x); ball.setAttribute("cy", y);
       if (i !== last && i > 0) { last = i; SFX.tick(); if (r.mega) { const tr = document.createElementNS("http://www.w3.org/2000/svg", "circle"); tr.setAttribute("cx", x); tr.setAttribute("cy", y); tr.setAttribute("r", g.br * 1.2); tr.setAttribute("class", "pl-trail"); host.append(tr); setTimeout(() => tr.remove(), 900); } }
@@ -1807,7 +1809,7 @@ function animateBall(r) {
       const s = $("#pls" + r.slot); if (s) { s.classList.remove("hit"); void s.getBBox(); s.classList.add("hit"); if (r.mega) { s.classList.add("mega-slot"); s.querySelector("text").textContent = "999x"; setTimeout(() => drawPlinkoBoard(), 9000); } }
       if (r.mega) $(".pl-main")?.classList.remove("mega-run");
       done();
-    };
+    } catch (e) { console.error(e); ball.remove(); done(); } };
     requestAnimationFrame(step);
   });
 }
