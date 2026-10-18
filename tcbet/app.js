@@ -407,18 +407,58 @@ function rollEntry(c) { let r = Math.random(); for (const e of c.entries) if ((r
 function viewCase(id) {
   const c = CASES.find(x => x.id === id); if (!c) return go("cases");
   const sorted = c.entries.filter(e => e.unusual || ITEM[e.n]).sort((a, b) => entryVal(b) - entryVal(a));
+  const unuP = c.entries.filter(e => e.unusual).reduce((s, e) => s + e.p, 0);
+  const tiers = {}; sorted.forEach(e => { const k = e.unusual ? "var(--unu2)" : rarity(entryVal(e)); tiers[k] = (tiers[k] || 0) + e.p; });
+  const img = c.img.startsWith("http") ? sized(c.img, 360) : c.img;
   $("#view").innerHTML = `
-    <div class="case-open">
-      <div class="panel case-hero"><img src="${c.img}" alt="" referrerpolicy="no-referrer">
-        <div><a href="#/cases" class="muted">← All cases</a><h1>${esc(c.name)}</h1><div class="muted">${c.season} season · Expected value ${coinVal(c.ev)}</div></div>
-        <div class="case-actions"><div class="tabs" id="qty">${[1,2,3,5].map(n => `<button data-n="${n}" class="${n === 1 ? "on" : ""}">${n}x</button>`).join("")}</div>
-        <button class="btn" id="fastBtn">Quick</button><button class="btn btn-gold" id="openBtn">Open for ${fmt(c.price)}</button></div></div>
-      <div id="reels"><div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div></div>
-      <div><div class="section-title">Drops in this case</div><div class="grid">${sorted.map(e => e.unusual ? mysteryCard(e.p) : card({ n: e.n }, { sub: (e.p * 100).toFixed(e.p < .01 ? 3 : 2) + "% chance" })).join("")}</div></div>
+    <div class="case-open co">
+      <div class="co-crumb"><a href="#/cases">Cases</a><span>/</span><b>${esc(c.name)}</b></div>
+      <section class="co-stage">
+        <div class="co-top">
+          <div class="co-case"><div class="co-glow"></div><img src="${img}" alt="" referrerpolicy="no-referrer"></div>
+          <div class="co-info">
+            <div class="co-chips"><span class="chip season ${c.season}">${c.tag || c.season}</span>${unuP ? `<span class="chip co-unu">★ ${(unuP * 100).toFixed(unuP < .01 ? 2 : 1)}% unusual</span>` : ""}</div>
+            <h1>${esc(c.name)}</h1>
+            <div class="co-stats">
+              <div><span>Price</span>${coinVal(c.price)}</div>
+              <div><span>Expected value</span>${coinVal(c.ev)}</div>
+              <div><span>Drops</span><b>${sorted.length}</b></div>
+              <div><span>Best drop</span>${coinVal(sorted.length ? entryVal(sorted[0]) : 0)}</div>
+            </div>
+          </div>
+        </div>
+        <div id="reels" class="co-reels"><div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div></div>
+        <div class="co-bar">
+          <div class="tabs co-qty" id="qty">${[1, 2, 3, 5].map(n => `<button data-n="${n}" class="${n === 1 ? "on" : ""}">${n}x</button>`).join("")}</div>
+          <button class="btn co-fast" id="fastBtn" title="Skip most of the animation"><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Quick</button>
+          <span class="grow"></span>
+          <button class="btn" id="demoBtn">Demo spin</button>
+          <button class="btn btn-gold btn-lg co-open" id="openBtn">Open for ${fmt(c.price)}</button>
+        </div>
+      </section>
+      <section class="co-drops">
+        <div class="sec-head"><h2>Case contents <span class="muted">${sorted.length} items</span></h2></div>
+        <div class="co-odds">${Object.entries(tiers).sort((x, y) => y[1] - x[1]).map(([k, v]) => `<i style="flex:${v};background:${k}" title="${(v * 100).toFixed(2)}%"></i>`).join("")}</div>
+        <div class="grid">${sorted.map(e => e.unusual ? mysteryCard(e.p) : card({ n: e.n }, { sub: (e.p * 100).toFixed(e.p < .01 ? 3 : 2) + "% chance" })).join("")}</div>
+      </section>
     </div>`;
+  { // idle strip so the reel isn't empty before the first spin
+    const r0 = $("#reels .reel");
+    r0.innerHTML = Array.from({ length: 21 }, () => { const e = rollEntry(c); return e.unusual ? mysteryCard() : card({ n: e.n }); }).join("");
+    r0.style.transform = `translateX(${-(10 * 158 + 79 - r0.parentElement.clientWidth / 2)}px)`;
+  }
   let qty = 1, fast = false, busy = false;
   $("#qty").onclick = e => { const b = e.target.closest("button"); if (!b || busy) return; qty = +b.dataset.n; $$("#qty button").forEach(x => x.classList.toggle("on", x === b)); $("#openBtn").textContent = `Open ${qty > 1 ? qty + "x " : ""}for ${fmt(c.price * qty)}`; };
-  $("#fastBtn").onclick = () => { fast = !fast; $("#fastBtn").classList.toggle("btn-unu", fast); };
+  $("#fastBtn").onclick = () => { fast = !fast; $("#fastBtn").classList.toggle("on", fast); };
+  // free preview spin: rolled locally, nothing is charged or won
+  $("#demoBtn").onclick = async () => {
+    if (busy) return; busy = true; $("#openBtn").disabled = $("#demoBtn").disabled = true;
+    const wins = Array.from({ length: qty }, () => { const e = rollEntry(c); return e.unusual ? unusualCombo(c, { n: sorted.find(x => !x.unusual)?.n }) : { n: e.n }; });
+    $("#reels").innerHTML = wins.map(() => `<div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div>`).join("");
+    await Promise.all(wins.map((w, i) => spinReel($$("#reels .reel")[i], c, w, fast ? 1600 : 5600)));
+    toast(`Demo: you would have unboxed ${fmt(total(wins))} coins of items`);
+    busy = false; $("#openBtn").disabled = $("#demoBtn").disabled = false;
+  };
   $("#openBtn").onclick = async () => {
     if (busy || needLogin()) return;
     if (+ME.profile.balance < c.price * qty) return toast("Not enough fun-coins. Claim free coins or sell some items.", "bad");
@@ -427,7 +467,7 @@ function viewCase(id) {
       const res = await rpc("open_case", { p_case: c.id, p_qty: qty });
       ME.profile.balance = res.balance; syncTop(); bumpBalance();
       const wins = fromJ(res.items);
-      $("#reels").innerHTML = wins.map(() => `<div class="reel-wrap" style="margin-bottom:10px"><div class="reel-marker"></div><div class="reel"></div></div>`).join("");
+      $("#reels").innerHTML = wins.map(() => `<div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div>`).join("");
       await Promise.all(wins.map((w, i) => spinReel($$("#reels .reel")[i], c, w, fast ? 1600 : 5600)));
       await refreshMe();
       showWins(wins);
@@ -447,6 +487,13 @@ async function spinReel(reel, c, win, ms) {
   SFX.whoosh(); reelTicks(reel, W, ms);
   await sleep(ms + 150);
   if (win.fx) await unusualSpin(reel, c, win, ms);
+}
+// a random hat+effect this case's unusual slot can actually produce
+function unusualCombo(c, fallback) {
+  const e = c?.entries?.find(x => x.unusual);
+  const hats = (e?.hats || []).map(n => ITEM[n]).filter(Boolean), groups = e?.groups || [...STANDARD], only = e?.effects;
+  for (let i = 0; i < 20 && hats.length; i++) { const h = pick(hats), o = allowedFx(h).filter(f => f.g.some(g => groups.includes(g) && h.fx.includes(g)) && (!only || only.includes(f.name))); if (o.length) return { n: h.name, fx: pick(o).name }; }
+  return fallback;
 }
 // landed on the ★: flash, then spin again through possible unusuals from this case and stop on the real one
 async function unusualSpin(reel, c, win, ms) {
@@ -1345,7 +1392,7 @@ async function viewBlackjack() {
       <div class="kx-pop" id="bjPop"></div>
     </div></div>`;
   $("#bjMode").onclick = e => { const b = e.target.closest("button"); if (!b || BJ.busy || BJ.hand?.status === "playing") return; BJ.mode = b.dataset.m; $$("#bjMode button").forEach(x => x.classList.toggle("on", x === b)); $("#bjCoins").hidden = BJ.mode !== "coins"; $("#bjItems").hidden = BJ.mode !== "items"; };
-  $("#bjCoins").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#bjAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : v * 2; $("#bjAmt").value = v; SFX.chip(); };   // no max bet
+  $("#bjCoins").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#bjAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(25000000, v * 2); $("#bjAmt").value = v; SFX.chip(); };
   $("#bjPick").onclick = async () => { if (needLogin()) return; const it = await pickItems({ title: "Bet items at Blackjack", min: 1, confirm: "Use these items", hint: "Win and you get House items worth the same (1.5x on blackjack)." }); if (it) { BJ.items = it; drawBjItems(); } };
   $("#bjDeal").onclick = bjDeal;
   $("#bjHit").onclick = () => bjAct("bj_hit"); $("#bjStand").onclick = () => bjAct("bj_stand"); $("#bjSplit").onclick = () => bjAct("bj_split"); $("#bjDouble").onclick = () => bjAct("bj_double");
@@ -1625,7 +1672,7 @@ function viewKeno() {
     </div></div>`;
   $("#kxMode").onclick = e => { const b = e.target.closest("button"); if (!b || KN.auto) return; KN.mode = b.dataset.m; $$("#kxMode button").forEach(x => x.classList.toggle("on", x === b)); $("#kxAutoBox").hidden = KN.mode !== "auto"; drawKeno(); };
   $("#kxRisk").onclick = e => { const b = e.target.closest("button"); if (!b || KN.busy) return; KN.risk = b.dataset.r; $$("#kxRisk button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); clearDraw(); drawKeno(); };
-  $(".kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#kxAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(1000000, v * 2); $("#kxAmt").value = v; SFX.chip(); drawKeno(); };
+  $(".kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#kxAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(25000000, v * 2); $("#kxAmt").value = v; SFX.chip(); drawKeno(); };
   $("#kxAmt").oninput = drawKeno;
   $("#kxBoard").onclick = e => { const c = e.target.closest(".kx-cell"); if (!c || KN.busy) return; const n = +c.dataset.n;
     if (KN.picks.has(n)) KN.picks.delete(n); else if (KN.picks.size < 10) KN.picks.add(n); else return;

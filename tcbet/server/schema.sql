@@ -783,6 +783,7 @@ declare uid uuid := _uid(); bet numeric := round(coalesce(p_bet, 0), 2); d int[]
 begin
   if exists (select 1 from blackjack_hands where user_id = uid and status = 'playing') then raise exception 'Finish your current hand first'; end if;
   if bet < 1 then raise exception 'The minimum bet is 1 coin'; end if;
+  if bet > 25000000 then raise exception 'The maximum blackjack bet is 25,000,000 coins'; end if;
   update profiles set balance = balance - bet where id = uid and balance >= bet;
   if not found then raise exception 'Not enough coins'; end if;
   perform _wager(uid, bet);
@@ -836,6 +837,7 @@ begin
   if exists (select 1 from blackjack_hands where user_id = uid and status = 'playing') then raise exception 'Finish your current hand first'; end if;
   j := _claim_items(p_ids, uid, 'blackjack'); bet := _jsum(j);
   if bet < 1 then raise exception 'Bet at least 1 coin worth of items'; end if;
+  if bet > 25000000 then raise exception 'The maximum blackjack bet is 25,000,000 coins worth of items'; end if;
   perform _wager(uid, bet);
   d := array(select c from generate_series(0, 51) c order by random());
   insert into blackjack_hands (user_id, bet, items, deck, player, dealer) values (uid, bet, j, d[5:], array[d[1], d[3]], array[d[2], d[4]]) returning * into h;
@@ -863,14 +865,14 @@ begin
   if cardinality(picks) not between 1 and 10 or exists (select 1 from unnest(picks) x where x not between 1 and 40) then raise exception 'Pick 1 to 10 numbers from 1 to 40'; end if;
   if p_risk not in ('classic', 'low', 'medium', 'high') then raise exception 'Unknown risk level'; end if;
   if bet < 1 then raise exception 'The minimum bet is 1 coin'; end if;
-  if bet > 1000000 then raise exception 'The maximum keno bet is 1,000,000 coins'; end if;
+  if bet > 25000000 then raise exception 'The maximum keno bet is 25,000,000 coins'; end if;
   update profiles set balance = balance - bet where id = uid and balance >= bet returning username into uname;
   if not found then raise exception 'Not enough coins'; end if;
   perform _wager(uid, bet);
   d := array(select x from generate_series(1, 40) x order by random() limit 10);
   h := (select count(*) from unnest(d) x where x = any(picks));
   m := (keno_paytable() -> p_risk -> cardinality(picks)::text ->> h)::numeric;
-  pay := least(round(bet * m, 2), 25000000);
+  pay := least(round(bet * m, 2), 1000000000);
   update profiles set balance = balance + pay where id = uid returning balance into bal;
   insert into keno_rounds (user_id, bet, picks, draw, hits, multiplier, payout) values (uid, bet, picks, d, h, m, pay);
   if pay - bet >= 5000 then insert into chat (username, body, show_at) values ('TCBET', uname || ' hit ' || h || '/' || cardinality(picks) || ' at Keno for ' || round(pay) || ' coins (' || m || 'x)!', now() + interval '5 seconds'); end if;
@@ -892,7 +894,7 @@ begin
     tot := tot + a;
   end loop;
   if tot < 1 then raise exception 'The minimum total bet is 1 coin'; end if;
-  if tot > 5000000 then raise exception 'The maximum total bet is 5,000,000 coins'; end if;
+  if tot > 25000000 then raise exception 'The maximum total bet is 25,000,000 coins'; end if;
   update profiles set balance = balance - tot where id = uid and balance >= tot returning username into uname;
   if not found then raise exception 'Not enough coins'; end if;
   perform _wager(uid, tot);
