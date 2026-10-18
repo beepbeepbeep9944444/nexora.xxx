@@ -398,3 +398,55 @@ input:focus,select:focus{border-color:rgba(245,184,61,.5);box-shadow:0 0 0 3px r
 body.mega-shake .shell,body.mega-shake .sidenav{animation:megashake .12s linear infinite}
 @keyframes megashake{25%{transform:translate(-7px,4px) rotate(-.4deg)}50%{transform:translate(6px,-5px) rotate(.4deg)}75%{transform:translate(-4px,-3px)}}
 @media (prefers-reduced-motion:reduce){.mega-fx{animation:none}.mfx-rays,.mfx-rings i{animation:none}body.mega-shake .shell,body.mega-shake .sidenav{animation:none}}
+
+/* ---------- limbo ---------- */
+.lb-main{justify-content:space-between;padding:22px 30px 26px}
+.lb-hist{display:flex;gap:6px;width:100%;overflow:hidden;min-height:30px}
+.lb-hist span{flex:none;padding:6px 12px;border-radius:7px;background:#2c3343;font:700 13px Inter;color:#e5e7eb;animation:slidein .25s ease-out}
+.lb-hist span.win{background:#22c55e;color:#062610}
+.lb-stage{flex:1;display:grid;place-items:center;width:100%}
+.lb-num{min-width:min(340px,80%);padding:34px 40px;border-radius:12px;background:#0b0d12;border:1px solid #2c3343;text-align:center;font:800 clamp(48px,7vw,92px)/1 'Space Mono',ui-monospace,Menlo,Consolas,monospace;color:#e5e7eb;font-variant-numeric:tabular-nums;letter-spacing:-2px}
+.lb-num.win{color:#22c55e;text-shadow:0 0 30px rgba(34,197,94,.35)}
+.lb-num.lose{color:#ef4444}
+.lb-num.rolling{color:#e5e7eb}
+.lb-inputs{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%}
+.lb-inputs label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700}
+.lb-inputs .kx-amt b{padding:0 10px;color:var(--muted)}
+.lb-profit span{padding:6px 0;font-weight:700;font-size:15px}
+.lb-bet{background:linear-gradient(180deg,#9b5cff,#7c3aed);color:#fff;box-shadow:0 8px 24px -10px #7c3aed}
+.lb-bet.stop{background:linear-gradient(180deg,#f87171,#dc2626)}
+.lb-bet:disabled{opacity:.6}
+@media (max-width:700px){.lb-inputs{grid-template-columns:1fr}.lb-main{padding:16px}}
+/* ---------- admin panel ---------- */
+.ad-head h1{margin:8px 0 4px;font:900 30px Rubik,Inter,sans-serif}
+.ad-badge{display:inline-block;padding:4px 10px;border-radius:999px;font:800 11px Inter;letter-spacing:1px;color:#fff;background:linear-gradient(90deg,#2563eb,#38bdf8)}
+.ad-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}
+.ad-stats div{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.ad-stats span{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+.ad-stats b,.ad-stats .val{font-size:19px;font-weight:800}
+.ad-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.ad-card{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.ad-card h3{margin:0;font:800 16px Rubik,Inter}
+.ad-card p{margin:0}
+.ad-wide{grid-column:1/-1}
+.ad-presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ad-presets .btn{padding:9px}
+.ad-row{display:flex;gap:8px}
+.ad-row .kx-amt,.ad-row select{flex:1}
+.ad-row .kx-amt input{width:100%}
+.ad-row #adQty{width:90px}
+.ad-form{display:flex;flex-direction:column;gap:8px}
+.ad-prev{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px;border-radius:10px;background:var(--bg2)}
+.ad-powers{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:var(--muted)}
+.ad-powers b{color:var(--text)}
+.ad-list{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto}
+.ad-li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:var(--bg2);font-size:13px;min-width:0}
+.ad-li .muted{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-kind{padding:2px 7px;border-radius:5px;font:800 10px Inter;letter-spacing:.5px;background:#1d2a44;color:#93c5fd}
+.ad-kind.items{background:#3b1d44;color:#e9a8ff}
+.ad-when{font-size:11px}
+.co-bulk{display:grid;place-items:center;font:700 20px Rubik;color:var(--muted)}.co-bulk b{color:var(--gold);font-size:30px}
+.win-show .grid{max-height:60vh;overflow:auto}
+@media (max-width:900px){.ad-grid,.ad-stats{grid-template-columns:1fr 1fr}.ad-card{grid-column:1/-1}}
+.ad-stats .val{font-size:clamp(14px,1.4vw,19px)}
+.ad-presets .btn .coin{width:13px;height:13px}

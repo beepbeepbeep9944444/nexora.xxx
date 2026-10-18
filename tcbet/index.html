@@ -12,15 +12,15 @@
 <meta property="og:url" content="https://nexora.xxx/tcbet/">
 <meta property="og:title" content="TCBET — Typical Colors 2 Cases, Unusuals & Coinflips">
 <meta property="og:description" content="Unbox Unusuals, battle, and flip or jackpot for Golden Frying Pans. Claim free coins and play.">
-<meta property="og:image" content="https://nexora.xxx/tcbet/og.png?v=62">
+<meta property="og:image" content="https://nexora.xxx/tcbet/og.png?v=64">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://nexora.xxx/tcbet/og.png?v=62">
+<meta name="twitter:image" content="https://nexora.xxx/tcbet/og.png?v=64">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rubik:wght@700;800;900&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=62">
-<link rel="stylesheet" href="theme.css?v=62">
+<link rel="stylesheet" href="styles.css?v=64">
+<link rel="stylesheet" href="theme.css?v=64">
 <meta name="referrer" content="no-referrer">
 </head>
 <body>
@@ -34,6 +34,7 @@
     <a href="#/wheel" data-r="wheel"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/></svg>Roulette</a>
     <a href="#/blackjack" data-r="blackjack"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="15" rx="2"/><path d="M10 4.5 17 3l4 14-6 1.5"/><path d="M8.5 10.5l-2 3h4z"/></svg>Blackjack</a>
     <a href="#/plinko" data-r="plinko"><svg viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2"/><path d="M8 10h.01M16 10h.01M12 14h.01M5 14h.01M19 14h.01M8 18h.01M16 18h.01M3 21h18"/></svg>Plinko</a>
+    <a href="#/limbo" data-r="limbo"><svg viewBox="0 0 24 24"><path d="M4 20L20 4 M9 4h11v11 M4 14v6h6"/></svg>Limbo</a>
     <a href="#/keno" data-r="keno"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.6"/><circle cx="16" cy="8" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="8" cy="16" r="1.6"/><circle cx="16" cy="16" r="1.6"/></svg>Keno</a>
     <a href="#/coinflip" data-r="coinflip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/></svg>Coinflip</a>
     <a href="#/jackpot" data-r="jackpot"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z M14 1v9h9a9 9 0 0 0-9-9z"/></svg>Jackpot</a>
@@ -45,6 +46,8 @@
     <div class="nav-sec">Community</div>
     <a href="#/players" data-r="players"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5 M16 4.8a3.4 3.4 0 0 1 0 6.4 M18 14.8c1.8.7 3 2.4 3.5 5.2"/></svg>Players</a>
     <a href="#/rewards" data-r="rewards"><svg viewBox="0 0 24 24"><path d="M4 11h16v9H4z M3 7h18v4H3z M12 7v13 M12 7c-2-4-6-4-6-1.5S9 7 12 7c3 0 6 .9 6-1.5S14 3 12 7"/></svg>Rewards<b class="nav-badge" id="rewardBadge" hidden>0</b></a>
+    <div class="nav-sec" id="navStaff" hidden>Staff</div>
+    <a href="#/admin" data-r="admin" id="navAdmin" hidden><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Admin panel</a>
   </nav>
   <div class="side-foot"><span class="dot"></span><span id="onlineCount">0</span> online now</div>
 </aside>
@@ -84,7 +87,7 @@
     <div class="footer-top">
       <div class="footer-brand"><img src="logo-mark.svg" alt=""><b>TC<span>BET</span></b></div>
       <div class="footer-cols">
-        <div><h4>Casino</h4><a href="#/cases">Cases</a><a href="#/battles">Case Battles</a><a href="#/wheel">Roulette</a><a href="#/blackjack">Blackjack</a><a href="#/keno">Keno</a><a href="#/plinko">Plinko</a></div>
+        <div><h4>Casino</h4><a href="#/cases">Cases</a><a href="#/battles">Case Battles</a><a href="#/wheel">Roulette</a><a href="#/blackjack">Blackjack</a><a href="#/keno">Keno</a><a href="#/plinko">Plinko</a><a href="#/limbo">Limbo</a></div>
         <div><h4>Marketplace</h4><a href="#/market">Market</a><a href="#/trade">Trade</a><a href="#/values">Value list</a><a href="#/inventory">Inventory</a></div>
         <div><h4>Community</h4><a href="#/players">Players</a><a href="#/rewards">Rewards</a></div>
       </div>
@@ -97,9 +100,9 @@
 <div class="toasts" id="toasts"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="roulette-scene.js?v=62"></script>
-<script src="config.js?v=62"></script>
-<script src="data.js?v=62"></script>
-<script src="app.js?v=62"></script>
+<script src="roulette-scene.js?v=64"></script>
+<script src="config.js?v=64"></script>
+<script src="data.js?v=64"></script>
+<script src="app.js?v=64"></script>
 </body>
 </html>

@@ -170,6 +170,7 @@ function needLogin() { if (ME.user) return false; openAuth("login"); return true
 const fail = e => toast(esc(e.message || e), "bad");
 const isVip = () => ["vip", "owner", "admin"].includes(ME.profile?.rank);
 const isAdmin = () => ["admin", "owner"].includes(ME.profile?.rank);
+const maxBet = () => isAdmin() ? 1000000000 : 25000000;   // admins have no practical limit (1B keeps payouts in range)
 const vipTag = r => r === "owner" ? `<span class="vip-tag owner-tag" title="Site owner">OWNER</span>` : r === "admin" ? `<span class="vip-tag admin-tag" title="Admin">ADMIN</span>` : r === "vip" ? `<span class="vip-tag" title="VIP">VIP</span>` : "";
 // levels: level L needs 100*(L-1)^2 xp (1 xp per coin wagered) — same formula as level_of() on the server
 const levelOf = xp => Math.floor(Math.sqrt(Math.max(0, +xp || 0) / 100)) + 1;
@@ -182,7 +183,7 @@ const sellRate = () => isVip() ? 1 : .95;
 function syncTop() {
   const p = ME.profile;
   $("#balance").hidden = !p; $("#avatarLink").hidden = !p; $("#loginBtn").hidden = !!p; if (!p) $("#lvlChip").hidden = true;
-  $("#adminBtn").hidden = !(p && ["admin", "owner"].includes(p.rank));
+  $("#adminBtn").hidden = $("#navAdmin").hidden = $("#navStaff").hidden = !(p && ["admin", "owner"].includes(p.rank));
   if (p) {
     $("#balance span").textContent = fmt(p.balance);
     const inner = avatarInner(p.avatar);
@@ -342,17 +343,7 @@ $("#scrim").onclick = () => document.body.classList.remove("nav-open");
 try { if (localStorage.getItem("tcbet_chat") === "off") document.body.classList.add("chat-off"); } catch {}
 $("#chatToggle").onclick = () => { if (matchMedia("(max-width:1100px)").matches) return document.body.classList.toggle("chat-open"); const off = document.body.classList.toggle("chat-off"); try { localStorage.setItem("tcbet_chat", off ? "off" : "on"); } catch {} };
 // admin panel (rank admin/owner): spawn coins. Every spawn is announced in chat and logged publicly.
-$("#adminBtn").onclick = () => {
-  if (!isAdmin()) return;
-  const m = modal(`<h2>Admin</h2><p class="muted">Spawn coins into your balance, up to 5,000,000 at a time. Spawns are announced in chat.</p>
-    <div class="tip-presets">${[100000, 500000, 1000000, 5000000].map(v => `<button class="btn" data-a="${v}">${fmt(v)}</button>`).join("")}</div>
-    <form id="adForm" style="display:flex;gap:10px;margin-top:12px"><span class="val" style="flex:1"><i class="coin"></i><input id="adAmt" type="number" min="1" max="5000000" step="1" placeholder="Amount" required style="width:100%"></span><button class="btn btn-gold">Spawn coins</button></form>`);
-  m.onclick = e => { const b = e.target.closest("[data-a]"); if (b) $("#adAmt").value = b.dataset.a; };
-  $("#adForm", m).onsubmit = async e => {
-    e.preventDefault(); const amt = +$("#adAmt").value;
-    try { await rpc("admin_spawn_coins", { p_amount: amt }); await refreshMe(); bumpBalance(); SFX.cash(); toast(`Spawned ${fmt(amt)} coins`, "good"); } catch (x) { fail(x); }
-  };
-};
+$("#adminBtn").onclick = () => go("admin");
 const syncMute = () => { $("#muteBtn").textContent = SFX.muted ? "🔇" : "🔊"; $("#muteBtn").title = SFX.muted ? "Sound off" : "Sound on"; };
 $("#muteBtn").onclick = () => { SFX.toggle(); syncMute(); }; syncMute();
 
@@ -400,7 +391,7 @@ function viewCase(id) {
         </div>
         <div id="reels" class="co-reels"><div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div></div>
         <div class="co-bar">
-          <div class="tabs co-qty" id="qty">${[1, 2, 3, 5].map(n => `<button data-n="${n}" class="${n === 1 ? "on" : ""}">${n}x</button>`).join("")}</div>
+          <div class="tabs co-qty" id="qty">${(isAdmin() ? [1, 2, 3, 5, 10, 25, 50, 100] : [1, 2, 3, 5]).map(n => `<button data-n="${n}" class="${n === 1 ? "on" : ""}">${n}x</button>`).join("")}</div>
           <button class="btn co-fast" id="fastBtn" title="Skip most of the animation"><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Quick</button>
           <span class="grow"></span>
           <button class="btn" id="demoBtn">Demo spin</button>
@@ -424,7 +415,7 @@ function viewCase(id) {
   // free preview spin: rolled locally, nothing is charged or won
   $("#demoBtn").onclick = async () => {
     if (busy) return; busy = true; $("#openBtn").disabled = $("#demoBtn").disabled = true;
-    const wins = Array.from({ length: qty }, () => { const e = rollEntry(c); return e.unusual ? unusualCombo(c, { n: sorted.find(x => !x.unusual)?.n }) : { n: e.n }; });
+    const wins = Array.from({ length: Math.min(qty, 5) }, () => { const e = rollEntry(c); return e.unusual ? unusualCombo(c, { n: sorted.find(x => !x.unusual)?.n }) : { n: e.n }; });
     $("#reels").innerHTML = wins.map(() => `<div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div>`).join("");
     await Promise.all(wins.map((w, i) => spinReel($$("#reels .reel")[i], c, w, fast ? 1600 : 5600)));
     toast(`Demo: you would have unboxed ${fmt(total(wins))} coins of items`);
@@ -438,8 +429,11 @@ function viewCase(id) {
       const res = await rpc("open_case", { p_case: c.id, p_qty: qty });
       ME.profile.balance = res.balance; syncTop(); bumpBalance();
       const wins = fromJ(res.items);
-      $("#reels").innerHTML = wins.map(() => `<div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div>`).join("");
-      await Promise.all(wins.map((w, i) => spinReel($$("#reels .reel")[i], c, w, fast ? 1600 : 5600)));
+      if (wins.length > 5) { $("#reels").innerHTML = `<div class="reel-wrap co-bulk"><b>${wins.length}x</b> ${esc(c.name)} opened</div>`; SFX.whoosh(); await sleep(500); }   // admin bulk opens skip the reels
+      else {
+        $("#reels").innerHTML = wins.map(() => `<div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div>`).join("");
+        await Promise.all(wins.map((w, i) => spinReel($$("#reels .reel")[i], c, w, fast ? 1600 : 5600)));
+      }
       await refreshMe();
       showWins(wins);
     } catch (e) { fail(e); }
@@ -514,7 +508,7 @@ function pickItems({ title, min = 0, max = Infinity, confirm = "Confirm", hint =
     const m = modal(`<h2>${title}</h2><div class="muted" style="margin-bottom:12px">${hint}</div>
       ${list.length ? `<div class="grid" id="pk">${list.map(it => card(it, { click: 1 })).join("")}</div>` : `<div class="empty">Your inventory is empty.</div>`}
       <div class="sel-bar"><span id="pkInfo" class="grow muted">Nothing selected</span><button class="btn" id="pkCancel">Cancel</button><button class="btn btn-gold" id="pkOk" disabled>${confirm}</button></div>`);
-    const upd = () => { const v = total(list.filter(i => sel.has(i.id))); $("#pkInfo").innerHTML = `${sel.size} selected · ${coinVal(v)}`; $("#pkOk").disabled = !(v >= min && v <= max && sel.size && sel.size <= 40); };
+    const upd = () => { const v = total(list.filter(i => sel.has(i.id))); $("#pkInfo").innerHTML = `${sel.size} selected · ${coinVal(v)}`; $("#pkOk").disabled = !(v >= min && v <= max && sel.size && sel.size <= (isAdmin() ? 1000 : 40)); };
     m.onclick = e => { const c = e.target.closest("#pk .card"); if (!c) return; const id = +c.dataset.id; sel.has(id) ? sel.delete(id) : sel.add(id); c.classList.toggle("sel"); upd(); };
     $("#pkCancel").onclick = () => { closeModal(); res(null); };
     $("#pkOk").onclick = () => { const out = list.filter(i => sel.has(i.id)); closeModal(); res(out); };
@@ -945,7 +939,7 @@ async function joinBattle(id, slot) {
 }
 function createBattle() {
   if (needLogin()) return;
-  const MAX = 30, st = { mode: MODES[0], crazy: false, cases: [], last: null };
+  const MAX = isAdmin() ? 500 : 30, st = { mode: MODES[0], crazy: false, cases: [], last: null };
   const m = modal(`<h2>Create a case battle</h2>
     <div class="section-title">Mode</div><div class="tabs" id="bcMode" style="display:inline-flex">${MODES.map((x, i) => `<button data-i="${i}" class="${i ? "" : "on"}">${x.k}</button>`).join("")}</div>
     <div class="tabs" id="bcType" style="display:inline-flex;margin-left:8px"><button data-c="0" class="on">Normal</button><button data-c="1">Crazy</button></div>
@@ -1270,7 +1264,7 @@ async function viewBlackjack() {
       <div class="kx-pop" id="bjPop"></div>
     </div></div>`;
   $("#bjMode").onclick = e => { const b = e.target.closest("button"); if (!b || BJ.busy || BJ.hand?.status === "playing") return; BJ.mode = b.dataset.m; $$("#bjMode button").forEach(x => x.classList.toggle("on", x === b)); $("#bjCoins").hidden = BJ.mode !== "coins"; $("#bjItems").hidden = BJ.mode !== "items"; };
-  $("#bjCoins").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#bjAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(25000000, v * 2); $("#bjAmt").value = v; SFX.chip(); };
+  $("#bjCoins").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#bjAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#bjAmt").value = v; SFX.chip(); };
   $("#bjPick").onclick = async () => { if (needLogin()) return; const it = await pickItems({ title: "Bet items at Blackjack", min: 1, confirm: "Use these items", hint: "Win and you get House items worth the same (1.5x on blackjack)." }); if (it) { BJ.items = it; drawBjItems(); } };
   $("#bjDeal").onclick = bjDeal;
   $("#bjHit").onclick = () => bjAct("bj_hit"); $("#bjStand").onclick = () => bjAct("bj_stand"); $("#bjSplit").onclick = () => bjAct("bj_split"); $("#bjDouble").onclick = () => bjAct("bj_double");
@@ -1555,7 +1549,7 @@ function viewKeno() {
     </div></div>`;
   $("#kxMode").onclick = e => { const b = e.target.closest("button"); if (!b || KN.auto) return; KN.mode = b.dataset.m; $$("#kxMode button").forEach(x => x.classList.toggle("on", x === b)); $("#kxAutoBox").hidden = KN.mode !== "auto"; drawKeno(); };
   $("#kxRisk").onclick = e => { const b = e.target.closest("button"); if (!b || KN.busy) return; KN.risk = b.dataset.r; $$("#kxRisk button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); clearDraw(); drawKeno(); };
-  $(".kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#kxAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(25000000, v * 2); $("#kxAmt").value = v; SFX.chip(); drawKeno(); };
+  $(".kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#kxAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#kxAmt").value = v; SFX.chip(); drawKeno(); };
   $("#kxAmt").oninput = drawKeno;
   $("#kxBoard").onclick = e => { const c = e.target.closest(".kx-cell"); if (!c || KN.busy) return; const n = +c.dataset.n;
     if (KN.picks.has(n)) KN.picks.delete(n); else if (KN.picks.size < 10) KN.picks.add(n); else return;
@@ -1687,7 +1681,7 @@ function viewPlinko() {
   $("#plMode").onclick = e => { const b = e.target.closest("button"); if (!b || PL.auto) return; PL.mode = b.dataset.m; $$("#plMode button").forEach(x => x.classList.toggle("on", x === b)); $("#plAutoBox").hidden = PL.mode !== "auto"; drawPlinkoSide(); };
   $("#plRisk").onclick = e => { const b = e.target.closest("button"); if (!b || PL.live || PL.auto) return; PL.risk = b.dataset.r; $$("#plRisk button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); drawPlinkoBoard(); };
   $("#plRows").onclick = e => { const b = e.target.closest("button"); if (!b || PL.live || PL.auto) return; PL.rows = +b.dataset.n; $$("#plRows button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); drawPlinkoBoard(); };
-  $(".plx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#plAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(25000000, v * 2); $("#plAmt").value = v; SFX.chip(); };
+  $(".plx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#plAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#plAmt").value = v; SFX.chip(); };
   $("#plBet").onclick = () => { if (PL.mode === "auto") { if (PL.auto) { PL.auto = false; drawPlinkoSide(); } else runAutoPlinko(); } else dropPlinko(); };
   drawPlinkoBoard(); drawPlinkoSide(); drawPlinkoHist(); drawMegaMeter();
 }
@@ -1824,6 +1818,132 @@ async function runAutoPlinko() {
   PL.auto = false; drawPlinkoSide();
 }
 
+// ---------------------------------------------------------------- limbo (coins)
+const LB = { mode: "manual", auto: false, busy: false, hist: [], sess: { n: 0, w: 0 }, target: 2 };
+const lbChance = t => 99 / t;
+function viewLimbo() {
+  $("#view").innerHTML = `<div class="kx lbx">
+    <div class="kx-side">
+      <div class="kx-tabs" id="lbMode"><button data-m="manual" class="on">Manual</button><button data-m="auto">Auto</button></div>
+      <div class="kx-lbl"><span>Bet Amount</span><span id="lbBal"></span></div>
+      <div class="kx-amt"><i class="coin"></i><input id="lbAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button></div>
+      <div class="kx-lbl"><span>Profit on Win</span></div>
+      <div class="kx-amt lb-profit"><i class="coin"></i><span id="lbProfit">0.00</span></div>
+      <div id="lbAutoBox" hidden><div class="kx-lbl"><span>Number of Bets</span><span class="muted">0 = until stopped</span></div><div class="kx-amt"><input id="lbCount" type="number" min="0" step="1" value="20"></div></div>
+      <button class="kx-bet lb-bet" id="lbBet">Bet</button>
+      <div class="kx-sess" id="lbSess"></div>
+    </div>
+    <div class="kx-main lb-main">
+      <div class="lb-hist" id="lbHist"></div>
+      <div class="lb-stage"><div class="lb-num" id="lbNum">1.00x</div></div>
+      <div class="lb-inputs">
+        <label><span>Target Multiplier</span><div class="kx-amt"><input id="lbTarget" type="number" min="1.01" max="1000000" step="0.01" value="${LB.target.toFixed(2)}"><b>x</b></div></label>
+        <label><span>Win Chance</span><div class="kx-amt"><input id="lbChance" type="number" min="0.0001" max="98.02" step="0.01" value="${lbChance(LB.target).toFixed(4)}"><b>%</b></div></label>
+      </div>
+    </div></div>`;
+  $("#lbMode").onclick = e => { const b = e.target.closest("button"); if (!b || LB.auto) return; LB.mode = b.dataset.m; $$("#lbMode button").forEach(x => x.classList.toggle("on", x === b)); $("#lbAutoBox").hidden = LB.mode !== "auto"; drawLimbo(); };
+  $(".lbx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#lbAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#lbAmt").value = v; SFX.chip(); drawLimbo(); };
+  $("#lbAmt").oninput = drawLimbo;
+  $("#lbTarget").oninput = () => { const t = +$("#lbTarget").value; if (t >= 1.01) { LB.target = t; $("#lbChance").value = lbChance(t).toFixed(4); } drawLimbo(); };
+  $("#lbChance").oninput = () => { const c = +$("#lbChance").value; if (c > 0 && c <= 98.02) { LB.target = Math.max(1.01, Math.round(99 / c * 100) / 100); $("#lbTarget").value = LB.target.toFixed(2); } drawLimbo(); };
+  $("#lbTarget").onblur = () => { LB.target = Math.min(1000000, Math.max(1.01, Math.round((+$("#lbTarget").value || 2) * 100) / 100)); $("#lbTarget").value = LB.target.toFixed(2); $("#lbChance").value = lbChance(LB.target).toFixed(4); drawLimbo(); };
+  $("#lbBet").onclick = () => { if (LB.mode === "auto") { if (LB.auto) { LB.auto = false; drawLimbo(); } else runAutoLimbo(); } else playLimbo(); };
+  drawLimbo(); drawLimboHist();
+}
+function drawLimbo() {
+  if (!$("#lbBet")) return;
+  $("#lbBal").innerHTML = ME.profile ? coinVal(ME.profile.balance) : "";
+  $("#lbProfit").textContent = fmt(Math.max(0, (+$("#lbAmt").value || 0) * (LB.target - 1)));
+  $("#lbBet").textContent = LB.mode === "auto" ? (LB.auto ? "Stop autobet" : "Start autobet") : "Bet";
+  $("#lbBet").classList.toggle("stop", LB.auto); $("#lbBet").disabled = LB.busy && !LB.auto;
+  $$("#lbTarget, #lbChance").forEach(i => i.disabled = LB.auto);
+  const s = LB.sess; $("#lbSess").innerHTML = s.n ? `Session: ${s.n} bet${s.n === 1 ? "" : "s"} · ${s.w >= 0 ? "+" : ""}${coinVal(s.w)}` : "";
+}
+const lbFmt = v => v >= 1000 ? v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v.toFixed(2);
+function drawLimboHist() { if ($("#lbHist")) $("#lbHist").innerHTML = LB.hist.slice(0, 16).map(h => `<span class="${h.win ? "win" : ""}">${lbFmt(h.r)}</span>`).join(""); }
+async function limboRound(fast) {
+  const bet = Math.floor(+$("#lbAmt").value || 0);
+  if (bet < 1) throw new Error("Enter a bet of at least 1 coin");
+  const r = await rpc("limbo_play", { p_bet: bet, p_target: LB.target });
+  ME.profile.balance = +r.balance - +r.payout; syncTop();
+  const num = $("#lbNum"); if (!num) return r;
+  num.className = "lb-num rolling"; SFX.whoosh();
+  // count up from 1.00x to the result on a log scale so big numbers fly up
+  const end = +r.result, dur = fast ? 260 : Math.min(900, 380 + Math.log10(end) * 160), t0 = performance.now();
+  await new Promise(done => { const f = now => { const u = Math.min(1, Math.max(0, now - t0) / dur), e = 1 - Math.pow(1 - u, 3);
+    if (!$("#lbNum")) return done(); num.textContent = lbFmt(Math.exp(Math.log(end) * e)) + "x"; u < 1 ? requestAnimationFrame(f) : done(); }; requestAnimationFrame(f); });
+  num.textContent = lbFmt(end) + "x"; num.className = "lb-num " + (r.win ? "win" : "lose");
+  ME.profile.balance = +r.balance; syncTop();
+  const net = +r.payout - +r.bet; LB.sess.n++; LB.sess.w += net;
+  LB.hist.unshift({ r: end, win: r.win }); LB.hist = LB.hist.slice(0, 30); drawLimboHist();
+  if (r.win) { if (net >= BIG_WIN) bigWin(+r.payout, `Limbo ${r.target}x`); else if (!fast || +r.target >= 10) { SFX.good(); if (+r.target >= 10) confetti(num, 50); } bumpBalance(); }
+  else if (!fast) SFX.lose();
+  return r;
+}
+async function playLimbo() {
+  if (needLogin() || LB.busy) return;
+  LB.busy = true; drawLimbo();
+  try { await limboRound(false); } catch (e) { fail(e); }
+  LB.busy = false; drawLimbo();
+}
+async function runAutoLimbo() {
+  if (needLogin() || LB.busy) return;
+  const n = Math.max(0, Math.floor(+$("#lbCount").value || 0));
+  LB.auto = true; LB.busy = true; drawLimbo();
+  try { for (let i = 0; LB.auto && $("#lbBet") && (n === 0 || i < n); i++) { await limboRound(true); if ($("#lbCount") && n) $("#lbCount").value = n - i - 1; await sleep(220); } } catch (e) { fail(e); }
+  LB.auto = false; LB.busy = false; if ($("#lbCount") && n) $("#lbCount").value = n; await refreshMe(); drawLimbo();
+}
+
+// ---------------------------------------------------------------- admin panel (rank admin/owner). Every action is logged and announced in chat.
+async function viewAdmin() {
+  if (!isAdmin()) { $("#view").innerHTML = `<div class="empty">Admins only.</div>`; return; }
+  const names = [...ITEMS].sort((a, b) => b.v - a.v).map(i => `<option value="${esc(i.name)}">`).join("");
+  $("#view").innerHTML = `
+    <div class="ad-head"><div><span class="ad-badge">⚡ ${esc((ME.profile.rank || "").toUpperCase())}</span><h1>Admin panel</h1><p class="muted">You have no limits on bets, case openings, battle size, items per bet or trades. Spawns are logged and announced in chat.</p></div></div>
+    <div class="ad-stats" id="adStats">${["Players", "Coins in circulation", "Items owned", "All-time wagered"].map(t => `<div><span>${t}</span><b>…</b></div>`).join("")}</div>
+    <div class="ad-grid">
+      <section class="panel ad-card"><h3>💰 Spawn coins</h3><p class="muted">Up to 1,000,000,000 per click.</p>
+        <div class="ad-presets" id="adCoinPre">${[1e6, 1e7, 1e8, 1e9].map(v => `<button class="btn" data-a="${v}"><i class="coin"></i>${v >= 1e9 ? v / 1e9 + "B" : chipLabel(v)}</button>`).join("")}</div>
+        <form id="adCoins" class="ad-row"><div class="kx-amt"><i class="coin"></i><input id="adAmt" type="number" min="1" max="1000000000" step="1" placeholder="Amount" required></div><button class="btn btn-gold">Spawn</button></form></section>
+      <section class="panel ad-card"><h3>🎁 Spawn items</h3><p class="muted">Any real item. Effects are limited to the ones that hat can actually have.</p>
+        <form id="adItems" class="ad-form">
+          <input id="adItem" list="adItemList" placeholder="Item name (e.g. Golden Frying Pan)" required autocomplete="off"><datalist id="adItemList">${names}</datalist>
+          <div class="ad-row"><select id="adFx" disabled><option value="">No effect</option></select><input id="adQty" type="number" min="1" max="1000" value="1" title="Quantity"></div>
+          <div class="ad-prev" id="adPrev"></div>
+          <button class="btn btn-gold">Spawn items</button></form></section>
+      <section class="panel ad-card"><h3>🛡️ Your powers</h3><ul class="ad-powers">
+        <li><b>Bets</b> up to 1,000,000,000 on Blackjack, Keno, Plinko, Limbo and Roulette</li>
+        <li><b>Cases</b> open up to 100 at once</li>
+        <li><b>Battles</b> up to 500 cases</li>
+        <li><b>Items</b> up to 1,000 per bet, flip or trade side</li>
+        <li><b>Trades</b> no pending-offer limit</li></ul></section>
+      <section class="panel ad-card"><h3>🏆 Richest players</h3><div id="adRich" class="ad-list"></div></section>
+      <section class="panel ad-card ad-wide"><h3>📜 Admin activity</h3><div id="adLog" class="ad-list"></div></section>
+    </div>`;
+  const upd = () => {
+    const h = ITEM[$("#adItem").value], sel = $("#adFx"), keep = sel.value;
+    const fx = h?.unu ? allowedFx(h).sort((a, b) => b.m - a.m) : [];
+    sel.innerHTML = `<option value="">No effect</option>` + fx.map(e => `<option ${e.name === keep ? "selected" : ""}>${esc(e.name)}</option>`).join(""); sel.disabled = !fx.length;
+    const q = Math.max(1, Math.min(1000, +$("#adQty").value || 1));
+    $("#adPrev").innerHTML = h ? `${mini({ n: h.name, fx: sel.value || null })}<div><b>${q}x ${esc(label({ n: h.name, fx: sel.value || null }))}</b><div class="muted">${coinVal(value({ n: h.name, fx: sel.value || null }) * q)} total</div></div>` : `<span class="muted">Pick an item to preview it.</span>`;
+  };
+  $("#adItem").oninput = upd; $("#adFx").onchange = upd; $("#adQty").oninput = upd; upd();
+  $("#adCoinPre").onclick = e => { const b = e.target.closest("[data-a]"); if (b) $("#adAmt").value = b.dataset.a; };
+  $("#adCoins").onsubmit = async e => { e.preventDefault(); const amt = +$("#adAmt").value;
+    try { await rpc("admin_spawn_coins", { p_amount: amt }); await refreshMe(); bumpBalance(); SFX.cash(); toast(`Spawned ${fmt(amt)} coins`, "good"); loadAdmin(); } catch (x) { fail(x); } };
+  $("#adItems").onsubmit = async e => { e.preventDefault(); const n = $("#adItem").value, fx = $("#adFx").value || null, q = Math.max(1, Math.min(1000, +$("#adQty").value || 1));
+    if (!ITEM[n]) return toast("Pick an item from the list", "bad");
+    try { await rpc("admin_spawn_items", { p_name: n, p_fx: fx, p_qty: q }); await refreshMe(); SFX.rare(); toast(`Spawned ${q}x ${label({ n, fx })}`, "good"); loadAdmin(); } catch (x) { fail(x); } };
+  loadAdmin();
+}
+async function loadAdmin() {
+  let o; try { o = await rpc("admin_overview"); } catch (e) { return fail(e); }
+  if (!$("#adStats")) return;
+  $("#adStats").innerHTML = `<div><span>Players</span><b>${(+o.players).toLocaleString()}</b></div><div><span>Coins in circulation</span>${coinVal(+o.coins)}</div><div><span>Items owned</span><b>${(+o.items).toLocaleString()}</b></div><div><span>All-time wagered</span>${coinVal(+o.wagered)}</div>`;
+  $("#adRich").innerHTML = (o.richest || []).map((r, i) => `<div class="ad-li"><span class="lb-n">${i + 1}</span>${userLink(r.username)}<span class="grow"></span>${coinVal(+r.balance)}</div>`).join("") || `<div class="muted">No players.</div>`;
+  $("#adLog").innerHTML = (o.log || []).map(l => `<div class="ad-li"><span class="ad-kind ${l.kind}">${l.kind === "items" ? "ITEMS" : "COINS"}</span>${userLink(l.username)}<span class="muted">${l.kind === "items" ? esc(l.detail || "") : "spawned coins"}</span><span class="grow"></span>${coinVal(+l.amount)}<span class="muted ad-when">${new Date(l.created_at).toLocaleString()}</span></div>`).join("") || `<div class="muted">Nothing yet.</div>`;
+}
+
 // ---------------------------------------------------------------- lobby (front page)
 const GAMES = [
   { r: "cases", t: "Cases", d: "Real TC2 crates, 1% unusuals", c: "#f5b83d", icon: "M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10" },
@@ -1831,6 +1951,7 @@ const GAMES = [
   { r: "wheel", t: "Roulette", d: "Single zero, 35:1 straight up", c: "#8b5cf6", icon: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M12 3v5M12 16v5M3 12h5M16 12h5" },
   { r: "blackjack", t: "Blackjack", d: "3:2 blackjack, split & double", c: "#22c55e", icon: "M5 5h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M17 4l4 14-4 1" },
   { r: "plinko", t: "Plinko", d: "Drop balls, up to 1,000x", c: "#ec4899", icon: "M12 3a2 2 0 1 0 0 .1 M8 9h.01M16 9h.01M12 13h.01M4 13h.01M20 13h.01M8 17h.01M16 17h.01 M3 21h18" },
+  { r: "limbo", t: "Limbo", d: "Pick a target, up to 1,000,000x", c: "#a855f7", icon: "M4 20L20 4 M9 4h11v11 M4 14v6h6" },
   { r: "keno", t: "Keno", d: "Pick 10, win up to 50,000x", c: "#38bdf8", icon: "M4 4h16v16H4z M8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01" },
   { r: "coinflip", t: "Coinflip", d: "RED or GRN, double your items", c: "#fb7185", icon: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 3v18" },
   { r: "jackpot", t: "Jackpot", d: "Bigger stake, bigger chance", c: "#facc15", icon: "M12 3a9 9 0 1 0 9 9h-9z M14 1v9h9a9 9 0 0 0-9-9z" },
@@ -2090,7 +2211,7 @@ function render() {
   closeModal();
   const [r, arg] = route();
   $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r === "roulette" ? "wheel" : r)));
-  ({ cases: viewCases, case: () => viewCase(arg), coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno, wheel: viewWheel, home: viewHome, plinko: viewPlinko }[r] || viewHome)();
+  ({ cases: viewCases, case: () => viewCase(arg), coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno, wheel: viewWheel, home: viewHome, plinko: viewPlinko, limbo: viewLimbo, admin: viewAdmin }[r] || viewHome)();
   document.body.classList.remove("nav-open", "chat-open");
   window.scrollTo(0, 0);
 }
