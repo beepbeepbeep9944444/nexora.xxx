@@ -74,6 +74,8 @@ drop policy if exists read_own on wheel_spins;
 create policy read_own on wheel_spins for select using (auth.uid() = user_id);
 -- owner prank: insert a row (target = a username, or null for everyone online) and their screen gets a jumpscare
 create table if not exists jumpscares (id bigint generated always as identity primary key, target text, created_at timestamptz not null default now());
+-- admin coin spawns: public log, every spawn is also announced in chat
+create table if not exists admin_log (id bigint generated always as identity primary key, user_id uuid, username text, amount numeric(14,2), created_at timestamptz not null default now());
 create table if not exists tips (id bigint generated always as identity primary key, sender uuid, sender_name text, receiver uuid, receiver_name text, amount numeric(14,2), created_at timestamptz not null default now());
 
 create table if not exists inventory (
@@ -109,7 +111,7 @@ create table if not exists trades (
 
 -- ============================================================ read-only access for clients
 do $$ declare t text; begin
-  foreach t in array array['catalog','effects','cases','case_entries','profiles','inventory','drops','chat','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players','roulette_games','roulette_players','jumpscares'] loop
+  foreach t in array array['catalog','effects','cases','case_entries','profiles','inventory','drops','chat','coinflips','jackpot_rounds','jackpot_entries','trades','tips','battles','battle_players','roulette_games','roulette_players','jumpscares','admin_log'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists read_all on %I', t);
     if t not in ('trades', 'tips') then execute format('create policy read_all on %I for select using (true)', t); end if;
@@ -151,7 +153,7 @@ create or replace function _jids(j jsonb) returns bigint[] language sql immutabl
 -- ============================================================ levels / rakeback
 -- level L needs 100*(L-1)^2 xp: L2 = 100, L10 = 8,100, L25 = 57,600, L50 = 240,100
 create or replace function level_of(p_xp numeric) returns int language sql immutable as $$ select floor(sqrt(greatest(p_xp, 0) / 100))::int + 1 $$;
-create or replace function is_vip(p_rank text) returns bool language sql immutable as $$ select p_rank in ('vip', 'owner') $$;
+create or replace function is_vip(p_rank text) returns bool language sql immutable as $$ select p_rank in ('vip', 'owner', 'admin') $$;
 -- 0.5% + 0.05% per level (max 3%), +1% for VIPs
 create or replace function rake_rate(p_level int, p_rank text) returns numeric language sql immutable as $$
   select least(0.03, 0.005 + 0.0005 * p_level) + case when is_vip(p_rank) then 0.01 else 0 end $$;
@@ -914,6 +916,19 @@ end $$;
 create or replace function wheel_history() returns jsonb language sql stable security definer set search_path = public as $$
   select coalesce(jsonb_agg(result order by id desc), '[]') from (select id, result from wheel_spins order by id desc limit 20) x $$;
 
+-- ============================================================ admin: spawn coins (rank 'admin' or 'owner'; visible to everyone)
+create or replace function admin_spawn_coins(p_amount numeric) returns numeric language plpgsql security definer set search_path = public as $$
+declare uid uuid := _uid(); me profiles; amt numeric := round(coalesce(p_amount, 0), 2);
+begin
+  select * into me from profiles where id = uid;
+  if me.rank not in ('admin', 'owner') then raise exception 'Admins only'; end if;
+  if amt < 1 or amt > 5000000 then raise exception 'Spawn between 1 and 5,000,000 coins at a time'; end if;
+  update profiles set balance = balance + amt where id = uid returning * into me;
+  insert into admin_log (user_id, username, amount) values (uid, me.username, amt);
+  insert into chat (username, body) values ('TCBET', me.username || ' spawned ' || to_char(amt, 'FM999,999,990') || ' coins (admin)');
+  return me.balance;
+end $$;
+
 -- ============================================================ tipping
 create or replace function tip(p_to text, p_amount numeric) returns numeric language plpgsql security definer set search_path = public as $$
 declare uid uuid := _uid(); me profiles; rc profiles; amt numeric := round(coalesce(p_amount, 0), 2);
@@ -967,7 +982,8 @@ grant execute on function claim_daily(), open_case(text, int), sell_items(bigint
   claim_rakeback(), open_level_crate(), tip(text, numeric), set_avatar(text, text),
   battle_create(text[], int, int, bool), battle_join(bigint, int), battle_fill_bots(bigint), battle_cancel(bigint),
   rr_create(bigint[]), rr_join(bigint, bigint[]), rr_fill_bots(bigint), rr_cancel(bigint),
-  bj_start(numeric), bj_start_items(bigint[]), bj_hit(), bj_stand(), bj_double(), bj_current(), bj_split(), keno_play(int[], numeric, text), wheel_spin(jsonb) to authenticated;
+  bj_start(numeric), bj_start_items(bigint[]), bj_hit(), bj_stand(), bj_double(), bj_current(), bj_split(), keno_play(int[], numeric, text), wheel_spin(jsonb),
+  admin_spawn_coins(numeric) to authenticated;
 grant execute on function wheel_history() to anon, authenticated;
 grant execute on function keno_paytable() to anon, authenticated;
 grant execute on function level_of(numeric), rake_rate(int, text), is_vip(text) to anon, authenticated;

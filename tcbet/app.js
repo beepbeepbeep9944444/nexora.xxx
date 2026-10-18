@@ -197,12 +197,13 @@ async function refreshMe() {
 }
 function needLogin() { if (ME.user) return false; openAuth("login"); return true; }
 const fail = e => toast(esc(e.message || e), "bad");
-const isVip = () => ["vip", "owner"].includes(ME.profile?.rank);
-const vipTag = r => r === "owner" ? `<span class="vip-tag owner-tag" title="Site owner">OWNER</span>` : r === "vip" ? `<span class="vip-tag" title="VIP">VIP</span>` : "";
+const isVip = () => ["vip", "owner", "admin"].includes(ME.profile?.rank);
+const isAdmin = () => ["admin", "owner"].includes(ME.profile?.rank);
+const vipTag = r => r === "owner" ? `<span class="vip-tag owner-tag" title="Site owner">OWNER</span>` : r === "admin" ? `<span class="vip-tag admin-tag" title="Admin">ADMIN</span>` : r === "vip" ? `<span class="vip-tag" title="VIP">VIP</span>` : "";
 // levels: level L needs 100*(L-1)^2 xp (1 xp per coin wagered) — same formula as level_of() on the server
 const levelOf = xp => Math.floor(Math.sqrt(Math.max(0, +xp || 0) / 100)) + 1;
 const xpFor = L => 100 * (L - 1) ** 2;
-const rakeRate = (L, rank) => Math.min(.03, .005 + .0005 * L) + (["vip", "owner"].includes(rank) ? .01 : 0);
+const rakeRate = (L, rank) => Math.min(.03, .005 + .0005 * L) + (["vip", "owner", "admin"].includes(rank) ? .01 : 0);
 const crateBudget = L => 4 + 3 * L;
 const lvlChip = xp => `<span class="lvl-chip" title="Level">Lv ${levelOf(xp)}</span>`;
 const sellRate = () => isVip() ? 1 : .95;
@@ -210,6 +211,7 @@ const sellRate = () => isVip() ? 1 : .95;
 function syncTop() {
   const p = ME.profile;
   $("#balance").hidden = !p; $("#avatarLink").hidden = !p; $("#loginBtn").hidden = !!p; if (!p) $("#lvlChip").hidden = true;
+  $("#adminBtn").hidden = !(p && ["admin", "owner"].includes(p.rank));
   if (p) {
     $("#balance span").textContent = fmt(p.balance);
     const inner = avatarInner(p.avatar);
@@ -364,6 +366,18 @@ function openAuth(mode = "login") {
   setTimeout(() => $("#auUser")?.focus(), 50);
 }
 $("#loginBtn").onclick = () => openAuth("login");
+// admin panel (rank admin/owner): spawn coins. Every spawn is announced in chat and logged publicly.
+$("#adminBtn").onclick = () => {
+  if (!isAdmin()) return;
+  const m = modal(`<h2>Admin</h2><p class="muted">Spawn coins into your balance, up to 5,000,000 at a time. Spawns are announced in chat.</p>
+    <div class="tip-presets">${[100000, 500000, 1000000, 5000000].map(v => `<button class="btn" data-a="${v}">${fmt(v)}</button>`).join("")}</div>
+    <form id="adForm" style="display:flex;gap:10px;margin-top:12px"><span class="val" style="flex:1"><i class="coin"></i><input id="adAmt" type="number" min="1" max="5000000" step="1" placeholder="Amount" required style="width:100%"></span><button class="btn btn-gold">Spawn coins</button></form>`);
+  m.onclick = e => { const b = e.target.closest("[data-a]"); if (b) $("#adAmt").value = b.dataset.a; };
+  $("#adForm", m).onsubmit = async e => {
+    e.preventDefault(); const amt = +$("#adAmt").value;
+    try { await rpc("admin_spawn_coins", { p_amount: amt }); await refreshMe(); bumpBalance(); SFX.cash(); toast(`Spawned ${fmt(amt)} coins`, "good"); } catch (x) { fail(x); }
+  };
+};
 const syncMute = () => { $("#muteBtn").textContent = SFX.muted ? "🔇" : "🔊"; $("#muteBtn").title = SFX.muted ? "Sound off" : "Sound on"; };
 $("#muteBtn").onclick = () => { SFX.toggle(); syncMute(); }; syncMute();
 
