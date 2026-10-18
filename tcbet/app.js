@@ -1899,49 +1899,49 @@ async function viewAdmin() {
   if (!isAdmin()) { $("#view").innerHTML = `<div class="empty">Admins only.</div>`; return; }
   const names = [...ITEMS].sort((a, b) => b.v - a.v).map(i => `<option value="${esc(i.name)}">`).join("");
   $("#view").innerHTML = `
-    <div class="ad-head"><div><span class="ad-badge">⚡ ${esc((ME.profile.rank || "").toUpperCase())}</span><h1>Admin panel</h1><p class="muted">You have no limits on bets, case openings, battle size, items per bet or trades. Spawns are logged and announced in chat.</p></div></div>
-    <div class="ad-stats" id="adStats">${["Players", "Coins in circulation", "Items owned", "All-time wagered"].map(t => `<div><span>${t}</span><b>…</b></div>`).join("")}</div>
-    <div class="ad-grid">
-      <section class="panel ad-card"><h3>💰 Spawn coins</h3><p class="muted">Up to 1,000,000,000 per click.</p>
-        <div class="ad-presets" id="adCoinPre">${[1e6, 1e7, 1e8, 1e9].map(v => `<button class="btn" data-a="${v}"><i class="coin"></i>${v >= 1e9 ? v / 1e9 + "B" : chipLabel(v)}</button>`).join("")}</div>
-        <form id="adCoins" class="ad-row"><div class="kx-amt"><i class="coin"></i><input id="adAmt" type="number" min="1" max="1000000000" step="1" placeholder="Amount" required></div><button class="btn btn-gold">Spawn</button></form></section>
-      <section class="panel ad-card"><h3>🎁 Spawn items</h3><p class="muted">Any real item. Effects are limited to the ones that hat can actually have.</p>
-        <form id="adItems" class="ad-form">
-          <input id="adItem" list="adItemList" placeholder="Item name (e.g. Golden Frying Pan)" required autocomplete="off"><datalist id="adItemList">${names}</datalist>
-          <div class="ad-row"><select id="adFx" disabled><option value="">No effect</option></select><input id="adQty" type="number" min="1" max="1000" value="1" title="Quantity"></div>
-          <div class="ad-prev" id="adPrev"></div>
+    <div class="staff-head"><div><span class="staff-badge">⚡ ${esc((ME.profile.rank || "").toUpperCase())}</span><h1>Admin panel</h1><p class="muted">You have no limits on bets, case openings, battle size, items per bet or trades. Spawns are logged and announced in chat.</p></div></div>
+    <div class="staff-stats" id="staffStats">${["Players", "Coins in circulation", "Items owned", "All-time wagered"].map(t => `<div><span>${t}</span><b>…</b></div>`).join("")}</div>
+    <div class="staff-grid">
+      <section class="panel staff-card"><h3>💰 Spawn coins</h3><p class="muted">Up to 1,000,000,000 per click.</p>
+        <div class="staff-presets" id="staffCoinPre">${[1e6, 1e7, 1e8, 1e9].map(v => `<button class="btn" data-a="${v}"><i class="coin"></i>${v >= 1e9 ? v / 1e9 + "B" : chipLabel(v)}</button>`).join("")}</div>
+        <form id="staffCoins" class="staff-row"><div class="kx-amt"><i class="coin"></i><input id="staffAmt" type="number" min="1" max="1000000000" step="1" placeholder="Amount" required></div><button class="btn btn-gold">Spawn</button></form></section>
+      <section class="panel staff-card"><h3>🎁 Spawn items</h3><p class="muted">Any real item. Effects are limited to the ones that hat can actually have.</p>
+        <form id="staffItems" class="staff-form">
+          <input id="staffItem" list="staffItemList" placeholder="Item name (e.g. Golden Frying Pan)" required autocomplete="off"><datalist id="staffItemList">${names}</datalist>
+          <div class="staff-row"><select id="staffFx" disabled><option value="">No effect</option></select><input id="staffQty" type="number" min="1" max="1000" value="1" title="Quantity"></div>
+          <div class="staff-prev" id="staffPrev"></div>
           <button class="btn btn-gold">Spawn items</button></form></section>
-      <section class="panel ad-card"><h3>🛡️ Your powers</h3><ul class="ad-powers">
+      <section class="panel staff-card"><h3>🛡️ Your powers</h3><ul class="staff-powers">
         <li><b>Bets</b> up to 1,000,000,000 on Blackjack, Keno, Plinko, Limbo and Roulette</li>
         <li><b>Cases</b> open up to 100 at once</li>
         <li><b>Battles</b> up to 500 cases</li>
         <li><b>Items</b> up to 1,000 per bet, flip or trade side</li>
         <li><b>Trades</b> no pending-offer limit</li></ul></section>
-      <section class="panel ad-card"><h3>🏆 Richest players</h3><div id="adRich" class="ad-list"></div></section>
-      <section class="panel ad-card ad-wide"><h3>📜 Admin activity</h3><div id="adLog" class="ad-list"></div></section>
+      <section class="panel staff-card"><h3>🏆 Richest players</h3><div id="staffRich" class="staff-list"></div></section>
+      <section class="panel staff-card staff-wide"><h3>📜 Admin activity</h3><div id="staffLog" class="staff-list"></div></section>
     </div>`;
   const upd = () => {
-    const h = ITEM[$("#adItem").value], sel = $("#adFx"), keep = sel.value;
+    const h = ITEM[$("#staffItem").value], sel = $("#staffFx"), keep = sel.value;
     const fx = h?.unu ? allowedFx(h).sort((a, b) => b.m - a.m) : [];
     sel.innerHTML = `<option value="">No effect</option>` + fx.map(e => `<option ${e.name === keep ? "selected" : ""}>${esc(e.name)}</option>`).join(""); sel.disabled = !fx.length;
-    const q = Math.max(1, Math.min(1000, +$("#adQty").value || 1));
-    $("#adPrev").innerHTML = h ? `${mini({ n: h.name, fx: sel.value || null })}<div><b>${q}x ${esc(label({ n: h.name, fx: sel.value || null }))}</b><div class="muted">${coinVal(value({ n: h.name, fx: sel.value || null }) * q)} total</div></div>` : `<span class="muted">Pick an item to preview it.</span>`;
+    const q = Math.max(1, Math.min(1000, +$("#staffQty").value || 1));
+    $("#staffPrev").innerHTML = h ? `${mini({ n: h.name, fx: sel.value || null })}<div><b>${q}x ${esc(label({ n: h.name, fx: sel.value || null }))}</b><div class="muted">${coinVal(value({ n: h.name, fx: sel.value || null }) * q)} total</div></div>` : `<span class="muted">Pick an item to preview it.</span>`;
   };
-  $("#adItem").oninput = upd; $("#adFx").onchange = upd; $("#adQty").oninput = upd; upd();
-  $("#adCoinPre").onclick = e => { const b = e.target.closest("[data-a]"); if (b) $("#adAmt").value = b.dataset.a; };
-  $("#adCoins").onsubmit = async e => { e.preventDefault(); const amt = +$("#adAmt").value;
+  $("#staffItem").oninput = upd; $("#staffFx").onchange = upd; $("#staffQty").oninput = upd; upd();
+  $("#staffCoinPre").onclick = e => { const b = e.target.closest("[data-a]"); if (b) $("#staffAmt").value = b.dataset.a; };
+  $("#staffCoins").onsubmit = async e => { e.preventDefault(); const amt = +$("#staffAmt").value;
     try { await rpc("admin_spawn_coins", { p_amount: amt }); await refreshMe(); bumpBalance(); SFX.cash(); toast(`Spawned ${fmt(amt)} coins`, "good"); loadAdmin(); } catch (x) { fail(x); } };
-  $("#adItems").onsubmit = async e => { e.preventDefault(); const n = $("#adItem").value, fx = $("#adFx").value || null, q = Math.max(1, Math.min(1000, +$("#adQty").value || 1));
+  $("#staffItems").onsubmit = async e => { e.preventDefault(); const n = $("#staffItem").value, fx = $("#staffFx").value || null, q = Math.max(1, Math.min(1000, +$("#staffQty").value || 1));
     if (!ITEM[n]) return toast("Pick an item from the list", "bad");
     try { await rpc("admin_spawn_items", { p_name: n, p_fx: fx, p_qty: q }); await refreshMe(); SFX.rare(); toast(`Spawned ${q}x ${label({ n, fx })}`, "good"); loadAdmin(); } catch (x) { fail(x); } };
   loadAdmin();
 }
 async function loadAdmin() {
   let o; try { o = await rpc("admin_overview"); } catch (e) { return fail(e); }
-  if (!$("#adStats")) return;
-  $("#adStats").innerHTML = `<div><span>Players</span><b>${(+o.players).toLocaleString()}</b></div><div><span>Coins in circulation</span>${coinVal(+o.coins)}</div><div><span>Items owned</span><b>${(+o.items).toLocaleString()}</b></div><div><span>All-time wagered</span>${coinVal(+o.wagered)}</div>`;
-  $("#adRich").innerHTML = (o.richest || []).map((r, i) => `<div class="ad-li"><span class="lb-n">${i + 1}</span>${userLink(r.username)}<span class="grow"></span>${coinVal(+r.balance)}</div>`).join("") || `<div class="muted">No players.</div>`;
-  $("#adLog").innerHTML = (o.log || []).map(l => `<div class="ad-li"><span class="ad-kind ${l.kind}">${l.kind === "items" ? "ITEMS" : "COINS"}</span>${userLink(l.username)}<span class="muted">${l.kind === "items" ? esc(l.detail || "") : "spawned coins"}</span><span class="grow"></span>${coinVal(+l.amount)}<span class="muted ad-when">${new Date(l.created_at).toLocaleString()}</span></div>`).join("") || `<div class="muted">Nothing yet.</div>`;
+  if (!$("#staffStats")) return;
+  $("#staffStats").innerHTML = `<div><span>Players</span><b>${(+o.players).toLocaleString()}</b></div><div><span>Coins in circulation</span>${coinVal(+o.coins)}</div><div><span>Items owned</span><b>${(+o.items).toLocaleString()}</b></div><div><span>All-time wagered</span>${coinVal(+o.wagered)}</div>`;
+  $("#staffRich").innerHTML = (o.richest || []).map((r, i) => `<div class="staff-li"><span class="lb-n">${i + 1}</span>${userLink(r.username)}<span class="grow"></span>${coinVal(+r.balance)}</div>`).join("") || `<div class="muted">No players.</div>`;
+  $("#staffLog").innerHTML = (o.log || []).map(l => `<div class="staff-li"><span class="staff-kind ${l.kind}">${l.kind === "items" ? "ITEMS" : "COINS"}</span>${userLink(l.username)}<span class="muted">${l.kind === "items" ? esc(l.detail || "") : "spawned coins"}</span><span class="grow"></span>${coinVal(+l.amount)}<span class="muted staff-when">${new Date(l.created_at).toLocaleString()}</span></div>`).join("") || `<div class="muted">Nothing yet.</div>`;
 }
 
 // ---------------------------------------------------------------- lobby (front page)
