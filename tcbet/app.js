@@ -124,6 +124,38 @@ function reelTicks(reel, size, ms, axis = "x") {
   requestAnimationFrame(step);
 }
 const BIG_WIN = 25000;
+// ---- hype coach: a woman's voice (browser speech) that cheers you up after a 10M+ loss. Respects the mute button.
+const HYPE_AT = 10000000;
+const HYPE_LINES = [
+  "Oof. That one stung. But hey, they're fun-coins, and you're still the main character.",
+  "Deep breath, legend. Nobody remembers the losses, only the Golden Frying Pans.",
+  "Ten million? Pfft. That's a rounding error for a high roller like you.",
+  "The House got lucky that time. Shake it off, grab a snack, you've got this.",
+  "Hey, hey. Big swings mean big stories. Tell chat about it!",
+  "Respect. Only a true whale can lose that much and still look this good.",
+  "That loss was a speed bump, not a wall. Free coins are always waiting for you.",
+  "Wow. Bold move. I admire the confidence, honestly.",
+];
+let hypeVoice = null;
+const pickVoice = () => {
+  const vs = window.speechSynthesis?.getVoices() || [];
+  return vs.find(v => /female|zira|samantha|aria|jenny|libby|sonia|natasha|hazel|susan|victoria|karen|moira|tessa|fiona/i.test(v.name) && /^en/i.test(v.lang))
+      || vs.find(v => /google uk english female|google us english/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang)) || null;
+};
+if (window.speechSynthesis) { speechSynthesis.onvoiceschanged = () => { hypeVoice = pickVoice(); }; hypeVoice = pickVoice(); }
+function hypeLoss(lost) {
+  if (!(lost >= HYPE_AT)) return;
+  const line = pick(HYPE_LINES);
+  toast(`🎙️ ${line}`);
+  if (SFX.muted || !window.speechSynthesis) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(line);
+    hypeVoice = hypeVoice || pickVoice(); if (hypeVoice) u.voice = hypeVoice;
+    u.pitch = 1.15; u.rate = 1.02;
+    setTimeout(() => speechSynthesis.speak(u), 700);
+  } catch {}
+}
 function bigWin(v, what = "") {
   SFX.jackpot();
   const o = document.createElement("div"); o.className = "bigwin";
@@ -470,7 +502,7 @@ function viewCase(id) {
       $("#reels").innerHTML = wins.map(() => `<div class="reel-wrap"><div class="reel-marker"></div><div class="reel"></div></div>`).join("");
       await Promise.all(wins.map((w, i) => spinReel($$("#reels .reel")[i], c, w, fast ? 1600 : 5600)));
       await refreshMe();
-      showWins(wins);
+      showWins(wins); hypeLoss(c.price * qty - total(wins));
     } catch (e) { fail(e); }
     busy = false; $("#openBtn").disabled = false;
   };
@@ -1452,7 +1484,7 @@ async function drawBjTable(animate) {
   $("#bjPop").innerHTML = `<b>${net > 0 ? (pay / bet).toFixed(2) + "x" : net === 0 ? "Push" : "Lost"}</b><span>${net >= 0 ? "+" : ""}${coinVal(net)}</span>`;
   if (animate) {
     if (net > 0) { confetti($("#bjPop"), hands.some(x => x.res === "blackjack") ? 90 : 50); if (net >= BIG_WIN) bigWin(pay, "Blackjack"); else if (hands.some(x => x.res === "blackjack")) SFX.rare(); else { SFX.good(); SFX.cash(); } }
-    else if (net === 0) SFX.win(); else SFX.lose();
+    else if (net === 0) SFX.win(); else { SFX.lose(); hypeLoss(-net); }
     BJ.history.unshift({ bet, net }); BJ.history = BJ.history.slice(0, 50);
     const s = BJ.history.reduce((a, x) => ({ n: a.n + 1, w: a.w + x.net }), { n: 0, w: 0 });
     $("#bjSess").innerHTML = `Session: ${s.n} hand${s.n === 1 ? "" : "s"} · ${s.w >= 0 ? "+" : ""}${coinVal(s.w)}`;
@@ -1628,6 +1660,7 @@ async function wheelRound(fast) {
   $("#whPop").className = "kx-pop show " + (r.payout > 0 ? "" : "lose");
   $("#whPop").innerHTML = `<b class="${numColor(r.result)}-t">${r.result}</b><span>${net >= 0 ? "+" : ""}${coinVal(net)}</span>`;
   if (net > 0) { if (net >= BIG_WIN) bigWin(+r.payout, "Roulette " + r.result); else { SFX.good(); SFX.cash(); confetti($("#whPop"), 50); } } else if (!fast) SFX.lose();
+  if (net < 0) hypeLoss(-net);
   WH.sess = (WH.sess || []); WH.sess.push(net);
   $("#whSess").innerHTML = `Session: ${WH.sess.length} spin${WH.sess.length === 1 ? "" : "s"} · ${WH.sess.reduce((a, b) => a + b, 0) >= 0 ? "+" : ""}${coinVal(WH.sess.reduce((a, b) => a + b, 0))}`;
   return r;
@@ -1717,6 +1750,7 @@ async function kenoRound(fast) {
     $("#kxPop").className = "kx-pop show"; $("#kxPop").innerHTML = `<b>${r.multiplier}x</b><span>${coinVal(r.payout)}</span>`;
     if (net >= BIG_WIN) bigWin(+r.payout, `Keno ${r.hits}/${r.picks.length}`); else if (r.multiplier >= 10) { SFX.rare(); confetti($("#kxPop"), 60); } else SFX.good();
   } else if (!fast) SFX.lose();
+  if (net < 0) hypeLoss(-net);
   KN.history.unshift(r); KN.history = KN.history.slice(0, 50);
   const s = KN.history.reduce((a, x) => ({ n: a.n + 1, w: a.w + (+x.payout - +x.bet) }), { n: 0, w: 0 });
   $("#kxSess").innerHTML = `Session: ${s.n} round${s.n === 1 ? "" : "s"} · ${s.w >= 0 ? "+" : ""}${coinVal(s.w)}`;

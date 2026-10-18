@@ -232,3 +232,49 @@ input:focus,select:focus{border-color:rgba(245,184,61,.5);box-shadow:0 0 0 3px r
   .co-bar .grow{display:none}
   .co-open{flex:1 1 100%}
 }
+
+/* ---------- fit to screen (1080p at 100% and 125% scaling) ---------- */
+:root{--tick:70px;--avail:calc(100vh - var(--top) - var(--tick) - 56px)}
+.ticker{height:var(--tick)}
+.layout{min-height:calc(100vh - var(--top) - var(--tick))}
+/* game boards fill the screen instead of leaving dead space underneath */
+.kx{min-height:min(760px,max(520px,var(--avail)))}
+.bjx-main{min-height:0}
+/* roulette: size the wheel, dealer and table by screen height too */
+.wh-wheel{width:clamp(200px,min(32cqw,34vh),320px);height:clamp(200px,min(32cqw,34vh),320px)}
+.rs-dealer{width:auto;height:clamp(170px,30vh,300px)}
+.rs-logo{width:clamp(130px,17vh,180px)}
+.wt{min-height:clamp(32px,4.4vh,46px)}
+/* wide monitors: a bit more room for chat and nav */
+@media (min-width:1700px){:root{--side:248px}.layout{grid-template-columns:minmax(0,1fr) 340px}.view{max-width:1600px}}
+/* short screens (1080p with 125% scaling, laptops) */
+@media (max-height:820px) and (min-width:901px){
+  :root{--top:54px;--tick:56px}
+  .ticker-track{padding:4px}
+  .drop{height:48px;width:84px}
+  .view{padding:18px 24px}
+  .page-head{margin-bottom:14px;padding-bottom:12px}
+  .page-head h1{font-size:24px}
+  .sidenav .nav{padding:8px}
+  .sidenav .nav a{padding:7px 12px}
+  .nav-sec{margin:10px 12px 4px}
+  .kx-main{padding:20px 24px 18px;gap:14px}
+  .kx-side{padding:16px;gap:10px}
+  .kx-side .kx-bet,.kx-two button,.bjx-acts button{padding-top:12px;padding-bottom:12px}
+  .kx-board{grid-template-columns:repeat(8,minmax(0,min(70px,7.4vh)))}
+  .kx-cell{font-size:22px}
+  .whx-main{padding:14px 18px;gap:10px}
+  .bjx-hand{min-height:120px}
+  .bjx-hand.dealer{margin-top:24px}
+  .upg-slot{min-height:280px}
+  .upg-preview{min-height:170px}.upg-preview .thumb{height:180px}
+  .co-stage{padding:20px}
+  .co-top{margin-bottom:16px;gap:24px}
+  .co-case,.co-case img{width:130px;height:130px}
+  .co-info h1{font-size:28px;margin:8px 0 12px}
+  .co-stats div{padding:8px 12px}
+  .co-bar{margin-top:14px}
+  .hero{padding:30px 36px}
+  .hero h1{font-size:36px}
+  .hero-art{min-height:200px}.hero-art img{width:230px}
+}
