@@ -1919,6 +1919,13 @@ async function viewAdmin() {
         <li><b>Trades</b> no pending-offer limit</li></ul></section>
       <section class="panel staff-card"><h3>🏆 Richest players</h3><div id="staffRich" class="staff-list"></div></section>
       <section class="panel staff-card staff-wide"><h3>📜 Admin activity</h3><div id="staffLog" class="staff-list"></div></section>
+      <section class="panel staff-card"><h3>🔇 Mute a player</h3><p class="muted">Muted players can still play, just not chat. AutoMod also mutes anyone for 10 minutes after 3 blocked slurs.</p>
+        <form id="modMuteForm" class="staff-row"><input id="modUser" placeholder="Username" required autocomplete="off"><button class="btn btn-red">Mute…</button><button class="btn" type="button" id="modPurge" title="Delete all of their chat messages">Purge chat</button></form>
+        <div id="modMuted" class="staff-list"></div></section>
+      <section class="panel staff-card"><h3>🚫 Banned words</h3><p class="muted">Blocked in chat and usernames for everyone. Catches l33tspeak, s p a c i n g and stretched letters. Hover a word to reveal it.</p>
+        <form id="modWordForm" class="staff-row"><input id="modWord" placeholder="Add a word" maxlength="40" required autocomplete="off"><button class="btn">Add</button></form>
+        <div id="modWords" class="mod-words"></div></section>
+      <section class="panel staff-card staff-wide"><h3>🛡️ Moderation log</h3><div id="modLog" class="staff-list"></div></section>
     </div>`;
   const upd = () => {
     const h = ITEM[$("#staffItem").value], sel = $("#staffFx"), keep = sel.value;
@@ -1934,7 +1941,24 @@ async function viewAdmin() {
   $("#staffItems").onsubmit = async e => { e.preventDefault(); const n = $("#staffItem").value, fx = $("#staffFx").value || null, q = Math.max(1, Math.min(1000, +$("#staffQty").value || 1));
     if (!ITEM[n]) return toast("Pick an item from the list", "bad");
     try { await rpc("admin_spawn_items", { p_name: n, p_fx: fx, p_qty: q }); await refreshMe(); SFX.rare(); toast(`Spawned ${q}x ${label({ n, fx })}`, "good"); loadAdmin(); } catch (x) { fail(x); } };
-  loadAdmin();
+  $("#modMuteForm").onsubmit = e => { e.preventDefault(); const n = $("#modUser").value.trim(); if (n) muteDialog(n); };
+  $("#modPurge").onclick = async () => { const n = $("#modUser").value.trim(); if (!n) return toast("Type a username first", "bad");
+    try { const k = await rpc("admin_purge_chat", { p_username: n }); toast(`Deleted ${k} message${k === 1 ? "" : "s"} from ${n}`, "good"); loadFeeds(); loadModeration(); } catch (x) { fail(x); } };
+  $("#modWordForm").onsubmit = async e => { e.preventDefault(); const w = $("#modWord").value.trim();
+    try { await rpc("admin_filter_word", { p_word: w, p_add: true }); $("#modWord").value = ""; loadModeration(); } catch (x) { fail(x); } };
+  $("#modWords").onclick = async e => { const b = e.target.closest("[data-w]"); if (!b) return;
+    try { await rpc("admin_filter_word", { p_word: b.dataset.w, p_add: false }); loadModeration(); } catch (x) { fail(x); } };
+  $("#modMuted").onclick = async e => { const b = e.target.closest("[data-unmute]"); if (!b) return;
+    try { await rpc("admin_mute", { p_username: b.dataset.unmute, p_minutes: 0 }); toast(`${b.dataset.unmute} unmuted`, "good"); loadModeration(); } catch (x) { fail(x); } };
+  loadAdmin(); loadModeration();
+}
+async function loadModeration() {
+  let o; try { o = await rpc("admin_mod_overview"); } catch (e) { return fail(e); }
+  if (!$("#modMuted")) return;
+  const left = t => t.startsWith("infinity") ? "forever" : (() => { const m = Math.max(1, Math.ceil((new Date(t) - Date.now()) / 60000)); return m >= 1440 ? Math.ceil(m / 1440) + "d left" : m >= 60 ? Math.ceil(m / 60) + "h left" : m + "m left"; })();
+  $("#modMuted").innerHTML = (o.muted || []).map(x => `<div class="staff-li"><span class="staff-kind mute">MUTED</span>${userLink(x.username)}<span class="muted">${esc(x.mute_reason || "")}</span><span class="grow"></span><span class="muted">${left(String(x.muted_until))}</span><button class="btn mod-x" data-unmute="${esc(x.username)}">Unmute</button></div>`).join("") || `<div class="muted">Nobody is muted.</div>`;
+  $("#modWords").innerHTML = (o.words || []).map(w => `<span class="mod-word"><i>${esc(w)}</i><button data-w="${esc(w)}" title="Remove">✕</button></span>`).join("") || `<span class="muted">No words.</span>`;
+  $("#modLog").innerHTML = (o.log || []).map(l => `<div class="staff-li"><span class="staff-kind ${l.action.replace(/\W.*/, "")}">${esc(l.action.toUpperCase())}</span><b>${esc(l.admin || "")}</b>${l.target ? `<span class="muted">→</span>${userLink(l.target)}` : ""}<span class="muted">${esc(l.detail || "")}</span><span class="grow"></span><span class="muted staff-when">${new Date(l.created_at).toLocaleString()}</span></div>`).join("") || `<div class="muted">Nothing yet.</div>`;
 }
 async function loadAdmin() {
   let o; try { o = await rpc("admin_overview"); } catch (e) { return fail(e); }
@@ -2122,16 +2146,34 @@ function pushDrop(d) {
 }
 function chatLine(m) {
   const log = $("#chatLog"), sys = m.username === "TCBET";
-  log.insertAdjacentHTML("beforeend", sys ? `<div class="msg sys"><div class="pfp" style="background:var(--unu)">★</div><div><b>TCBET</b><p>${esc(m.body)}</p></div></div>`
-    : `<div class="msg">${pfp(m.username)}<div><b class="${ME.profile && m.username === ME.profile.username ? "me" : ""}">${userLink(m.username)}</b>${vipTag(m.rank)}<p>${esc(m.body)}</p></div></div>`);
+  if (sys) return;   // system announcements are off
+  if (m.id && log.querySelector(`[data-mid="${m.id}"]`)) return;
+  const tools = isAdmin() ? `<span class="msg-tools"><button data-del="${m.id}" title="Delete message">🗑</button>${sys ? "" : `<button data-mute="${esc(m.username)}" title="Mute ${esc(m.username)}">🔇</button>`}</span>` : "";
+  log.insertAdjacentHTML("beforeend", sys ? `<div class="msg sys" data-mid="${m.id || ""}"><div class="pfp" style="background:var(--unu)">★</div><div><b>TCBET</b><p>${esc(m.body)}</p></div>${tools}</div>`
+    : `<div class="msg" data-mid="${m.id || ""}">${pfp(m.username)}<div><b class="${ME.profile && m.username === ME.profile.username ? "me" : ""}">${userLink(m.username)}</b>${vipTag(m.rank)}<p>${esc(m.body)}</p></div>${tools}</div>`);
   while (log.children.length > 80) log.firstChild.remove();
   log.scrollTop = log.scrollHeight;
 }
 $("#chatForm").onsubmit = async e => {
   e.preventDefault(); if (needLogin()) return;
   const v = $("#chatInput").value.trim(); if (!v) return;
-  try { await rpc("chat_send", { p_body: v }); $("#chatInput").value = ""; } catch (x) { fail(x); }
+  try { const err = await rpc("chat_send", { p_body: v }); if (err) toast(err, "bad"); else $("#chatInput").value = ""; } catch (x) { fail(x); }
 };
+// admin tools on chat messages
+function muteDialog(name) {
+  const m = modal(`<h2>Mute ${esc(name)}</h2><p class="muted">They can still play, just not chat. It's announced in chat and logged.</p>
+    <div class="staff-presets" id="muteDur">${[[5, "5 min"], [30, "30 min"], [60, "1 hour"], [1440, "1 day"], [-1, "Forever"]].map(([v, t], i) => `<button class="btn ${i === 1 ? "on" : ""}" data-m="${v}">${t}</button>`).join("")}</div>
+    <input id="muteWhy" maxlength="80" placeholder="Reason (optional)" style="width:100%;margin-top:10px">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn" data-close>Cancel</button><button class="btn btn-red" id="muteGo">Mute</button></div>`);
+  let mins = 30;
+  $("#muteDur", m).onclick = e => { const b = e.target.closest("[data-m]"); if (!b) return; mins = +b.dataset.m; $$("#muteDur button", m).forEach(x => x.classList.toggle("on", x === b)); };
+  $("#muteGo", m).onclick = async () => { try { await rpc("admin_mute", { p_username: name, p_minutes: mins, p_reason: $("#muteWhy", m).value || null }); closeModal(); toast(`${name} muted`, "good"); if ($("#modMuted")) loadModeration(); } catch (x) { fail(x); } };
+}
+$("#chatLog").addEventListener("click", async e => {
+  const d = e.target.closest("[data-del]"), mu = e.target.closest("[data-mute]");
+  if (d) { try { await rpc("admin_delete_msg", { p_id: +d.dataset.del }); $(`[data-mid="${d.dataset.del}"]`)?.remove(); } catch (x) { fail(x); } }
+  if (mu) muteDialog(mu.dataset.mute);
+});
 
 // ---------------------------------------------------------------- daily coins
 const DAILY_MS = 4 * 3600 * 1000, dailyAmt = () => isVip() ? 100 : 25;
@@ -2152,6 +2194,7 @@ setInterval(syncDaily, 30000);
 function connectRealtime() {
   sb.channel("feed")
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat" }, p => later(p.new, chatLine))
+    .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat" }, p => { if (p.old?.id) $(`[data-mid="${p.old.id}"]`)?.remove(); })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "drops" }, p => later(p.new, pushDrop))
     .on("postgres_changes", { event: "*", schema: "public", table: "coinflips" }, p => {
       const g = p.new;

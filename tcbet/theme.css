@@ -450,3 +450,26 @@ body.mega-shake .shell,body.mega-shake .sidenav{animation:megashake .12s linear 
 @media (max-width:900px){.staff-grid,.staff-stats{grid-template-columns:1fr 1fr}.staff-card{grid-column:1/-1}}
 .staff-stats .val{font-size:clamp(14px,1.4vw,19px)}
 .staff-presets .btn .coin{width:13px;height:13px}
+
+/* ---------- chat moderation ---------- */
+.msg{position:relative}
+.msg-tools{position:absolute;right:0;top:-2px;display:none;gap:2px;padding:2px;border-radius:7px;background:var(--panel2);border:1px solid var(--line2)}
+.msg:hover .msg-tools{display:flex}
+.msg-tools button{width:26px;height:24px;border-radius:5px;font-size:12px}
+.msg-tools button:hover{background:var(--line2)}
+.staff-presets .btn.on{border-color:var(--gold);color:var(--gold)}
+.staff-row input{flex:1;min-width:0}
+.mod-words{display:flex;flex-wrap:wrap;gap:6px}
+.mod-word{display:inline-flex;align-items:center;gap:4px;padding:4px 4px 4px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-size:12px}
+.mod-word i{font-style:normal;filter:blur(4px);transition:filter .15s}
+.mod-word:hover i{filter:none}
+.mod-word button{width:20px;height:20px;border-radius:50%;font-size:10px;color:var(--muted)}
+.mod-word button:hover{background:var(--red);color:#fff}
+.staff-kind.mute,.staff-kind.blocked{background:#44201d;color:#fca5a5}
+.staff-kind.unmute{background:#1d3b2a;color:#86efac}
+.staff-kind.delete,.staff-kind.purge{background:#3b2f14;color:#fcd34d}
+.staff-kind.filter{background:#2a2444;color:#c4b5fd}
+.mod-x{padding:5px 10px!important;font-size:12px}
+/* ---------- chat always fits: live bar pinned under the top bar, chat fills the rest ---------- */
+.ticker{position:sticky;top:var(--top);z-index:29}
+.chat{top:calc(var(--top) + var(--tick));height:calc(100vh - var(--top) - var(--tick));height:calc(100dvh - var(--top) - var(--tick))}
