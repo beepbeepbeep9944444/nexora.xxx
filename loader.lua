@@ -1,15 +1,5 @@
---[[ nexora loader
-     paste into matcha. reads PlaceId, pulls the right module, runs it.
-
-     matcha drops top-level return values from loadstring chunks, so every
-     module publishes itself as a global and the loader reads that instead.
-
-     BASE is the only line that changes when the gate goes up:
-       public  https://raw.githubusercontent.com/<you>/nexora-src/main
-       gated   https://api.nexora.xxx/v1                                  ]]
-
 local BASE = "https://raw.githubusercontent.com/beepbeepbeep9944444/nexora-src/main"
-local KEY  = ""   -- leave empty while BASE is the public repo
+local KEY  = ""
 
 local ENV = (getfenv and getfenv()) or _G
 
@@ -64,6 +54,9 @@ local function run(path, globalName)
 end
 
 local function boot(module, name)
+    local prev = ENV.NEXORA_CORE
+    if prev and prev.stop then pcall(prev.stop) end
+
     local NX, err = run("core.lua", "NEXORA_CORE")
     if not NX then
         warn("[nexora] core failed - " .. tostring(err))
@@ -78,7 +71,6 @@ local function boot(module, name)
     end
 
     NX.placeId = game.PlaceId
-    NX.gameName = name
 
     local ok, rerr = pcall(mod, NX)
     if not ok then
@@ -86,19 +78,21 @@ local function boot(module, name)
         return
     end
 
+    NX.gameName = name
+
     if notify then pcall(notify, name .. " loaded", "nexora", 3) end
     print("[nexora] loaded " .. name .. " - rshift for menu")
 
     NX.start("movement", "Movement")
 end
 
-if game.PlaceId == 328028363 then
+local pid = game.PlaceId
+
+if pid == 328028363 then
     boot("tc2", "typical colors 2")
-
-elseif game.PlaceId == 301549746 or game.PlaceId == 1480424328 then
+elseif pid == 301549746 or pid == 1480424328 then
     boot("cbro", "counter blox")
-
 else
-    warn("[nexora] no module for place " .. tostring(game.PlaceId))
-    warn("[nexora] supported: typical colors 2, counter blox")
+    print("[nexora] no module for place " .. tostring(pid) .. " - universal")
+    boot("cbro", "universal")
 end
