@@ -1800,7 +1800,7 @@ function animateBall(r) {
     const t0 = performance.now(); let last = -1;
     const step = now => { try {
       if (!document.body.contains(ball)) return done();
-      const el = Math.max(0, now - t0), si = ends.findIndex(e => el < e), f = Math.max(0, si < 0 ? pts.length - 1 : si + (el - (ends[si - 1] || 0)) / segs[si]); i = Math.min(pts.length - 2, Math.floor(f)), t = Math.min(1, f - i), a = pts[i], b = pts[i + 1];
+      const el = Math.max(0, now - t0), si = ends.findIndex(e => el < e), f = Math.max(0, si < 0 ? pts.length - 1 : si + (el - (ends[si - 1] || 0)) / segs[si]), i = Math.min(pts.length - 2, Math.floor(f)), t = Math.min(1, f - i), a = pts[i], b = pts[i + 1];
       const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t * t - (i ? g.gy * .35 * Math.sin(Math.PI * t) : 0);
       ball.setAttribute("cx", x); ball.setAttribute("cy", y);
       if (i !== last && i > 0) { last = i; SFX.tick(); if (r.mega) { const tr = document.createElementNS("http://www.w3.org/2000/svg", "circle"); tr.setAttribute("cx", x); tr.setAttribute("cy", y); tr.setAttribute("r", g.br * 1.2); tr.setAttribute("class", "pl-trail"); host.append(tr); setTimeout(() => tr.remove(), 900); } }
