@@ -1649,7 +1649,7 @@ async function runAutoWheel() {
 }
 
 // ---------------------------------------------------------------- keno (coins): pick 1-10 of 40, server draws 10
-const KENO_PAY = {"classic": {"1": [0.0, 3.8], "2": [0.0, 1.4, 6.8], "3": [0.0, 0.0, 4.2, 31], "4": [0.0, 0.0, 2.0, 8.2, 84], "5": [0.0, 0.0, 0.0, 5.8, 33, 460], "6": [0.0, 0.0, 0.0, 3.0, 12, 93, 1749], "7": [0.0, 0.0, 0.0, 0.0, 9.5, 51, 533, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.1, 21, 153, 2169, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 97, 957, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.2, 41, 312, 4353, 5000, 10000]}, "low": {"1": [0.0, 3.7], "2": [0.0, 1.7, 5.0], "3": [0.0, 1.2, 2.3, 8.8], "4": [0.0, 0.99, 1.5, 3.7, 18], "5": [0.0, 0.9, 1.1, 2.3, 7.2, 42], "6": [0.0, 0.0, 1.4, 2.4, 5.9, 23, 168], "7": [0.0, 0.0, 1.1, 1.7, 3.5, 11, 52, 458], "8": [0.0, 0.0, 1.0, 1.3, 2.4, 6.3, 24, 141, 1000], "9": [0.0, 0.0, 0.0, 1.6, 2.7, 6.0, 19, 87, 653, 1000], "10": [0.0, 0.0, 0.0, 1.3, 2.0, 3.9, 11, 41, 242, 1000, 1000]}, "medium": {"1": [0.0, 3.7], "2": [0.0, 1.3, 7.4], "3": [0.0, 0.0, 3.9, 34], "4": [0.0, 0.0, 1.8, 8.2, 105], "5": [0.0, 0.0, 0.0, 5.0, 33, 607], "6": [0.0, 0.0, 0.0, 2.5, 11, 108, 2725], "7": [0.0, 0.0, 0.0, 0.0, 8.0, 50, 660, 10000], "8": [0.0, 0.0, 0.0, 0.0, 4.2, 20, 177, 3249, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 15, 95, 1179, 10000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 7.6, 39, 362, 6542, 10000, 10000]}, "high": {"1": [0.0, 3.7], "2": [0.0, 0.0, 16], "3": [0.0, 0.0, 3.0, 44], "4": [0.0, 0.0, 0.0, 10, 239], "5": [0.0, 0.0, 0.0, 3.0, 31, 1077], "6": [0.0, 0.0, 0.0, 0.0, 9.7, 150, 7744], "7": [0.0, 0.0, 0.0, 0.0, 0.0, 46, 1058, 50000], "8": [0.0, 0.0, 0.0, 0.0, 0.0, 17, 245, 8608, 50000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 97, 2089, 50000, 50000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 34, 513, 17605, 50000, 50000]}};   // [risk][picks][hits] -> multiplier, same as keno_paytable() on the server
+const KENO_PAY = {"classic": {"1": [0.0, 3.92], "2": [0.0, 1.47, 7.16], "3": [0.0, 0.0, 4.33, 32.0], "4": [0.0, 0.0, 2.08, 8.51, 87.2], "5": [0.0, 0.0, 0.0, 5.97, 34.0, 473.0], "6": [0.0, 0.0, 0.0, 3.11, 12.4, 96.4, 1813.0], "7": [0.0, 0.0, 0.0, 0.0, 9.85, 52.9, 552.0, 5000], "8": [0.0, 0.0, 0.0, 0.0, 5.26, 21.7, 158.0, 2238.0, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 17.8, 101.0, 999.0, 5000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 9.49, 42.3, 322.0, 4492.0, 5000, 10000]}, "low": {"1": [0.0, 3.92], "2": [0.0, 1.77, 5.2], "3": [0.0, 1.24, 2.37, 9.08], "4": [0.0, 1.02, 1.55, 3.82, 18.6], "5": [0.0, 0.93, 1.14, 2.38, 7.45, 43.4], "6": [0.0, 0.0, 1.45, 2.48, 6.09, 23.7, 173.0], "7": [0.0, 0.0, 1.17, 1.8, 3.71, 11.7, 55.2, 486.0], "8": [0.0, 0.0, 1.05, 1.36, 2.51, 6.6, 25.1, 148.0, 1000], "9": [0.0, 0.0, 0.0, 1.66, 2.81, 6.23, 19.7, 90.4, 679.0, 1000], "10": [0.0, 0.0, 0.0, 1.36, 2.09, 4.07, 11.5, 42.8, 253.0, 1000, 1000]}, "medium": {"1": [0.0, 3.92], "2": [0.0, 1.37, 7.82], "3": [0.0, 0.0, 4.04, 35.2], "4": [0.0, 0.0, 1.86, 8.46, 108.0], "5": [0.0, 0.0, 0.0, 5.18, 34.2, 629.0], "6": [0.0, 0.0, 0.0, 2.6, 11.5, 112.0, 2838.0], "7": [0.0, 0.0, 0.0, 0.0, 8.3, 51.9, 684.0, 10000], "8": [0.0, 0.0, 0.0, 0.0, 4.34, 20.7, 183.0, 3357.0, 10000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 15.5, 98.2, 1218.0, 10000, 10000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 7.85, 40.3, 374.0, 6753.0, 10000, 10000]}, "high": {"1": [0.0, 3.92], "2": [0.0, 0.0, 17.0], "3": [0.0, 0.0, 3.11, 45.7], "4": [0.0, 0.0, 0.0, 10.4, 248.0], "5": [0.0, 0.0, 0.0, 3.1, 32.1, 1114.0], "6": [0.0, 0.0, 0.0, 0.0, 10.0, 155.0, 7989.0], "7": [0.0, 0.0, 0.0, 0.0, 0.0, 48.2, 1109.0, 50000], "8": [0.0, 0.0, 0.0, 0.0, 0.0, 17.6, 253.0, 8894.0, 50000], "9": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 101.0, 2179.0, 50000, 50000], "10": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 35.1, 530.0, 18172.0, 50000, 50000]}};   // [risk][picks][hits] -> multiplier, same as keno_paytable() on the server
 const KN = { picks: new Set(), busy: false, mode: "manual", risk: "classic", auto: false, history: [] };
 const RISKS = [["classic", "Classic"], ["low", "Low"], ["medium", "Medium"], ["high", "High"]];
 function viewKeno() {
@@ -1778,12 +1778,128 @@ function viewValues() {
   draw();
 }
 
+// ---------------------------------------------------------------- plinko (coins)
+const PLINKO_PAY = {"8": {"low": [5.54, 2.08, 1.09, 0.99, 0.5, 0.99, 1.09, 2.08, 5.54], "medium": [12.9, 2.97, 1.29, 0.69, 0.4, 0.69, 1.29, 2.97, 12.9], "high": [28.7, 3.96, 1.48, 0.3, 0.2, 0.3, 1.48, 3.96, 28.7]}, "12": {"low": [9.9, 2.97, 1.58, 1.39, 1.09, 0.99, 0.5, 0.99, 1.09, 1.39, 1.58, 2.97, 9.9], "medium": [32.7, 10.9, 3.96, 1.98, 1.09, 0.59, 0.3, 0.59, 1.09, 1.98, 3.96, 10.9, 32.7], "high": [168.0, 23.7, 8.01, 1.98, 0.69, 0.2, 0.2, 0.2, 0.69, 1.98, 8.01, 23.7, 168.0]}, "16": {"low": [15.8, 8.91, 1.98, 1.39, 1.39, 1.19, 1.09, 0.99, 0.49, 0.99, 1.09, 1.19, 1.39, 1.39, 1.98, 8.91, 15.8], "medium": [109.0, 40.6, 9.9, 4.95, 2.97, 1.49, 0.99, 0.5, 0.3, 0.5, 0.99, 1.49, 2.97, 4.95, 9.9, 40.6, 109.0], "high": [990.0, 129.0, 25.7, 8.91, 3.96, 1.98, 0.2, 0.2, 0.2, 0.2, 0.2, 1.98, 3.96, 8.91, 25.7, 129.0, 990.0]}};   // [rows][risk][slot] -> multiplier, same as plinko_paytable() on the server
+const PL = { risk: "medium", rows: 16, mode: "manual", auto: false, live: 0, pending: 0, bal: null, hist: [], sess: { n: 0, w: 0 } };
+const plColor = (m, max) => { const t = Math.min(1, Math.log(Math.max(m, .2) / .2) / Math.log(max / .2)); return `hsl(${48 - t * 48},${90}%,${52 - t * 4}%)`; };
+function viewPlinko() {
+  $("#view").innerHTML = `<div class="kx plx">
+    <div class="kx-side">
+      <div class="kx-tabs" id="plMode"><button data-m="manual" class="on">Manual</button><button data-m="auto">Auto</button></div>
+      <div class="kx-lbl"><span>Bet Amount</span><span id="plBal"></span></div>
+      <div class="kx-amt"><i class="coin"></i><input id="plAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button></div>
+      <div class="kx-lbl"><span>Risk</span></div>
+      <div class="kx-risk pl-risk" id="plRisk">${[["low", "Low"], ["medium", "Medium"], ["high", "High"]].map(([k, t]) => `<button data-r="${k}" class="r-${k} ${k === PL.risk ? "on" : ""}">${t}</button>`).join("")}</div>
+      <div class="kx-lbl"><span>Rows</span></div>
+      <div class="kx-risk pl-rows" id="plRows">${[8, 12, 16].map(n => `<button data-n="${n}" class="${n === PL.rows ? "on" : ""}">${n}</button>`).join("")}</div>
+      <div id="plAutoBox" hidden><div class="kx-lbl"><span>Number of Bets</span><span class="muted">0 = until stopped</span></div><div class="kx-amt"><input id="plCount" type="number" min="0" step="1" value="20"></div></div>
+      <button class="kx-bet pl-bet" id="plBet">Drop ball</button>
+      <div class="kx-sess" id="plSess"></div>
+    </div>
+    <div class="kx-main pl-main">
+      <div class="pl-wrap"><svg class="pl-svg" id="plSvg"></svg><div class="pl-hist" id="plHist"></div></div>
+      <div class="kx-pop" id="plPop"></div>
+    </div></div>`;
+  $("#plMode").onclick = e => { const b = e.target.closest("button"); if (!b || PL.auto) return; PL.mode = b.dataset.m; $$("#plMode button").forEach(x => x.classList.toggle("on", x === b)); $("#plAutoBox").hidden = PL.mode !== "auto"; drawPlinkoSide(); };
+  $("#plRisk").onclick = e => { const b = e.target.closest("button"); if (!b || PL.live || PL.auto) return; PL.risk = b.dataset.r; $$("#plRisk button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); drawPlinkoBoard(); };
+  $("#plRows").onclick = e => { const b = e.target.closest("button"); if (!b || PL.live || PL.auto) return; PL.rows = +b.dataset.n; $$("#plRows button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); drawPlinkoBoard(); };
+  $(".plx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#plAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(25000000, v * 2); $("#plAmt").value = v; SFX.chip(); };
+  $("#plBet").onclick = () => { if (PL.mode === "auto") { if (PL.auto) { PL.auto = false; drawPlinkoSide(); } else runAutoPlinko(); } else dropPlinko(); };
+  drawPlinkoBoard(); drawPlinkoSide(); drawPlinkoHist();
+}
+// board geometry in a 1000-wide SVG: each row the ball moves half a gap left or right
+function plGeo(n = PL.rows) { const gap = 1000 / (n + 2), gy = gap * .86, top = gap * .9; return { n, gap, gy, top, h: top + n * gy + gap * .95, pr: Math.max(4, gap * .09), br: gap * .23 }; }
+function drawPlinkoBoard() {
+  const svg = $("#plSvg"); if (!svg) return;
+  const g = plGeo(), row = PLINKO_PAY[g.n][PL.risk], max = Math.max(...row);
+  let h = "";
+  for (let r = 0; r < g.n; r++) for (let j = 0; j < r + 3; j++) h += `<circle class="pl-peg" cx="${500 + (j - (r + 2) / 2) * g.gap}" cy="${g.top + r * g.gy}" r="${g.pr}"/>`;
+  const sy = g.top + g.n * g.gy - g.gy * .25, sw = g.gap * .9, sh = Math.min(g.gap * .7, 46);
+  h += row.map((m, k) => { const x = 500 + (k - g.n / 2) * g.gap; return `<g class="pl-slot" id="pls${k}" style="--c:${plColor(m, max)}"><rect x="${x - sw / 2}" y="${sy}" width="${sw}" height="${sh}" rx="${Math.min(8, sw * .15)}"/><text x="${x}" y="${sy + sh / 2}" style="font-size:${Math.min(26, g.gap * (m >= 100 || String(m).length > 3 ? .27 : .33))}px">${m >= 100 ? Math.round(m) : m}${g.n < 16 || m < 100 ? "x" : ""}</text></g>`; }).join("");
+  svg.setAttribute("viewBox", `0 0 1000 ${sy + sh + 6}`);
+  svg.innerHTML = h + `<g id="plBalls"></g>`;
+}
+function drawPlinkoSide() {
+  if (!$("#plBet")) return;
+  $("#plBal").innerHTML = ME.profile ? coinVal(ME.profile.balance) : "";
+  $("#plBet").textContent = PL.mode === "auto" ? (PL.auto ? "Stop autobet" : "Start autobet") : "Drop ball";
+  $("#plBet").classList.toggle("stop", PL.auto);
+  $$("#plRisk button, #plRows button").forEach(b => b.disabled = !!(PL.live || PL.auto));
+  const s = PL.sess; $("#plSess").innerHTML = s.n ? `Session: ${s.n} ball${s.n === 1 ? "" : "s"} · ${s.w >= 0 ? "+" : ""}${coinVal(s.w)}` : "";
+}
+function drawPlinkoHist() {
+  if (!$("#plHist")) return;
+  $("#plHist").innerHTML = PL.hist.slice(0, 6).map(x => `<span style="background:${x.c}">${x.m >= 100 ? Math.round(x.m) : x.m}x</span>`).join("");
+}
+async function dropPlinko() {
+  if (needLogin()) return false;
+  const bet = Math.floor(+$("#plAmt").value || 0);
+  if (bet < 1) { toast("Enter a bet of at least 1 coin", "bad"); return false; }
+  if (PL.live >= 12) return true;
+  if (+ME.profile.balance < bet) { toast("Not enough fun-coins", "bad"); return false; }
+  let r;
+  try { r = await rpc("plinko_play", { p_bet: bet, p_rows: PL.rows, p_risk: PL.risk }); } catch (e) { fail(e); return false; }
+  // show the bet as spent now; the payout is added when the ball lands
+  PL.pending += +r.payout; PL.bal = +r.balance;
+  ME.profile.balance = PL.bal - PL.pending; syncTop();
+  PL.live++; drawPlinkoSide();
+  animateBall(r).then(() => {
+    PL.live--; PL.pending -= +r.payout;
+    ME.profile.balance = PL.bal - PL.pending; syncTop(); if (+r.payout > 0) bumpBalance();
+    const net = +r.payout - +r.bet, row = PLINKO_PAY[r.rows][r.risk];
+    PL.sess.n++; PL.sess.w += net;
+    PL.hist.unshift({ m: +r.multiplier, c: plColor(+r.multiplier, Math.max(...row)) }); PL.hist = PL.hist.slice(0, 20);
+    if (net >= BIG_WIN) bigWin(+r.payout, `Plinko ${r.multiplier}x`);
+    else if (+r.multiplier >= 10) { SFX.rare(); confetti($("#plPop") || document.body, 50); }
+    else if (+r.multiplier >= 1) SFX.good(); else SFX.chip();
+    drawPlinkoSide(); drawPlinkoHist();
+    if (!PL.live) refreshMe();
+  });
+  return true;
+}
+function animateBall(r) {
+  return new Promise(done => {
+    const svg = $("#plSvg"); if (!svg || +r.rows !== PL.rows || r.risk !== PL.risk) return done();
+    const g = plGeo(+r.rows), host = $("#plBalls");
+    const ball = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    ball.setAttribute("r", g.br); ball.setAttribute("class", "pl-ball"); host.append(ball);
+    // waypoints: start above the board, then touch the top of one peg per row, then drop into the slot
+    const pts = [{ x: 500 + (Math.random() - .5) * g.gap * .2, y: g.top - g.gy * 1.1 }]; let R = 0;
+    for (let i = 0; i < g.n; i++) { pts.push({ x: 500 + (R - i / 2) * g.gap, y: g.top + i * g.gy - g.pr - g.br }); R += r.path[i]; }
+    pts.push({ x: 500 + (R - g.n / 2) * g.gap, y: g.top + g.n * g.gy - g.gy * .25 + 4 });
+    const seg = 125, t0 = performance.now(); let last = -1;
+    const step = now => {
+      if (!document.body.contains(ball)) return done();
+      const f = (now - t0) / seg, i = Math.min(pts.length - 2, Math.floor(f)), t = Math.min(1, f - i), a = pts[i], b = pts[i + 1];
+      const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t * t - (i ? g.gy * .35 * Math.sin(Math.PI * t) : 0);
+      ball.setAttribute("cx", x); ball.setAttribute("cy", y);
+      if (i !== last && i > 0) { last = i; SFX.tick(); }
+      if (f < pts.length - 1) return requestAnimationFrame(step);
+      ball.remove();
+      const s = $("#pls" + r.slot); if (s) { s.classList.remove("hit"); void s.getBBox(); s.classList.add("hit"); }
+      done();
+    };
+    requestAnimationFrame(step);
+  });
+}
+async function runAutoPlinko() {
+  if (needLogin()) return;
+  const n = Math.max(0, Math.floor(+$("#plCount").value || 0));
+  PL.auto = true; drawPlinkoSide();
+  for (let i = 0; PL.auto && (n === 0 || i < n) && $("#plBet"); i++) {
+    if (!(await dropPlinko())) break;
+    await sleep(320);
+  }
+  PL.auto = false; drawPlinkoSide();
+}
+
 // ---------------------------------------------------------------- lobby (front page)
 const GAMES = [
   { r: "cases", t: "Cases", d: "Real TC2 crates, 1% unusuals", c: "#f5b83d", icon: "M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10" },
   { r: "battles", t: "Case Battles", d: "Up to 3v3v3, winner takes all", c: "#ef4444", icon: "M4 20l7-7 M14.5 3.5L20 3l-.5 5.5L9 19l-4-4z M20 20l-7-7 M9.5 3.5L4 3l.5 5.5 6 6" },
   { r: "wheel", t: "Roulette", d: "Single zero, 35:1 straight up", c: "#8b5cf6", icon: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M12 3v5M12 16v5M3 12h5M16 12h5" },
   { r: "blackjack", t: "Blackjack", d: "3:2 blackjack, split & double", c: "#22c55e", icon: "M5 5h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M17 4l4 14-4 1" },
+  { r: "plinko", t: "Plinko", d: "Drop balls, up to 1,000x", c: "#ec4899", icon: "M12 3a2 2 0 1 0 0 .1 M8 9h.01M16 9h.01M12 13h.01M4 13h.01M20 13h.01M8 17h.01M16 17h.01 M3 21h18" },
   { r: "keno", t: "Keno", d: "Pick 10, win up to 50,000x", c: "#38bdf8", icon: "M4 4h16v16H4z M8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01" },
   { r: "unusualifier", t: "Unusualifier", d: "Stake items, roll for an unusual", c: "#b07ad8", icon: "M12 2l2.4 6.9H22l-6 4.6 2.3 7L12 16l-6.3 4.5 2.3-7-6-4.6h7.6z" },
   { r: "coinflip", t: "Coinflip", d: "RED or GRN, double your items", c: "#fb7185", icon: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 3v18" },
@@ -2048,7 +2164,7 @@ function render() {
   closeModal();
   const [r, arg] = route();
   $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.r === (r === "case" ? "cases" : r === "u" ? "players" : r === "battle" ? "battles" : r === "roulette" ? "wheel" : r)));
-  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno, wheel: viewWheel, home: viewHome }[r] || viewHome)();
+  ({ cases: viewCases, case: () => viewCase(arg), unusualifier: viewUnusualifier, coinflip: viewCoinflip, jackpot: viewJackpot, market: viewMarket, inventory: viewInventory, trade: () => viewTrade(arg), u: () => viewProfile(arg), players: viewPlayers, rewards: viewRewards, battles: viewBattles, battle: () => viewBattle(arg), roulette: () => arg ? viewRouletteGame(arg) : viewRoulette(), values: viewValues, blackjack: viewBlackjack, keno: viewKeno, wheel: viewWheel, home: viewHome, plinko: viewPlinko }[r] || viewHome)();
   document.body.classList.remove("nav-open", "chat-open");
   window.scrollTo(0, 0);
 }

@@ -278,3 +278,24 @@ input:focus,select:focus{border-color:rgba(245,184,61,.5);box-shadow:0 0 0 3px r
   .hero h1{font-size:36px}
   .hero-art{min-height:200px}.hero-art img{width:230px}
 }
+
+/* ---------- plinko ---------- */
+.pl-main{justify-content:center;padding:20px 24px}
+.pl-wrap{position:relative;width:100%;display:flex;justify-content:center}
+.pl-svg{width:100%;max-width:min(860px,calc((100vh - var(--top) - var(--tick) - 120px) * 1.15));height:auto;overflow:visible}
+.pl-peg{fill:#e8ecf5;filter:drop-shadow(0 0 3px rgba(255,255,255,.35))}
+.pl-ball{fill:#ff3d8b;filter:drop-shadow(0 0 6px rgba(255,61,139,.8))}
+.pl-slot rect{fill:var(--c);filter:drop-shadow(0 3px 0 color-mix(in srgb,var(--c) 55%,#000))}
+.pl-slot text{fill:#1a0f02;font-weight:800;font-family:Inter;text-anchor:middle;dominant-baseline:central}
+.pl-slot{transform-box:fill-box;transform-origin:center}
+.pl-slot.hit{animation:plhit .35s ease-out}
+@keyframes plhit{40%{transform:translateY(7px)}}
+.pl-hist{position:absolute;right:0;top:10px;display:flex;flex-direction:column;gap:4px;width:58px}
+.pl-hist span{padding:7px 0;border-radius:7px;text-align:center;font:800 12px Inter;color:#1a0f02;animation:slidein .3s ease-out}
+.pl-bet{background:linear-gradient(180deg,#ff6aa8,#ec4899);color:#fff;box-shadow:0 8px 24px -10px #ec4899}
+.pl-bet.stop{background:linear-gradient(180deg,#f87171,#dc2626)}
+.pl-rows{grid-template-columns:repeat(3,1fr)}
+.pl-risk{grid-template-columns:repeat(3,1fr)}
+.pl-rows button.on{background:#ec4899;color:#fff}
+.kx-risk button:disabled{opacity:.5;cursor:not-allowed}
+@media (max-width:700px){.pl-hist{display:none}}
