@@ -2,14 +2,14 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 
 <style>
-/* nav, short hero, four reasons, a closing band, footer. */
+/* one wide column. hero, what you get, faq, price. */
 :root {
   --bg:      #0b0b0c;
   --surface: #121214;
   --fg:      #f4f4f5;
   --dim:     #9a9aa0;
   --faint:   #5a5a61;
-  --rule:    #232327;
+  --rule:    #222226;
   --rule-hi: #34343a;
 
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -19,7 +19,6 @@
 }
 
 * { box-sizing: border-box; }
-
 html { scroll-behavior: smooth; }
 
 body {
@@ -44,13 +43,13 @@ a { color: inherit; text-decoration: none; }
 a:focus-visible { outline: 1px solid var(--fg); outline-offset: 3px; }
 
 .wrap {
-  max-width: 640px;
+  max-width: 860px;
   margin: 0 auto;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 
-/* ---------- nav ---------- */
+/* nav */
 nav {
   position: sticky;
   top: env(safe-area-inset-top, 0px);
@@ -59,28 +58,21 @@ nav {
   border-bottom: 1px solid var(--rule);
   z-index: 19;
 }
-nav .wrap { display: flex; align-items: center; gap: 22px; padding-block: 13px; }
+nav .wrap { display: flex; align-items: center; gap: 22px; padding-block: 14px; }
 .logo { font-weight: 600; letter-spacing: -0.01em; }
-
+nav .spacer { flex: 1; }
 .nav-links { position: relative; display: flex; gap: 20px; font-size: 14px; }
 .nav-links a { color: var(--dim); padding-bottom: 2px; transition: color 0.18s var(--ease); }
 .nav-links a:hover, .nav-links a.active { color: var(--fg); }
 .underline {
-  position: absolute;
-  left: 0;
-  bottom: -1px;
-  height: 1px;
-  width: 0;
-  background: var(--fg);
-  opacity: 0;
+  position: absolute; left: 0; bottom: -1px; height: 1px; width: 0;
+  background: var(--fg); opacity: 0; pointer-events: none;
   transition: transform 0.32s var(--ease), width 0.32s var(--ease), opacity 0.2s var(--ease);
-  pointer-events: none;
 }
-nav .spacer { flex: 1; }
 
 .btn {
   display: inline-block;
-  padding: 7px 15px;
+  padding: 8px 16px;
   border: 1px solid var(--rule-hi);
   font-size: 14px;
   white-space: nowrap;
@@ -90,56 +82,65 @@ nav .spacer { flex: 1; }
 .btn:hover { border-color: var(--fg); }
 .btn:active { transform: translateY(1px); }
 .btn.solid { background: var(--fg); color: #0b0b0c; border-color: var(--fg); font-weight: 500; }
-.btn.solid:hover { background: #ffffff; }
+.btn.solid:hover { background: #fff; }
 
-/* ---------- hero ---------- */
-.hero .wrap { padding-block: 84px 60px; }
+/* hero */
+.hero .wrap { padding-block: 108px 84px; }
 h1 {
-  font-size: 50px;
+  font-size: 56px;
   line-height: 1.04;
   letter-spacing: -0.035em;
   font-weight: 600;
-  margin: 0 0 14px;
+  margin: 0 0 18px;
+  max-width: 16ch;
   text-wrap: balance;
 }
-.hero p { font-size: 17px; color: var(--dim); max-width: 44ch; margin: 0; }
+.hero p { font-size: 18px; color: var(--dim); max-width: 46ch; margin: 0 0 30px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
 
-/* ---------- reasons ---------- */
-section { border-top: 1px solid var(--rule); scroll-margin-top: 62px; }
-section > .wrap { padding-block: 50px; }
+/* sections */
+section { border-top: 1px solid var(--rule); scroll-margin-top: 64px; }
+section > .wrap { padding-block: 64px; }
 h2 {
-  font-size: 22px;
-  letter-spacing: -0.02em;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
   font-weight: 600;
-  margin: 0 0 26px;
+  margin: 0 0 32px;
   transition: color 0.4s var(--ease);
 }
-section.hit h2 { color: #ffffff; }
+section.hit h2 { color: var(--fg); }
 
-.reasons { display: grid; gap: 26px; }
-.reason { display: grid; gap: 4px; max-width: 52ch; }
-.reason h3 { font-size: 15px; font-weight: 600; margin: 0; }
-.reason p { margin: 0; color: var(--dim); }
+.blocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 34px 56px;
+}
+.block { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.block h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.015em; margin: 0; }
+.block p { margin: 0; color: var(--dim); }
 
-/* ---------- closing band ---------- */
+/* price band */
 .band { background: var(--surface); }
-.band .wrap { padding-block: 46px; display: grid; gap: 18px; justify-items: start; }
-.band h2 { margin: 0; }
-.prices { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: baseline; }
-.prices b { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.prices span { color: var(--dim); font-size: 14px; }
-.terms { color: var(--faint); font-size: 14px; margin: 0; max-width: 52ch; }
+.band .wrap { padding-block: 64px; display: grid; gap: 24px; justify-items: start; }
+.tiers { display: flex; flex-wrap: wrap; gap: 14px 46px; align-items: baseline; }
+.tier b { font-size: 36px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.tier span { color: var(--dim); font-size: 14px; margin-left: 8px; }
+.terms { color: var(--faint); font-size: 14px; margin: 0; max-width: 56ch; }
 
-/* ---------- footer ---------- */
+/* footer */
 footer { border-top: 1px solid var(--rule); }
-footer .wrap { padding-block: 24px 42px; display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--faint); font-size: 13px; }
+footer .wrap { padding-block: 26px 46px; display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--faint); font-size: 13px; }
 footer a { transition: color 0.18s var(--ease); }
 footer a:hover { color: var(--fg); }
 footer .spacer { flex: 1; }
 
-@media (max-width: 560px) {
-  h1 { font-size: 36px; }
-  .hero .wrap { padding-block: 54px 42px; }
+@media (max-width: 600px) {
+  h1 { font-size: 38px; max-width: none; }
+  .hero .wrap { padding-block: 64px 50px; }
+  section > .wrap { padding-block: 46px; }
+  .nav-links { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -152,10 +153,8 @@ footer .spacer { flex: 1; }
   <div class="wrap">
     <span class="logo">nexora</span>
     <span class="nav-links" id="navlinks">
-      <a href="#why">why nexora</a>
+      <a href="#get">what you get</a>
       <a href="#faq">before you buy</a>
-      <a href="#buy">buy</a>
-      <span class="underline" id="underline"></span>
     </span>
     <span class="spacer"></span>
     <a class="btn" href="#buy">get access</a>
@@ -164,30 +163,48 @@ footer .spacer { flex: 1; }
 
 <div class="hero">
   <div class="wrap">
-    <h1>nexora</h1>
-    <p>movement script for matcha. edge bugs, texture bugs, surfs, wall work.</p>
+    <h1>the movement you keep missing.</h1>
+    <p>a movement script for matcha. five dollars a month, ten for life.</p>
+    <div class="cta">
+      <a class="btn solid" href="#buy">get access</a>
+      <a class="btn" href="#get">what you get</a>
+    </div>
   </div>
 </div>
 
-<section id="why">
+<section id="get">
   <div class="wrap">
-    <h2>why nexora?</h2>
-    <div class="reasons">
-      <div class="reason">
-        <h3>detection</h3>
-        <p>it checks how far you actually moved, not what your velocity says.</p>
+    <h2>what you get</h2>
+    <div class="blocks">
+      <div class="block">
+        <h3>it lands every time</h3>
+        <p>edge bugs, texture bugs and surfs fire off how you actually moved,
+          not a guess at your velocity. you stop fishing for them.</p>
       </div>
-      <div class="reason">
-        <h3>hud</h3>
-        <p>speed, keystrokes, and a graph that marks where a trick fired.</p>
+      <div class="block">
+        <h3>a hud that makes you better</h3>
+        <p>speed, takeoff speed and keystrokes on screen, and a graph that
+          marks the exact point each one went off.</p>
       </div>
-      <div class="reason">
-        <h3>offsets</h3>
-        <p>they update themselves on launch. roblox patches dont break it.</p>
+      <div class="block">
+        <h3>nothing worth flagging</h3>
+        <p>movement only. no aimbot, no esp, and nothing it writes is a value
+          the server is watching.</p>
       </div>
-      <div class="reason">
-        <h3>movement only</h3>
-        <p>no aimbot, no esp.</p>
+      <div class="block">
+        <h3>it survives patch day</h3>
+        <p>offsets pull themselves fresh every launch. you are not waiting on
+          an update while everyone else is down.</p>
+      </div>
+      <div class="block">
+        <h3>a fraction of the price</h3>
+        <p>ten dollars once. the names you know charge that every month and
+          then some.</p>
+      </div>
+      <div class="block">
+        <h3>kept quiet</h3>
+        <p>sold by referral, not posted anywhere. the fewer people running it,
+          the longer it stays good.</p>
       </div>
     </div>
   </div>
@@ -196,40 +213,32 @@ footer .spacer { flex: 1; }
 <section id="faq">
   <div class="wrap">
     <h2>before you buy</h2>
-    <div class="reasons">
-      <div class="reason">
+    <div class="blocks">
+      <div class="block">
         <h3>what do i need to run it?</h3>
-        <p>matcha, nothing else. it uses matcha's memory and drawing apis
-          directly. one file, paste it in.</p>
+        <p>matcha, nothing else. one file, paste it in.</p>
       </div>
-      <div class="reason">
-        <h3>is there aimbot or esp?</h3>
-        <p>no. it moves you and draws your own hud. it never reads another
-          player.</p>
-      </div>
-      <div class="reason">
+      <div class="block">
         <h3>what games does it work in?</h3>
         <p>typical colors 2 and counter blox are set up already. anything else
           loads the universal profile. settings save per game.</p>
       </div>
-      <div class="reason">
-        <h3>what happens when roblox updates?</h3>
-        <p>offsets come down fresh on launch and cache to disk. you dont have
-          to touch anything.</p>
-      </div>
-      <div class="reason">
+      <div class="block">
         <h3>can i change the keys?</h3>
-        <p>all of them. right click a bind for hold, toggle or always. they
-          save with the rest of your config.</p>
+        <p>all of them. right click a bind for hold, toggle or always.</p>
       </div>
-      <div class="reason">
-        <h3>how do i know a trick fired?</h3>
-        <p>the cue names it on screen, the chip lights up while it runs, and it
-          gets marked on the graph.</p>
+      <div class="block">
+        <h3>how do i know it worked?</h3>
+        <p>it names it on screen, lights the chip while it runs and marks it
+          on the graph.</p>
       </div>
-      <div class="reason">
+      <div class="block">
         <h3>what do updates look like?</h3>
-        <p>same file, newer version. configs are json on disk and carry over.</p>
+        <p>same file, newer version. your configs carry over.</p>
+      </div>
+      <div class="block">
+        <h3>how do i get a key?</h3>
+        <p>someone who has it vouches for you. there is no checkout page.</p>
       </div>
     </div>
   </div>
@@ -238,9 +247,9 @@ footer .spacer { flex: 1; }
 <section class="band" id="buy">
   <div class="wrap">
     <h2>pricing</h2>
-    <div class="prices">
-      <span><b>$5</b> a month</span>
-      <span><b>$10</b> once</span>
+    <div class="tiers">
+      <div class="tier"><b>$5</b><span>a month</span></div>
+      <div class="tier"><b>$10</b><span>once, forever</span></div>
     </div>
     <a class="btn solid" href="#buy">get access</a>
     <p class="terms">one pc per key, one reset. no refunds. referral only.</p>
@@ -249,7 +258,7 @@ footer .spacer { flex: 1; }
 
 <footer>
   <div class="wrap">
-    <a href="#why">terms</a>
+    <a href="#faq">terms</a>
     <a href="#top">back to top</a>
     <span class="spacer"></span>
     <span>copyright © 2026 nexora. nothing to do with roblox corporation.</span>
@@ -260,14 +269,17 @@ footer .spacer { flex: 1; }
 (function () {
   var nav = document.getElementById("navlinks");
   if (!nav) return;
-  var bar = document.getElementById("underline");
+  var bar = document.createElement("span");
+  bar.className = "underline";
+  nav.appendChild(bar);
+
   var links = Array.prototype.slice.call(nav.querySelectorAll("a"));
   var sections = links
     .map(function (a) { return document.querySelector(a.getAttribute("href")); })
     .filter(Boolean);
 
   function moveTo(link) {
-    if (!bar || !link) return;
+    if (!link) return;
     bar.style.width = link.offsetWidth + "px";
     bar.style.transform = "translateX(" + link.offsetLeft + "px)";
     bar.style.opacity = "1";
@@ -280,8 +292,7 @@ footer .spacer { flex: 1; }
       a.classList.toggle("active", on);
       if (on) hit = a;
     });
-    if (hit) moveTo(hit);
-    else if (bar) bar.style.opacity = "0";
+    if (hit) moveTo(hit); else bar.style.opacity = "0";
   }
 
   if ("IntersectionObserver" in window) {
@@ -294,11 +305,12 @@ footer .spacer { flex: 1; }
         if (r > score) { score = r; best = s.id; }
       });
       if (best && score > 0.08) setActive(best);
-    }, { threshold: [0, 0.08, 0.25, 0.5, 0.75, 1], rootMargin: "-62px 0px -40% 0px" });
+    }, { threshold: [0, 0.08, 0.25, 0.5, 0.75, 1], rootMargin: "-64px 0px -40% 0px" });
     sections.forEach(function (s) { io.observe(s); });
   }
 
   links.forEach(function (a) {
+    a.addEventListener("mouseenter", function () { moveTo(a); });
     a.addEventListener("click", function () {
       var target = document.querySelector(a.getAttribute("href"));
       if (!target) return;
@@ -307,12 +319,11 @@ footer .spacer { flex: 1; }
       target.classList.add("hit");
       setTimeout(function () { target.classList.remove("hit"); }, 1400);
     });
-    a.addEventListener("mouseenter", function () { moveTo(a); });
   });
 
   nav.addEventListener("mouseleave", function () {
     var on = nav.querySelector("a.active");
-    if (on) moveTo(on); else if (bar) bar.style.opacity = "0";
+    if (on) moveTo(on); else bar.style.opacity = "0";
   });
 
   window.addEventListener("resize", function () {
