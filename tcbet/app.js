@@ -127,33 +127,39 @@ const BIG_WIN = 25000;
 // ---- hype coach: a woman's voice (browser speech) that cheers you up after a 10M+ loss. Respects the mute button.
 const HYPE_AT = 10000000;
 const HYPE_LINES = [
-  "Oof. That one stung. But hey, they're fun-coins, and you're still the main character.",
-  "Deep breath, legend. Nobody remembers the losses, only the Golden Frying Pans.",
-  "Ten million? Pfft. That's a rounding error for a high roller like you.",
-  "The House got lucky that time. Shake it off, grab a snack, you've got this.",
-  "Hey, hey. Big swings mean big stories. Tell chat about it!",
-  "Respect. Only a true whale can lose that much and still look this good.",
-  "That loss was a speed bump, not a wall. Free coins are always waiting for you.",
-  "Wow. Bold move. I admire the confidence, honestly.",
+  "Hey... it's okay. Take a slow breath. They're only fun-coins, and you're doing just fine.",
+  "Shh... that one didn't go your way. Relax your shoulders. You've still got this.",
+  "Mm, ten million gone. That's alright. Every legend has a quiet moment like this.",
+  "Easy now... no rush. Grab some water, stretch a little, and come back whenever you're ready.",
+  "Breathe in... and out. The Golden Frying Pan will still be here. So will I.",
+  "Soft reset. Let that one go... the next story is yours to write.",
 ];
 let hypeVoice = null;
+// best-sounding soft female voice the device has: neural/"Natural" voices first (Edge, Windows 11, Chrome online), then classic ones
+const VOICE_PREF = [/aria.*natural|jenny.*natural|ava.*natural|emma.*natural|michelle.*natural|sonia.*natural|libby.*natural|natural.*female/i,
+  /google uk english female/i, /samantha|ava|allison|susan|serena|karen|moira|tessa|fiona/i, /google us english/i, /zira|hazel|female/i];
 const pickVoice = () => {
-  const vs = window.speechSynthesis?.getVoices() || [];
-  return vs.find(v => /female|zira|samantha|aria|jenny|libby|sonia|natasha|hazel|susan|victoria|karen|moira|tessa|fiona/i.test(v.name) && /^en/i.test(v.lang))
-      || vs.find(v => /google uk english female|google us english/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  const vs = (window.speechSynthesis?.getVoices() || []).filter(v => /^en/i.test(v.lang));
+  for (const re of VOICE_PREF) { const v = vs.find(x => re.test(x.name)); if (v) return v; }
+  return vs[0] || null;
 };
 if (window.speechSynthesis) { speechSynthesis.onvoiceschanged = () => { hypeVoice = pickVoice(); }; hypeVoice = pickVoice(); }
 function hypeLoss(lost) {
   if (!(lost >= HYPE_AT)) return;
   const line = pick(HYPE_LINES);
-  toast(`🎙️ ${line}`);
+  toast(`🎧 ${line}`);
   if (SFX.muted || !window.speechSynthesis) return;
   try {
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(line);
-    hypeVoice = hypeVoice || pickVoice(); if (hypeVoice) u.voice = hypeVoice;
-    u.pitch = 1.15; u.rate = 1.02;
-    setTimeout(() => speechSynthesis.speak(u), 700);
+    hypeVoice = hypeVoice || pickVoice();
+    // speak sentence by sentence with small pauses so it sounds slow and calm
+    const parts = line.split(/(?<=[.?!…])\s+/);
+    setTimeout(() => parts.forEach(t => {
+      const u = new SpeechSynthesisUtterance(t);
+      if (hypeVoice) u.voice = hypeVoice;
+      u.rate = .82; u.pitch = 1.05; u.volume = .85;
+      speechSynthesis.speak(u);
+    }), 700);
   } catch {}
 }
 function bigWin(v, what = "") {
