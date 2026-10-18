@@ -473,3 +473,5 @@ body.mega-shake .shell,body.mega-shake .sidenav{animation:megashake .12s linear 
 /* ---------- chat always fits: live bar pinned under the top bar, chat fills the rest ---------- */
 .ticker{position:sticky;top:var(--top);z-index:29}
 .chat{top:calc(var(--top) + var(--tick));height:calc(100vh - var(--top) - var(--tick));height:calc(100dvh - var(--top) - var(--tick))}
+
+.kx-amt .amt-max{width:auto;padding:0 9px;color:var(--gold)}

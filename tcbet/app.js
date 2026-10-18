@@ -507,9 +507,16 @@ function pickItems({ title, min = 0, max = Infinity, confirm = "Confirm", hint =
     const list = [...ME.inv].sort((a, b) => value(b) - value(a));
     const m = modal(`<h2>${title}</h2><div class="muted" style="margin-bottom:12px">${hint}</div>
       ${list.length ? `<div class="grid" id="pk">${list.map(it => card(it, { click: 1 })).join("")}</div>` : `<div class="empty">Your inventory is empty.</div>`}
-      <div class="sel-bar"><span id="pkInfo" class="grow muted">Nothing selected</span><button class="btn" id="pkCancel">Cancel</button><button class="btn btn-gold" id="pkOk" disabled>${confirm}</button></div>`);
+      <div class="sel-bar"><span id="pkInfo" class="grow muted">Nothing selected</span>${list.length ? `<button class="btn" id="pkAll">Select all</button>` : ""}<button class="btn" id="pkCancel">Cancel</button><button class="btn btn-gold" id="pkOk" disabled>${confirm}</button></div>`);
     const upd = () => { const v = total(list.filter(i => sel.has(i.id))); $("#pkInfo").innerHTML = `${sel.size} selected · ${coinVal(v)}`; $("#pkOk").disabled = !(v >= min && v <= max && sel.size && sel.size <= (isAdmin() ? 1000 : 40)); };
-    m.onclick = e => { const c = e.target.closest("#pk .card"); if (!c) return; const id = +c.dataset.id; sel.has(id) ? sel.delete(id) : sel.add(id); c.classList.toggle("sel"); upd(); };
+    const paint = () => { $$("#pk .card", m).forEach(c => c.classList.toggle("sel", sel.has(+c.dataset.id))); if ($("#pkAll")) $("#pkAll").textContent = sel.size ? "Clear" : "Select all"; };
+    m.onclick = e => { const c = e.target.closest("#pk .card"); if (!c) return; const id = +c.dataset.id; sel.has(id) ? sel.delete(id) : sel.add(id); paint(); upd(); };
+    // all in: best items first, as many as fit under the value cap and item limit
+    if ($("#pkAll")) $("#pkAll").onclick = () => {
+      if (sel.size) sel.clear();
+      else { const cap = isAdmin() ? 1000 : 40; let v = 0; for (const it of list) { if (sel.size >= cap) break; const x = value(it); if (v + x <= max + 1e-9) { sel.add(it.id); v += x; } } }
+      paint(); upd(); SFX.chip();
+    };
     $("#pkCancel").onclick = () => { closeModal(); res(null); };
     $("#pkOk").onclick = () => { const out = list.filter(i => sel.has(i.id)); closeModal(); res(out); };
   });
@@ -1248,7 +1255,7 @@ async function viewBlackjack() {
     <div class="kx-side">
       <div class="kx-tabs" id="bjMode"><button data-m="coins" class="on">Coins</button><button data-m="items">Items</button></div>
       <div class="kx-lbl"><span>Bet Amount</span><span id="bjBal"></span></div>
-      <div id="bjCoins"><div class="kx-amt"><i class="coin"></i><input id="bjAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button></div></div>
+      <div id="bjCoins"><div class="kx-amt"><i class="coin"></i><input id="bjAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button><button data-x="max" class="amt-max">Max</button></div></div>
       <div id="bjItems" hidden><button class="kx-pickbtn" id="bjPick">Choose items to bet</button><div class="mini-items" id="bjItemList" style="flex-wrap:wrap;margin-top:8px"></div><div id="bjItemVal" class="muted" style="margin-top:6px;font-size:12px"></div></div>
       <div class="bjx-acts">
         <button id="bjHit" class="a-hit">Hit ${ICON.hit}</button><button id="bjStand" class="a-stand">Stand ${ICON.stand}</button>
@@ -1264,7 +1271,7 @@ async function viewBlackjack() {
       <div class="kx-pop" id="bjPop"></div>
     </div></div>`;
   $("#bjMode").onclick = e => { const b = e.target.closest("button"); if (!b || BJ.busy || BJ.hand?.status === "playing") return; BJ.mode = b.dataset.m; $$("#bjMode button").forEach(x => x.classList.toggle("on", x === b)); $("#bjCoins").hidden = BJ.mode !== "coins"; $("#bjItems").hidden = BJ.mode !== "items"; };
-  $("#bjCoins").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#bjAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#bjAmt").value = v; SFX.chip(); };
+  $("#bjCoins").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#bjAmt").value || 0; v = b.dataset.x === "max" ? Math.max(1, Math.min(maxBet(), Math.floor(+(ME.profile?.balance || 0)))) : b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#bjAmt").value = v; SFX.chip(); };
   $("#bjPick").onclick = async () => { if (needLogin()) return; const it = await pickItems({ title: "Bet items at Blackjack", min: 1, confirm: "Use these items", hint: "Win and you get House items worth the same (1.5x on blackjack)." }); if (it) { BJ.items = it; drawBjItems(); } };
   $("#bjDeal").onclick = bjDeal;
   $("#bjHit").onclick = () => bjAct("bj_hit"); $("#bjStand").onclick = () => bjAct("bj_stand"); $("#bjSplit").onclick = () => bjAct("bj_split"); $("#bjDouble").onclick = () => bjAct("bj_double");
@@ -1534,7 +1541,7 @@ function viewKeno() {
     <div class="kx-side">
       <div class="kx-tabs" id="kxMode"><button data-m="manual" class="on">Manual</button><button data-m="auto">Auto</button></div>
       <div class="kx-lbl"><span>Bet Amount</span><span id="kxBal"></span></div>
-      <div class="kx-amt"><i class="coin"></i><input id="kxAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button></div>
+      <div class="kx-amt"><i class="coin"></i><input id="kxAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button><button data-x="max" class="amt-max">Max</button></div>
       <div class="kx-lbl"><span>Risk</span></div>
       <div class="kx-risk" id="kxRisk">${RISKS.map(([k, t]) => `<button data-r="${k}" class="r-${k} ${k === "classic" ? "on" : ""}">${t}</button>`).join("")}</div>
       <div id="kxAutoBox" hidden><div class="kx-lbl"><span>Number of Bets</span><span class="muted">0 = until stopped</span></div><div class="kx-amt"><input id="kxCount" type="number" min="0" step="1" value="10"></div></div>
@@ -1549,7 +1556,7 @@ function viewKeno() {
     </div></div>`;
   $("#kxMode").onclick = e => { const b = e.target.closest("button"); if (!b || KN.auto) return; KN.mode = b.dataset.m; $$("#kxMode button").forEach(x => x.classList.toggle("on", x === b)); $("#kxAutoBox").hidden = KN.mode !== "auto"; drawKeno(); };
   $("#kxRisk").onclick = e => { const b = e.target.closest("button"); if (!b || KN.busy) return; KN.risk = b.dataset.r; $$("#kxRisk button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); clearDraw(); drawKeno(); };
-  $(".kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#kxAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#kxAmt").value = v; SFX.chip(); drawKeno(); };
+  $(".kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#kxAmt").value || 0; v = b.dataset.x === "max" ? Math.max(1, Math.min(maxBet(), Math.floor(+(ME.profile?.balance || 0)))) : b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#kxAmt").value = v; SFX.chip(); drawKeno(); };
   $("#kxAmt").oninput = drawKeno;
   $("#kxBoard").onclick = e => { const c = e.target.closest(".kx-cell"); if (!c || KN.busy) return; const n = +c.dataset.n;
     if (KN.picks.has(n)) KN.picks.delete(n); else if (KN.picks.size < 10) KN.picks.add(n); else return;
@@ -1664,7 +1671,7 @@ function viewPlinko() {
     <div class="kx-side">
       <div class="kx-tabs" id="plMode"><button data-m="manual" class="on">Manual</button><button data-m="auto">Auto</button></div>
       <div class="kx-lbl"><span>Bet Amount</span><span id="plBal"></span></div>
-      <div class="kx-amt"><i class="coin"></i><input id="plAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button></div>
+      <div class="kx-amt"><i class="coin"></i><input id="plAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button><button data-x="max" class="amt-max">Max</button></div>
       <div class="kx-lbl"><span>Risk</span></div>
       <div class="kx-risk pl-risk" id="plRisk">${[["low", "Low"], ["medium", "Medium"], ["high", "High"]].map(([k, t]) => `<button data-r="${k}" class="r-${k} ${k === PL.risk ? "on" : ""}">${t}</button>`).join("")}</div>
       <div class="kx-lbl"><span>Rows</span></div>
@@ -1681,7 +1688,7 @@ function viewPlinko() {
   $("#plMode").onclick = e => { const b = e.target.closest("button"); if (!b || PL.auto) return; PL.mode = b.dataset.m; $$("#plMode button").forEach(x => x.classList.toggle("on", x === b)); $("#plAutoBox").hidden = PL.mode !== "auto"; drawPlinkoSide(); };
   $("#plRisk").onclick = e => { const b = e.target.closest("button"); if (!b || PL.live || PL.auto) return; PL.risk = b.dataset.r; $$("#plRisk button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); drawPlinkoBoard(); };
   $("#plRows").onclick = e => { const b = e.target.closest("button"); if (!b || PL.live || PL.auto) return; PL.rows = +b.dataset.n; $$("#plRows button").forEach(x => x.classList.toggle("on", x === b)); SFX.click(); drawPlinkoBoard(); };
-  $(".plx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#plAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#plAmt").value = v; SFX.chip(); };
+  $(".plx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#plAmt").value || 0; v = b.dataset.x === "max" ? Math.max(1, Math.min(maxBet(), Math.floor(+(ME.profile?.balance || 0)))) : b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#plAmt").value = v; SFX.chip(); };
   $("#plBet").onclick = () => { if (PL.mode === "auto") { if (PL.auto) { PL.auto = false; drawPlinkoSide(); } else runAutoPlinko(); } else dropPlinko(); };
   drawPlinkoBoard(); drawPlinkoSide(); drawPlinkoHist(); drawMegaMeter();
 }
@@ -1826,7 +1833,7 @@ function viewLimbo() {
     <div class="kx-side">
       <div class="kx-tabs" id="lbMode"><button data-m="manual" class="on">Manual</button><button data-m="auto">Auto</button></div>
       <div class="kx-lbl"><span>Bet Amount</span><span id="lbBal"></span></div>
-      <div class="kx-amt"><i class="coin"></i><input id="lbAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button></div>
+      <div class="kx-amt"><i class="coin"></i><input id="lbAmt" type="number" min="1" step="1" value="10"><button data-x="half">½</button><button data-x="dbl">2x</button><button data-x="max" class="amt-max">Max</button></div>
       <div class="kx-lbl"><span>Profit on Win</span></div>
       <div class="kx-amt lb-profit"><i class="coin"></i><span id="lbProfit">0.00</span></div>
       <div id="lbAutoBox" hidden><div class="kx-lbl"><span>Number of Bets</span><span class="muted">0 = until stopped</span></div><div class="kx-amt"><input id="lbCount" type="number" min="0" step="1" value="20"></div></div>
@@ -1842,7 +1849,7 @@ function viewLimbo() {
       </div>
     </div></div>`;
   $("#lbMode").onclick = e => { const b = e.target.closest("button"); if (!b || LB.auto) return; LB.mode = b.dataset.m; $$("#lbMode button").forEach(x => x.classList.toggle("on", x === b)); $("#lbAutoBox").hidden = LB.mode !== "auto"; drawLimbo(); };
-  $(".lbx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#lbAmt").value || 0; v = b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#lbAmt").value = v; SFX.chip(); drawLimbo(); };
+  $(".lbx .kx-amt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; let v = +$("#lbAmt").value || 0; v = b.dataset.x === "max" ? Math.max(1, Math.min(maxBet(), Math.floor(+(ME.profile?.balance || 0)))) : b.dataset.x === "half" ? Math.max(1, Math.floor(v / 2)) : Math.min(maxBet(), v * 2); $("#lbAmt").value = v; SFX.chip(); drawLimbo(); };
   $("#lbAmt").oninput = drawLimbo;
   $("#lbTarget").oninput = () => { const t = +$("#lbTarget").value; if (t >= 1.01) { LB.target = t; $("#lbChance").value = lbChance(t).toFixed(4); } drawLimbo(); };
   $("#lbChance").oninput = () => { const c = +$("#lbChance").value; if (c > 0 && c <= 98.02) { LB.target = Math.max(1.01, Math.round(99 / c * 100) / 100); $("#lbTarget").value = LB.target.toFixed(2); } drawLimbo(); };
