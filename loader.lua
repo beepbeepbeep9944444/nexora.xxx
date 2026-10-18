@@ -53,7 +53,7 @@ local function run(path, globalName)
     return value
 end
 
-local function boot(module, name)
+local function boot(name)
     local prev = ENV.NEXORA_CORE
     if prev and prev.stop then pcall(prev.stop) end
 
@@ -64,9 +64,9 @@ local function boot(module, name)
     end
 
     local mod
-    mod, err = run("games/" .. module .. ".lua", "NEXORA_MODULE")
+    mod, err = run("games/movement.lua", "NEXORA_MODULE")
     if not mod then
-        warn("[nexora] " .. module .. " failed - " .. tostring(err))
+        warn("[nexora] movement failed - " .. tostring(err))
         return
     end
 
@@ -74,7 +74,7 @@ local function boot(module, name)
 
     local ok, rerr = pcall(mod, NX)
     if not ok then
-        warn("[nexora] " .. module .. " setup failed - " .. tostring(rerr))
+        warn("[nexora] setup failed - " .. tostring(rerr))
         return
     end
 
@@ -89,10 +89,9 @@ end
 local pid = game.PlaceId
 
 if pid == 328028363 then
-    boot("tc2", "typical colors 2")
+    boot("typical colors 2")
 elseif pid == 301549746 or pid == 1480424328 then
-    boot("cbro", "counter blox")
+    boot("counter blox")
 else
-    print("[nexora] no module for place " .. tostring(pid) .. " - universal")
-    boot("cbro", "universal")
+    boot("universal")
 end
