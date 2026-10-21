@@ -78,10 +78,12 @@ local function boot(game_file)
         return
     end
 
+    local mfile = (type(NX.movement) == "string" and NX.movement) or "movement"
+
     local mod
-    mod, err = run("movement.lua", "NEXORA_MODULE")
+    mod, err = run(mfile .. ".lua", "NEXORA_MODULE")
     if not mod then
-        warn("[nexora] movement failed - " .. tostring(err))
+        warn("[nexora] " .. mfile .. " failed - " .. tostring(err))
         return
     end
 
@@ -98,12 +100,16 @@ local function boot(game_file)
     NX.start("movement", "Movement")
 end
 
+local BLOXSTRIKE = 0
+
 local pid = game.PlaceId
 
 if pid == 328028363 then
     boot("tc2")
 elseif pid == 301549746 or pid == 1480424328 then
     boot("cbro")
+elseif pid == BLOXSTRIKE then
+    boot("bloxstrike")
 else
     boot("universal")
 end
