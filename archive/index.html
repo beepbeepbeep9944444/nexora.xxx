@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- product photos are hot-linked from Weidian/Taobao CDNs, which reject foreign referrers -->
+<meta name="referrer" content="no-referrer">
+<title>Archive Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <a class="logo" href="#" aria-label="Archive Index home">ARCHIVE<span>INDEX</span></a>
+    <form class="search" id="searchForm" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Search for anything" autocomplete="off">
+    </form>
+    <nav class="top-links">
+      <a href="#sheets">Sheets</a>
+      <a href="#" id="favLink">Favorites <span id="favCount"></span></a>
+    </nav>
+  </div>
+  <div class="dept-bar">
+    <div class="dept-inner" id="deptBar"></div>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <span>Archive Index</span>
+    <span id="footStats"></span>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
