@@ -1,6 +1,6 @@
 (() => {
   const PAGE = 60;
-  const CATS = ["Tops", "Bottoms", "Outerwear", "Footwear", "Accessories", "Bags", "Jewelry", "Other"];
+  const CATS = ["Tops", "Bottoms", "Outerwear", "Sets", "Footwear", "Accessories", "Bags", "Jewelry", "Home & Tech", "Other"];
   const STORES = { weidian: "Weidian", taobao: "Taobao", "1688": "1688" };
   const app = document.getElementById("app");
   const $ = (s, el = document) => el.querySelector(s);
