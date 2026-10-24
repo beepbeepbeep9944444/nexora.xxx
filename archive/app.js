@@ -310,6 +310,22 @@
   });
   $("#favLink").addEventListener("click", e => { e.preventDefault(); location.hash = "favs"; });
 
+  // dark mode toggle: an explicit choice is remembered per browser; otherwise the system setting applies
+  const root = document.documentElement;
+  const isDark = () => root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  const syncThemeBtn = () => {
+    const b = $("#themeBtn"), dark = isDark();
+    b.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    b.title = dark ? "Light mode" : "Dark mode";
+  };
+  $("#themeBtn").addEventListener("click", () => {
+    const next = isDark() ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("ai-theme", next); } catch {}
+    syncThemeBtn();
+  });
+  syncThemeBtn();
+
   app.innerHTML = `<div class="empty">Loading listings…</div>`;
   fetch("data/items.json", { cache: "no-cache" }).then(r => r.json()).then(d => {
     DB = d;
